@@ -436,13 +436,16 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
     if config.app.public_base_url and config.app.calendar_token:
         base = config.app.public_base_url.rstrip("/")
         calendar_url = f"{base}/calendar/{config.app.calendar_token}/tennis.ics"
-    rows = "\n".join(_event_row(event) for event in events) or (
-        "<tr><td colspan='5'>No upcoming events are stored yet.</td></tr>"
+    agenda_items = "\n".join(_agenda_item(event) for event in events) or (
+        "<p class='empty-state'>No upcoming events are stored yet.</p>"
     )
     calendar_view = _calendar_view(events, config.app.timezone)
     run_rows = "\n".join(_run_row(run) for run in runs) or (
         "<tr><td colspan='5'>No syncs have run yet.</td></tr>"
     )
+    feed_actions = _feed_actions(calendar_url)
+    next_session = _next_session_card(events, config.app.timezone)
+    sync_summary = _sync_summary(runs)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -489,32 +492,218 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
     main {{
       max-width: 1120px;
       margin: 0 auto;
-      padding: 32px 20px 56px;
+      padding: calc(24px + env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) calc(56px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
     }}
-    header {{
+    .app-header {{
       display: flex;
-      align-items: end;
+      align-items: flex-end;
       justify-content: space-between;
-      gap: 20px;
-      margin-bottom: 28px;
+      gap: 18px;
+      margin-bottom: 22px;
     }}
     h1 {{
       margin: 0;
-      font-size: 30px;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1.04;
       letter-spacing: 0;
     }}
     h2 {{
-      margin: 30px 0 10px;
+      margin: 0 0 12px;
       font-size: 18px;
       letter-spacing: 0;
+    }}
+    button,
+    .button {{
+      font: inherit;
     }}
     .muted {{
       color: var(--muted);
     }}
-    .feed {{
-      max-width: 520px;
-      overflow-wrap: anywhere;
+    .app-subtitle {{
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }}
+    .sync-pill {{
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--panel);
+      font-size: 13px;
+      white-space: nowrap;
+    }}
+    .hero-grid {{
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(260px, .8fr);
+      gap: 16px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }}
+    .next-card,
+    .feed-panel {{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }}
+    .next-card {{
+      display: grid;
+      grid-template-columns: minmax(96px, .32fr) minmax(0, 1fr);
+      min-height: 150px;
+      overflow: hidden;
+    }}
+    .next-date {{
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      padding: 18px;
+      color: white;
+      background: var(--accent);
+    }}
+    .next-day {{
+      font-size: 38px;
+      line-height: 1;
+      font-weight: 800;
+    }}
+    .next-month {{
+      font-size: 13px;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }}
+    .next-weekday {{
+      font-size: 13px;
+      opacity: .86;
+    }}
+    .next-body {{
+      padding: 18px;
+      display: grid;
+      align-content: center;
+      gap: 8px;
+    }}
+    .eyebrow {{
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }}
+    .next-title {{
+      margin: 0;
+      font-size: clamp(22px, 3vw, 30px);
+      line-height: 1.16;
+      letter-spacing: 0;
+    }}
+    .next-time {{
       color: var(--accent);
+      font-size: 17px;
+      font-weight: 750;
+    }}
+    .next-meta,
+    .agenda-meta {{
+      color: var(--muted);
+    }}
+    .feed-panel {{
+      padding: 18px;
+      display: grid;
+      align-content: center;
+      gap: 12px;
+    }}
+    .feed-actions {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+    .button {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      background: var(--panel);
+      text-decoration: none;
+      cursor: pointer;
+    }}
+    .button-primary {{
+      border-color: var(--accent);
+      color: white;
+      background: var(--accent);
+    }}
+    .view-tabs {{
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      margin: 0 0 16px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      backdrop-filter: blur(16px);
+    }}
+    .view-tab {{
+      min-height: 40px;
+      border: 0;
+      border-radius: 7px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+    }}
+    .view-tab.is-active {{
+      color: var(--text);
+      background: var(--panel);
+      box-shadow: 0 1px 8px color-mix(in srgb, var(--text) 8%, transparent);
+    }}
+    .view[hidden] {{
+      display: none !important;
+    }}
+    .agenda-list {{
+      display: grid;
+      gap: 10px;
+    }}
+    .agenda-item {{
+      display: grid;
+      grid-template-columns: minmax(92px, .22fr) minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }}
+    .agenda-date {{
+      display: grid;
+      gap: 2px;
+    }}
+    .agenda-day {{
+      font-size: 20px;
+      font-weight: 800;
+    }}
+    .agenda-weekday,
+    .agenda-time {{
+      color: var(--muted);
+      font-size: 13px;
+    }}
+    .agenda-title {{
+      font-size: 17px;
+      font-weight: 750;
+    }}
+    .status-chip {{
+      justify-self: end;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      font-size: 12px;
+      font-weight: 750;
     }}
     .calendar {{
       display: grid;
@@ -568,6 +757,9 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
       margin-bottom: 6px;
       font-size: 13px;
       font-weight: 650;
+    }}
+    .day-number-full {{
+      display: none;
     }}
     .calendar-event {{
       margin-top: 6px;
@@ -625,9 +817,82 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
       color: var(--accent);
       font-weight: 650;
     }}
+    .empty-state {{
+      margin: 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--muted);
+    }}
     @media (max-width: 760px) {{
-      header {{
+      main {{
+        padding-top: calc(16px + env(safe-area-inset-top));
+      }}
+      .app-header {{
         display: block;
+        margin-bottom: 14px;
+      }}
+      .app-header h1 {{
+        font-size: 30px;
+      }}
+      .sync-pill {{
+        margin-top: 10px;
+      }}
+      .hero-grid {{
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }}
+      .next-card {{
+        grid-template-columns: 82px minmax(0, 1fr);
+        min-height: 122px;
+      }}
+      .next-date {{
+        padding: 14px 12px;
+      }}
+      .next-day {{
+        font-size: 32px;
+      }}
+      .next-body {{
+        padding: 14px;
+      }}
+      .next-title {{
+        font-size: 21px;
+      }}
+      .next-time {{
+        font-size: 16px;
+      }}
+      .feed-panel {{
+        padding: 13px;
+      }}
+      .feed-actions {{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }}
+      .button {{
+        min-height: 42px;
+        padding: 0 10px;
+      }}
+      .view-tabs {{
+        top: env(safe-area-inset-top);
+        margin-inline: -2px;
+      }}
+      .agenda-item {{
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 13px;
+      }}
+      .agenda-date {{
+        grid-template-columns: auto 1fr;
+        column-gap: 8px;
+        align-items: baseline;
+      }}
+      .agenda-day {{
+        font-size: 18px;
+      }}
+      .status-chip {{
+        justify-self: start;
       }}
       table {{
         font-size: 13px;
@@ -681,38 +946,99 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
         min-height: 0;
         border-right: 0;
       }}
-      .calendar-day.is-outside {{
+      .calendar-day:not(.has-events):not(.is-today),
+      .calendar-day.is-outside:not(.has-events) {{
         display: none;
+      }}
+      .day-number-short {{
+        display: none;
+      }}
+      .day-number-full {{
+        display: inline;
       }}
     }}
   </style>
 </head>
 <body>
   <main>
-    <header>
+    <header class="app-header">
       <div>
         <h1>{_html(config.app.calendar_name)}</h1>
-        <div class="muted">Unified tennis schedule from {len(config.clubs)} configured clubs</div>
+        <div class="app-subtitle">Unified tennis schedule from {len(config.clubs)} configured clubs</div>
       </div>
-      <div class="feed">{_html(calendar_url) if calendar_url else "Set TENNIS_PUBLIC_BASE_URL and TENNIS_CALENDAR_TOKEN to show the feed URL."}</div>
+      <div class="sync-pill">{_html(sync_summary)}</div>
     </header>
 
-    <h2>Calendar</h2>
-    <div class="calendar">{calendar_view}</div>
+    <section class="hero-grid" aria-label="Schedule summary">
+      {next_session}
+      <aside class="feed-panel" aria-label="Calendar feed">
+        <div>
+          <div class="eyebrow">Calendar Feed</div>
+          <div class="muted">Private subscription link</div>
+        </div>
+        {feed_actions}
+      </aside>
+    </section>
 
-    <h2>Upcoming</h2>
-    <table>
-      <thead><tr><th>When</th><th>Club</th><th>Event</th><th>Location</th><th>Status</th></tr></thead>
-      <tbody>{rows}</tbody>
-    </table>
+    <nav class="view-tabs" aria-label="Schedule views">
+      <button class="view-tab is-active" type="button" data-view-tab="agenda" aria-controls="agenda-view" aria-selected="true">Agenda</button>
+      <button class="view-tab" type="button" data-view-tab="calendar" aria-controls="calendar-view" aria-selected="false">Calendar</button>
+      <button class="view-tab" type="button" data-view-tab="sync" aria-controls="sync-view" aria-selected="false">Sync</button>
+    </nav>
 
-    <h2>Recent Syncs</h2>
-    <table>
-      <thead><tr><th>Started</th><th>Club</th><th>Status</th><th>Events</th><th>Detail</th></tr></thead>
-      <tbody>{run_rows}</tbody>
-    </table>
+    <section id="agenda-view" class="view is-active" data-view-panel="agenda" aria-labelledby="agenda-title">
+      <h2 id="agenda-title">Agenda</h2>
+      <div class="agenda-list">{agenda_items}</div>
+    </section>
+
+    <section id="calendar-view" class="view" data-view-panel="calendar" aria-labelledby="calendar-title" hidden>
+      <h2 id="calendar-title">Calendar</h2>
+      <div class="calendar">{calendar_view}</div>
+    </section>
+
+    <section id="sync-view" class="view" data-view-panel="sync" aria-labelledby="sync-title" hidden>
+      <h2 id="sync-title">Recent Syncs</h2>
+      <table>
+        <thead><tr><th>Started</th><th>Club</th><th>Status</th><th>Events</th><th>Detail</th></tr></thead>
+        <tbody>{run_rows}</tbody>
+      </table>
+    </section>
   </main>
   <script>
+    (() => {{
+      const tabs = Array.from(document.querySelectorAll("[data-view-tab]"));
+      const panels = Array.from(document.querySelectorAll("[data-view-panel]"));
+      function setView(name) {{
+        tabs.forEach((tab) => {{
+          const active = tab.dataset.viewTab === name;
+          tab.classList.toggle("is-active", active);
+          tab.setAttribute("aria-selected", active ? "true" : "false");
+        }});
+        panels.forEach((panel) => {{
+          panel.hidden = panel.dataset.viewPanel !== name;
+          panel.classList.toggle("is-active", panel.dataset.viewPanel === name);
+        }});
+      }}
+      tabs.forEach((tab) => tab.addEventListener("click", () => setView(tab.dataset.viewTab)));
+      const initial = window.location.hash.replace("#", "");
+      if (tabs.some((tab) => tab.dataset.viewTab === initial)) {{
+        setView(initial);
+      }}
+      document.querySelectorAll("[data-copy-text]").forEach((button) => {{
+        button.addEventListener("click", async () => {{
+          const original = button.textContent;
+          try {{
+            await navigator.clipboard.writeText(button.dataset.copyText);
+            button.textContent = "Copied";
+          }} catch (error) {{
+            button.textContent = "Copy failed";
+          }}
+          window.setTimeout(() => {{
+            button.textContent = original;
+          }}, 1400);
+        }});
+      }});
+    }})();
     if ("serviceWorker" in navigator) {{
       window.addEventListener("load", () => {{
         navigator.serviceWorker.register("/sw.js").catch(() => {{}});
@@ -721,6 +1047,101 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
   </script>
 </body>
 </html>"""
+
+
+def _feed_actions(calendar_url: str) -> str:
+    if not calendar_url:
+        return "<p class='muted'>Set TENNIS_PUBLIC_BASE_URL and TENNIS_CALENDAR_TOKEN to enable subscription actions.</p>"
+    escaped_url = _html(calendar_url)
+    subscribe_url = _html(_webcal_url(calendar_url))
+    return (
+        "<div class='feed-actions'>"
+        f"<a class='button button-primary' href='{subscribe_url}'>Subscribe</a>"
+        f"<button class='button' type='button' data-copy-text='{escaped_url}'>Copy Link</button>"
+        "</div>"
+    )
+
+
+def _webcal_url(calendar_url: str) -> str:
+    if calendar_url.startswith("https://"):
+        return "webcal://" + calendar_url.removeprefix("https://")
+    if calendar_url.startswith("http://"):
+        return "webcal://" + calendar_url.removeprefix("http://")
+    return calendar_url
+
+
+def _next_session_card(events: list[TennisEvent], timezone_name: str) -> str:
+    if not events:
+        return (
+            "<article class='next-card'>"
+            "<div class='next-date'>"
+            "<div class='next-month'>Next</div>"
+            "<div class='next-day'>--</div>"
+            "<div class='next-weekday'>No events</div>"
+            "</div>"
+            "<div class='next-body'>"
+            "<div class='eyebrow'>Next Session</div>"
+            "<h2 class='next-title'>Nothing scheduled</h2>"
+            "<div class='next-meta'>Upcoming events will appear here after sync.</div>"
+            "</div>"
+            "</article>"
+        )
+    zone = ZoneInfo(timezone_name)
+    event = min(events, key=lambda item: item.starts_at)
+    start = event.starts_at.astimezone(zone)
+    end = event.ends_at.astimezone(zone)
+    month = start.strftime("%b")
+    day = start.strftime("%-d")
+    weekday = start.strftime("%A")
+    time_range = f"{start.strftime('%-I:%M %p')} - {end.strftime('%-I:%M %p')}"
+    detail = _event_detail(event, include_club=True, include_location=True) or event.club_id
+    return (
+        "<article class='next-card'>"
+        "<div class='next-date'>"
+        f"<div class='next-month'>{_html(month)}</div>"
+        f"<div class='next-day'>{_html(day)}</div>"
+        f"<div class='next-weekday'>{_html(weekday)}</div>"
+        "</div>"
+        "<div class='next-body'>"
+        "<div class='eyebrow'>Next Session</div>"
+        f"<h2 class='next-title'>{_html(event.title)}</h2>"
+        f"<div class='next-time'>{_html(time_range)}</div>"
+        f"<div class='next-meta'>{_html(detail)}</div>"
+        "</div>"
+        "</article>"
+    )
+
+
+def _agenda_item(event: TennisEvent) -> str:
+    zone = ZoneInfo(event.timezone)
+    start = event.starts_at.astimezone(zone)
+    end = event.ends_at.astimezone(zone)
+    day = start.strftime("%b %-d")
+    weekday = start.strftime("%A")
+    time_range = f"{start.strftime('%-I:%M %p')} - {end.strftime('%-I:%M %p')}"
+    detail = _event_detail(event, include_club=True, include_location=True) or event.club_id
+    return (
+        "<article class='agenda-item'>"
+        "<div class='agenda-date'>"
+        f"<div class='agenda-day'>{_html(day)}</div>"
+        f"<div class='agenda-weekday'>{_html(weekday)}</div>"
+        "</div>"
+        "<div>"
+        f"<div class='agenda-time'>{_html(time_range)}</div>"
+        f"<div class='agenda-title'>{_html(event.title)}</div>"
+        f"<div class='agenda-meta'>{_html(detail)}</div>"
+        "</div>"
+        f"<div class='status-chip'>{_html(event.status)}</div>"
+        "</article>"
+    )
+
+
+def _sync_summary(runs: list[Any]) -> str:
+    if not runs:
+        return "No syncs yet"
+    latest = runs[0]
+    started = latest.started_at.astimezone().strftime("%b %-d, %-I:%M %p")
+    return f"Last sync {started} · {latest.status}"
 
 
 def _calendar_view(events: list[TennisEvent], timezone_name: str) -> str:
@@ -757,14 +1178,21 @@ def _calendar_month(
     for week in calendar_module.Calendar(firstweekday=0).monthdatescalendar(year, month):
         for day in week:
             classes = ["calendar-day"]
+            day_event_items = events_by_day.get(day, [])
             if day.month != month:
                 classes.append("is-outside")
             if day == today:
                 classes.append("is-today")
-            day_events = "".join(_calendar_event(event, zone) for event in events_by_day.get(day, []))
+            if day_event_items:
+                classes.append("has-events")
+            day_events = "".join(_calendar_event(event, zone) for event in day_event_items)
+            full_day = day.strftime("%a %b %-d")
             days.append(
                 f"<div class='{' '.join(classes)}'>"
-                f"<div class='day-number'>{day.day}</div>"
+                "<div class='day-number'>"
+                f"<span class='day-number-short'>{day.day}</span>"
+                f"<span class='day-number-full'>{_html(full_day)}</span>"
+                "</div>"
                 f"{day_events}"
                 "</div>"
             )

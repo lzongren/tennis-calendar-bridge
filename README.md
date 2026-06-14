@@ -27,7 +27,7 @@ asking for write access to a personal calendar account.
   portals.
 - Normalized event storage in SQLite.
 - Private iCalendar feed at `/calendar/<token>/tennis.ics`.
-- Small web dashboard with calendar and upcoming-table views.
+- Small web dashboard with next-session, agenda, calendar, and sync views.
 - Home Screen/PWA metadata for a lightweight mobile-app experience.
 - Periodic background sync while the server is running.
 - Docker Compose deployment with optional Ansible Vault support.

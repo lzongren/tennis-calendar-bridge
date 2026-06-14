@@ -53,12 +53,16 @@ def test_dashboard_renders_calendar_and_keeps_instructor_out_of_location(monkeyp
 
     html = server._dashboard_html(config, [event], [])
 
-    assert "<h2>Calendar</h2>" in html
+    assert 'data-view-tab="agenda"' in html
+    assert 'data-view-panel="calendar"' in html
+    assert "Next Session" in html
     assert "June 2026" in html
+    assert "has-events" in html
     assert "Custom Group Lesson Series" in html
     assert "Instructor: Wooten" in html
-    assert "<td data-label='Location'></td>" in html
-    assert "https://example.test/calendar/calendar-token/tennis.ics" in html
+    assert "Copy Link" in html
+    assert "webcal://example.test/calendar/calendar-token/tennis.ics" in html
+    assert ">https://example.test/calendar/calendar-token/tennis.ics<" not in html
 
 
 def test_dashboard_includes_home_screen_metadata() -> None:
@@ -100,3 +104,14 @@ def test_generated_app_icon_is_png() -> None:
     assert icon.startswith(b"\x89PNG\r\n\x1a\n")
     assert b"IHDR" in icon
     assert b"IDAT" in icon
+
+
+def test_calendar_subscribe_url_prefers_webcal_scheme() -> None:
+    assert (
+        server._webcal_url("https://example.test/calendar/token/tennis.ics")
+        == "webcal://example.test/calendar/token/tennis.ics"
+    )
+    assert (
+        server._webcal_url("http://127.0.0.1:8080/calendar/token/tennis.ics")
+        == "webcal://127.0.0.1:8080/calendar/token/tennis.ics"
+    )
