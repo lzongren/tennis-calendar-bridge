@@ -34,6 +34,15 @@ asking for write access to a personal calendar account.
 - Pytest coverage for parser regressions, sync orchestration, storage, ICS
   output, and dashboard rendering.
 
+## Screenshots
+
+These screenshots use synthetic demo data from `docs/demo/clubs.toml`; no real
+clubs, credentials, tokens, hosts, or schedules are shown.
+
+![Mobile dashboard with next session and agenda](docs/assets/dashboard-mobile.jpg)
+
+![Desktop dashboard with next session, calendar actions, and agenda](docs/assets/dashboard-desktop.jpg)
+
 ## Architecture
 
 ```text

@@ -1,0 +1,36 @@
+[app]
+timezone = "America/Los_Angeles"
+database_path = "data/demo-tennis.db"
+sync_interval_minutes = 60
+lookahead_days = 90
+calendar_name = "Tennis Calendar Bridge"
+
+[[clubs]]
+id = "northside"
+name = "Northside Tennis Club"
+provider = "clubautomation"
+base_url = "https://northside.example.com/"
+username_env = "DEMO_NORTHSIDE_USERNAME"
+password_env = "DEMO_NORTHSIDE_PASSWORD"
+enabled = false
+timezone = "America/Los_Angeles"
+
+[[clubs]]
+id = "lakeshore"
+name = "Lakeshore Racquet Center"
+provider = "accusportview"
+base_url = "https://lakeshore.example.com/"
+username_env = "DEMO_LAKESHORE_USERNAME"
+password_env = "DEMO_LAKESHORE_PASSWORD"
+enabled = false
+timezone = "America/Los_Angeles"
+
+[[clubs]]
+id = "city-parks"
+name = "City Parks Tennis"
+provider = "courtreserve"
+base_url = "https://city-parks.example.com/"
+username_env = "DEMO_CITY_PARKS_USERNAME"
+password_env = "DEMO_CITY_PARKS_PASSWORD"
+enabled = false
+timezone = "America/Los_Angeles"
