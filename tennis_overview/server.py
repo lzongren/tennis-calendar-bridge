@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import calendar as calendar_module
 import json
+import struct
 import threading
 import time
+import zlib
 from datetime import date, timedelta
+from functools import cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -17,6 +20,9 @@ from .config import load_config
 from .models import Config, TennisEvent
 from .sync import sync_all
 from .timeutils import to_db, utc_now
+
+PWA_THEME_COLOR = "#0e7c66"
+PWA_BACKGROUND_COLOR = "#f7f8f5"
 
 
 class TennisServer(ThreadingHTTPServer):
@@ -35,6 +41,8 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True}, send_body=False)
         elif parsed.path == "/":
             self._send("", "text/html; charset=utf-8", send_body=False)
+        elif self._handle_pwa_asset(parsed.path, send_body=False):
+            pass
         elif parsed.path.startswith("/calendar/") and parsed.path.endswith("/tennis.ics"):
             self._handle_calendar(parsed.path, send_body=False)
         else:
@@ -48,6 +56,8 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True})
         elif parsed.path == "/api/events":
             self._handle_events(parsed.query)
+        elif self._handle_pwa_asset(parsed.path):
+            pass
         elif parsed.path.startswith("/calendar/") and parsed.path.endswith("/tennis.ics"):
             self._handle_calendar(parsed.path)
         else:
@@ -73,6 +83,38 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
             conn.close()
         body = _dashboard_html(self.server.config, events, runs)
         self._send(body, "text/html; charset=utf-8")
+
+    def _handle_pwa_asset(self, path: str, send_body: bool = True) -> bool:
+        icon_sizes = {
+            "/apple-touch-icon.png": 180,
+            "/icons/icon-192.png": 192,
+            "/icons/icon-512.png": 512,
+        }
+        if path == "/manifest.webmanifest":
+            self._send(
+                _manifest_json(self.server.config),
+                "application/manifest+json; charset=utf-8",
+                send_body=send_body,
+                cache_control="no-cache",
+            )
+            return True
+        if path == "/sw.js":
+            self._send(
+                _service_worker_js(),
+                "text/javascript; charset=utf-8",
+                send_body=send_body,
+                cache_control="no-cache",
+            )
+            return True
+        if path in icon_sizes:
+            self._send_bytes(
+                _app_icon_png(icon_sizes[path]),
+                "image/png",
+                send_body=send_body,
+                cache_control="public, max-age=604800",
+            )
+            return True
+        return False
 
     def _handle_events(self, query: str) -> None:
         params = parse_qs(query)
@@ -151,15 +193,26 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
         content_type: str,
         status: HTTPStatus = HTTPStatus.OK,
         send_body: bool = True,
+        cache_control: str = "no-store",
     ) -> None:
         encoded = body.encode("utf-8")
+        self._send_bytes(encoded, content_type, status, send_body, cache_control)
+
+    def _send_bytes(
+        self,
+        body: bytes,
+        content_type: str,
+        status: HTTPStatus = HTTPStatus.OK,
+        send_body: bool = True,
+        cache_control: str = "no-store",
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(encoded)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", cache_control)
         self.end_headers()
         if send_body:
-            self.wfile.write(encoded)
+            self.wfile.write(body)
 
 
 class SchedulerThread(threading.Thread):
@@ -213,6 +266,171 @@ def _event_json(event: TennisEvent) -> dict[str, Any]:
     }
 
 
+def _manifest_json(config: Config) -> str:
+    return json.dumps(_manifest_payload(config), indent=2)
+
+
+def _manifest_payload(config: Config) -> dict[str, Any]:
+    app_name = config.app.calendar_name.strip() or "Tennis Calendar"
+    short_name = app_name if len(app_name) <= 12 else "Tennis"
+    return {
+        "name": app_name,
+        "short_name": short_name,
+        "description": "Private tennis schedule dashboard and calendar feed.",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": PWA_BACKGROUND_COLOR,
+        "theme_color": PWA_THEME_COLOR,
+        "icons": [
+            {
+                "src": "/icons/icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable",
+            },
+            {
+                "src": "/icons/icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable",
+            },
+        ],
+    }
+
+
+def _service_worker_js() -> str:
+    return """const CACHE_NAME = "tennis-calendar-bridge-v1";
+const STATIC_ASSETS = [
+  "/manifest.webmanifest",
+  "/apple-touch-icon.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png"
+];
+const OFFLINE_HTML = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tennis Calendar Offline</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f7f8f5;
+      color: #17201b;
+      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      max-width: 420px;
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+    p {
+      margin: 0;
+      color: #647067;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Tennis Calendar</h1>
+    <p>You are offline. Reconnect to refresh your private schedule.</p>
+  </main>
+</body>
+</html>`;
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") {
+    return;
+  }
+  const url = new URL(event.request.url);
+  if (url.origin !== location.origin) {
+    return;
+  }
+  if (event.request.mode === "navigate") {
+    event.respondWith(fetch(event.request).catch(() => new Response(OFFLINE_HTML, {
+      headers: { "Content-Type": "text/html; charset=utf-8" }
+    })));
+    return;
+  }
+  if (STATIC_ASSETS.includes(url.pathname)) {
+    event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+  }
+});
+"""
+
+
+@cache
+def _app_icon_png(size: int) -> bytes:
+    if size <= 0:
+        raise ValueError("Icon size must be positive")
+    margin = max(10, size // 7)
+    line = max(3, size // 48)
+    ball_radius = max(10, size // 9)
+    ball_x = size - margin - ball_radius
+    ball_y = margin + ball_radius
+    center = size // 2
+    rows = bytearray()
+    for y in range(size):
+        row = bytearray()
+        for x in range(size):
+            red, green, blue, alpha = 14, 124, 102, 255
+            inside_court = margin <= x < size - margin and margin <= y < size - margin
+            on_line = inside_court and (
+                abs(x - margin) < line
+                or abs(x - (size - margin - 1)) < line
+                or abs(y - margin) < line
+                or abs(y - (size - margin - 1)) < line
+                or abs(x - center) < line
+                or abs(y - center) < line
+            )
+            ball_distance = (x - ball_x) ** 2 + (y - ball_y) ** 2
+            on_ball = ball_distance <= ball_radius**2
+            on_ball_curve = on_ball and abs((x - ball_x) + (y - ball_y)) < line * 2
+            if on_line or on_ball_curve:
+                red, green, blue = 247, 248, 245
+            elif on_ball:
+                red, green, blue = 222, 241, 65
+            row.extend((red, green, blue, alpha))
+        rows.extend(b"\x00" + row)
+    return _png_from_rgba(size, size, bytes(rows))
+
+
+def _png_from_rgba(width: int, height: int, scanlines: bytes) -> bytes:
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        checksum = zlib.crc32(kind)
+        checksum = zlib.crc32(data, checksum)
+        return struct.pack("!I", len(data)) + kind + data + struct.pack("!I", checksum & 0xFFFFFFFF)
+
+    header = struct.pack("!IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(scanlines, level=9))
+        + chunk(b"IEND", b"")
+    )
+
+
 def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) -> str:
     calendar_url = ""
     if config.app.public_base_url and config.app.calendar_token:
@@ -230,6 +448,15 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="{PWA_THEME_COLOR}">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="{_html(config.app.calendar_name)}">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
   <title>{_html(config.app.calendar_name)}</title>
   <style>
     :root {{
@@ -485,6 +712,13 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
       <tbody>{run_rows}</tbody>
     </table>
   </main>
+  <script>
+    if ("serviceWorker" in navigator) {{
+      window.addEventListener("load", () => {{
+        navigator.serviceWorker.register("/sw.js").catch(() => {{}});
+      }});
+    }}
+  </script>
 </body>
 </html>"""
 

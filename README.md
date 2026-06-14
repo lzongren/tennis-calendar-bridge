@@ -28,6 +28,7 @@ asking for write access to a personal calendar account.
 - Normalized event storage in SQLite.
 - Private iCalendar feed at `/calendar/<token>/tennis.ics`.
 - Small web dashboard with calendar and upcoming-table views.
+- Home Screen/PWA metadata for a lightweight mobile-app experience.
 - Periodic background sync while the server is running.
 - Docker Compose deployment with optional Ansible Vault support.
 - Pytest coverage for parser regressions, sync orchestration, storage, ICS
@@ -144,6 +145,16 @@ Apple Calendar can subscribe to private network URLs if the device refreshing
 the feed can reach the service. Google Calendar generally fetches subscribed
 calendar URLs from Google's servers, so it needs a public HTTPS URL such as
 Tailscale Funnel or your own reverse proxy.
+
+## Mobile Home Screen
+
+The dashboard includes a web app manifest, Apple Home Screen metadata, generated
+icons, and a small service worker. On iPhone, open the dashboard in Safari and
+use Share -> Add to Home Screen.
+
+The service worker intentionally does not cache the dashboard schedule, API
+responses, or calendar feed. It caches only static app metadata and icons, then
+shows a generic offline page if the private service is unreachable.
 
 ## Manual Sync
 
