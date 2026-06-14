@@ -27,6 +27,17 @@ def _int_from_env(name: str, default: int) -> int:
     return int(raw)
 
 
+def _normalize_base_path(value: str | None) -> str:
+    if value is None:
+        return ""
+    path = value.strip()
+    if not path or path == "/":
+        return ""
+    if not path.startswith("/"):
+        path = f"/{path}"
+    return path.rstrip("/")
+
+
 def resolve_config_path(path: str | None = None) -> Path:
     if path:
         return Path(path)
@@ -67,6 +78,9 @@ def load_config(path: str | None = None) -> Config:
             "TENNIS_LOOKAHEAD_DAYS", int(app_raw.get("lookahead_days", 90))
         ),
         calendar_name=app_raw.get("calendar_name", "Tennis Calendar"),
+        base_path=_normalize_base_path(
+            os.getenv("TENNIS_BASE_PATH") or app_raw.get("base_path")
+        ),
         public_base_url=os.getenv("TENNIS_PUBLIC_BASE_URL")
         or app_raw.get("public_base_url"),
         admin_token=os.getenv("TENNIS_ADMIN_TOKEN"),

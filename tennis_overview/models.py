@@ -26,6 +26,7 @@ class AppConfig:
     sync_interval_minutes: int = 60
     lookahead_days: int = 90
     calendar_name: str = "Tennis Calendar"
+    base_path: str = ""
     public_base_url: str | None = None
     admin_token: str | None = None
     calendar_token: str | None = None

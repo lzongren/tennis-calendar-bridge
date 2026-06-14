@@ -1,0 +1,28 @@
+{
+  "name": "tennis",
+  "route_owner": "vps-management",
+  "manages_tailscale_serve": false,
+  "preferred_route": {
+    "kind": "subpath",
+    "url": "https://YOUR_NODE.YOUR_TAILNET.ts.net/tennis/",
+    "path": "/tennis/"
+  },
+  "runtime": {
+    "target": "http://127.0.0.1:8081",
+    "bind": "127.0.0.1:8081"
+  },
+  "app_contract": {
+    "base_path_env": "TENNIS_BASE_PATH",
+    "base_path": "/tennis"
+  },
+  "vps_management_route": {
+    "name": "tennis",
+    "kind": "node-subpath",
+    "enabled": true,
+    "exposure": "tailnet-only",
+    "host": "YOUR_NODE.YOUR_TAILNET.ts.net",
+    "path": "/tennis/",
+    "target": "http://127.0.0.1:8081",
+    "app_base_path_env": "TENNIS_BASE_PATH=/tennis"
+  }
+}

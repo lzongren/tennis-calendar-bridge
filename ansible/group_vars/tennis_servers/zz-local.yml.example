@@ -3,7 +3,9 @@
 # values that should not be committed. The zz- prefix makes these values load
 # after vars.yml.
 
-# tennis_public_base_url: https://calendar.example.com
+# When vps-management routes /tennis/ to this service, keep these aligned.
+# tennis_base_path: /tennis
+# tennis_public_base_url: https://YOUR_HOST.example.com/tennis
 # tennis_remote_dir: /home/ubuntu/projects/tennis-calendar-bridge
 # tennis_port: 8081
 #

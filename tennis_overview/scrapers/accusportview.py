@@ -52,7 +52,11 @@ class AccuSportViewScraper(BrowserPortalScraper):
             if not _DATE_LINE_RE.search(line):
                 continue
             title = _nearest_title(lines, index)
-            event = self._event_from_card_text(f"{title}\n{line}", source_url)
+            nearby_lines = lines[max(0, index - 4) : min(len(lines), index + 5)]
+            card_text = "\n".join(
+                [title, *nearby_lines]
+            )
+            event = self._event_from_card_text(card_text, source_url)
             if event:
                 key = f"{event.starts_at.isoformat()}|{event.ends_at.isoformat()}|{event.location}"
                 if key in seen:
@@ -83,6 +87,13 @@ class AccuSportViewScraper(BrowserPortalScraper):
         if ends_at <= starts_at:
             ends_at += timedelta(days=1)
         location = match.group("location").strip()
+        instructor = _instructor_from_card_text(text, match.group(0))
+        access_code = _access_code_from_card_text(text)
+        raw = {"card_text": text[:1000]}
+        if instructor:
+            raw["instructor"] = instructor
+        if access_code:
+            raw["access_code"] = access_code
         return TennisEvent(
             club_id=self.club.id,
             external_id=f"accusportview-{event_date}-{starts_at.strftime('%H%M')}-{_slug(location)}",
@@ -93,7 +104,7 @@ class AccuSportViewScraper(BrowserPortalScraper):
             location=location,
             category="reservation",
             source_url=source_url,
-            raw={"card_text": text[:1000]},
+            raw=raw,
         )
 
 
@@ -132,13 +143,62 @@ def _nearest_title(lines: list[str], date_line_index: int) -> str:
 
 
 def _is_reservation_noise_line(value: str) -> bool:
+    if _is_pin_or_reference_line(value):
+        return True
     if re.fullmatch(r"\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4}", value):
         return True
     if re.fullmatch(r"\d+(?:\.\d+)?\s*h(?:ours?)?", value, re.I):
+        return True
+    if re.fullmatch(r"\$\d+(?:\.\d{2})?", value):
         return True
     title_terms = r"\b(lesson|clinic|class|doubles|singles|strategy|private|rent|reservation|court|tennis|pickle)\b"
     if re.search(title_terms, value, re.I):
         return False
     if re.fullmatch(r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}", value):
+        return True
+    return False
+
+
+def _is_pin_or_reference_line(value: str) -> bool:
+    return bool(re.fullmatch(r"#?\d{3,8}#?", value.strip()))
+
+
+def _access_code_from_card_text(text: str) -> str | None:
+    for line in text.splitlines():
+        clean = line.strip()
+        if _is_access_code_line(clean):
+            return clean
+    return None
+
+
+def _is_access_code_line(value: str) -> bool:
+    return bool(re.fullmatch(r"#?\d{3,8}#", value.strip()))
+
+
+def _instructor_from_card_text(text: str, date_line: str) -> str | None:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    try:
+        date_index = lines.index(date_line.strip())
+    except ValueError:
+        return None
+    for candidate in lines[date_index + 1 :]:
+        if _DATE_LINE_RE.search(candidate):
+            return None
+        if _is_instructor_noise_line(candidate):
+            continue
+        if re.search(r"\b(Rent/Private|Reservation|Court Booking)\b", candidate, re.I):
+            return None
+        return candidate
+    return None
+
+
+def _is_instructor_noise_line(value: str) -> bool:
+    if _is_pin_or_reference_line(value):
+        return True
+    if re.fullmatch(r"\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4}", value):
+        return True
+    if re.fullmatch(r"\d+(?:\.\d+)?\s*h(?:ours?)?", value, re.I):
+        return True
+    if re.fullmatch(r"\$\d+(?:\.\d{2})?", value):
         return True
     return False

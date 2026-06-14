@@ -13,11 +13,11 @@ def test_sidebar_parses_events_and_instructor(
     MY EVENTS
     JUN 14 Custom Group Lesson Series
     2:30pm - 3:45pm
-    Adult 3.0-3.5 | June | Wooten
+    Adult 3.0-3.5 | June | Example Coach
     MY REGISTRATIONS
     Program: Custom Group Lesson Series
     Sun | 02:30pm - 03:45pm
-    Adult 3.0-3.5 | June | Wooten (06/07/2026 - 06/28/2026)
+    Adult 3.0-3.5 | June | Example Coach (06/07/2026 - 06/28/2026)
     """
 
     events = clubautomation_scraper._parse_my_events(text, "local")
@@ -30,7 +30,10 @@ def test_sidebar_parses_events_and_instructor(
     )
     assert [event.starts_at.day for event in registrations] == [7, 14, 21, 28]
     assert all(event.location is None for event in events + registrations)
-    assert all(event.raw.get("instructor") == "Wooten" for event in events + registrations)
+    assert all(
+        event.raw.get("instructor") == "Example Coach"
+        for event in events + registrations
+    )
 
 
 def test_detail_keeps_court_like_values_as_location(

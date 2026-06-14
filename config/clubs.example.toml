@@ -4,6 +4,8 @@ database_path = "data/tennis.db"
 sync_interval_minutes = 60
 lookahead_days = 90
 calendar_name = "Tennis Calendar"
+# Optional. Prefer TENNIS_BASE_PATH for deployment-specific overrides.
+base_path = ""
 
 [[clubs]]
 id = "example-clubautomation"

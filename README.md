@@ -150,6 +150,20 @@ For local testing:
 http://127.0.0.1:8080/calendar/YOUR_TENNIS_CALENDAR_TOKEN/tennis.ics
 ```
 
+If the app is mounted under a subpath, set `TENNIS_BASE_PATH` and include the
+same path in the public base URL:
+
+```bash
+TENNIS_BASE_PATH=/tennis
+TENNIS_PUBLIC_BASE_URL=https://YOUR_DOMAIN/tennis
+```
+
+The external feed URL then becomes:
+
+```text
+https://YOUR_DOMAIN/tennis/calendar/YOUR_TENNIS_CALENDAR_TOKEN/tennis.ics
+```
+
 Apple Calendar can subscribe to private network URLs if the device refreshing
 the feed can reach the service. Google Calendar generally fetches subscribed
 calendar URLs from Google's servers, so it needs a public HTTPS URL such as
@@ -223,6 +237,27 @@ cp ansible/group_vars/tennis_servers/zz-local.yml.example \
 ```
 
 `zz-local.yml` is ignored by Git and loads after `vars.yml`.
+
+The Ansible defaults bind Docker privately on `127.0.0.1:8081` and configure the
+app for `/tennis`. This repository does not manage Tailscale Serve routes; route
+ownership should live in `vps-management`. This repo includes a non-secret
+handoff example at [deploy/vps-management-handoff.example.json](deploy/vps-management-handoff.example.json).
+The corresponding
+`vps-management/config/routes.json` entry is:
+
+```json
+{
+  "name": "tennis",
+  "kind": "node-subpath",
+  "enabled": true,
+  "exposure": "tailnet-only",
+  "host": "YOUR_NODE.YOUR_TAILNET.ts.net",
+  "path": "/tennis/",
+  "target": "http://127.0.0.1:8081",
+  "app_base_path_env": "TENNIS_BASE_PATH=/tennis",
+  "description": "Tennis app mounted under /tennis/. The tennis repo owns app deployment only and should not manage Tailscale Serve by default."
+}
+```
 
 See [ansible/README.md](ansible/README.md) for the full flow.
 

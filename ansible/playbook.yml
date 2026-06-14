@@ -106,35 +106,11 @@
         port: "{{ tennis_port }}"
         timeout: 90
 
-    - name: Check Tailscale CLI
-      ansible.builtin.command: tailscale version
-      become: "{{ tennis_tailscale_serve_become }}"
-      changed_when: false
-      when: tennis_tailscale_serve_enabled | bool
-
-    - name: Configure Tailscale Serve
-      ansible.builtin.command:
-        argv:
-          - tailscale
-          - serve
-          - --bg
-          - --yes
-          - "{{ tennis_tailscale_serve_target }}"
-      become: "{{ tennis_tailscale_serve_become }}"
-      changed_when: true
-      when: tennis_tailscale_serve_enabled | bool
-
-    - name: Show Tailscale Serve status
-      ansible.builtin.command: tailscale serve status
-      become: "{{ tennis_tailscale_serve_become }}"
-      changed_when: false
-      register: tennis_tailscale_serve_status
-      when: tennis_tailscale_serve_enabled | bool
-
     - name: Print deployment status
       ansible.builtin.debug:
         msg:
           - "Deployed to {{ inventory_hostname }}:{{ tennis_remote_dir }}"
           - "Service check: http://{{ tennis_host_bind if tennis_host_bind not in ['', '0.0.0.0'] else '127.0.0.1' }}:{{ tennis_port }}/healthz"
-          - "{{ tennis_tailscale_serve_status.stdout_lines | default([]) }}"
+          - "App base path: {{ tennis_base_path | default('') | ternary(tennis_base_path, '/') }}"
+          - "Route this service externally with vps-management: {{ tennis_base_path | default('/tennis') }}/ -> http://127.0.0.1:{{ tennis_port }}"
           - "{{ tennis_compose_ps.stdout_lines }}"

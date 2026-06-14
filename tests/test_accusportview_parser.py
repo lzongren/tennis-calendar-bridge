@@ -38,6 +38,7 @@ def test_body_parser_keeps_active_reservations_only(
         2026, 6, 17, 21, 0, tzinfo=ZoneInfo("America/Los_Angeles")
     )
     assert events[0].location == "Tennis/Pickle 6"
+    assert events[0].raw["instructor"] == "Instructor Name"
     assert events[1].starts_at == datetime(
         2026, 6, 19, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles")
     )
@@ -72,3 +73,26 @@ def test_title_heuristic_keeps_two_word_event_titles(
 
     assert len(events) == 1
     assert events[0].title == "Private Lesson"
+
+
+def test_body_parser_ignores_booking_pin_and_extracts_instructor(
+    accusportview_scraper: AccuSportViewScraper,
+) -> None:
+    body_text = """
+    06/01/2026 - 06/30/2026
+    Rent/Private
+    Member Name
+    1234#
+    Wed, 06/17/2026, 07:00 PM - 09:00 PM, Tennis/Pickle 6
+    Example Instructor
+    2 h
+    $241.78
+    """
+
+    events = accusportview_scraper._events_from_body_text(body_text, "local")
+
+    assert len(events) == 1
+    assert events[0].title == "Rent/Private"
+    assert events[0].location == "Tennis/Pickle 6"
+    assert events[0].raw["instructor"] == "Example Instructor"
+    assert events[0].raw["access_code"] == "1234#"

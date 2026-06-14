@@ -25,7 +25,7 @@ def main() -> None:
             timezone="America/Los_Angeles",
             location="Court 4",
             external_id="lesson-1",
-            raw={"instructor": "Wooten"},
+            raw={"instructor": "Example Coach"},
         )
         seen = db.upsert_events(conn, [event])
         assert seen == ["lesson-1"]
@@ -34,7 +34,7 @@ def main() -> None:
         assert events[0].title == "Private Lesson"
         ics = make_ics(events, "Tennis Calendar")
         assert "BEGIN:VCALENDAR" in ics
-        assert "Instructor: Wooten" in ics
+        assert "Instructor: Example Coach" in ics
         parsed = parse_ics_events(ics, "example-clubautomation", "America/Los_Angeles", "local")
         assert len(parsed) == 1
         assert parsed[0].title == "Private Lesson"

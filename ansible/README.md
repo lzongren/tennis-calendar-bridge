@@ -107,57 +107,77 @@ Ansible renders it on the VPS as:
 TENNIS_CALENDAR_TOKEN=your-long-random-calendar-token
 ```
 
-Your feed URL is:
+For a root-mounted deployment, the feed URL is:
 
 ```text
 https://YOUR_DOMAIN/calendar/your-long-random-calendar-token/tennis.ics
 ```
 
-If you want the dashboard to display a ready-to-copy URL, set this in
-`zz-local.yml`:
+If you want the dashboard to display a ready-to-copy URL for a root-mounted
+deployment, set this in `zz-local.yml`:
 
 ```yaml
 tennis_public_base_url: https://YOUR_DOMAIN
 ```
 
-## Tailscale Calendar Access
+## Base Path And Routing
 
-Tailscale Serve works well for private Apple Calendar subscriptions when the
-device doing the refresh is on your tailnet.
+The playbook owns only the tennis app container. It does not configure
+Tailscale Serve, Funnel, Caddy, nginx, or any other routing layer.
 
-The playbook runs this by default:
+By default the app is configured for a private local backend mounted under
+`/tennis`:
 
-```bash
-sudo tailscale serve --bg --yes 8081
+```yaml
+tennis_host_bind: 127.0.0.1
+tennis_port: 8081
+tennis_base_path: /tennis
 ```
 
-That publishes a tailnet-only HTTPS URL and proxies requests to the local app at:
+The expected backend target for your VPS management repo is:
 
 ```text
 http://127.0.0.1:8081
 ```
 
-Set your tailnet URL in ignored `zz-local.yml`:
+This repo includes a non-secret app handoff artifact at
+`deploy/vps-management-handoff.example.json`.
 
-```yaml
-tennis_public_base_url: https://YOUR_DEVICE.YOUR_TAILNET.ts.net
+The expected `vps-management/config/routes.json` entry is:
+
+```json
+{
+  "name": "tennis",
+  "kind": "node-subpath",
+  "enabled": true,
+  "exposure": "tailnet-only",
+  "host": "YOUR_NODE.YOUR_TAILNET.ts.net",
+  "path": "/tennis/",
+  "target": "http://127.0.0.1:8081",
+  "app_base_path_env": "TENNIS_BASE_PATH=/tennis",
+  "description": "Tennis app mounted under /tennis/. The tennis repo owns app deployment only and should not manage Tailscale Serve by default."
+}
 ```
 
-Disable Tailscale Serve management if you want to configure it manually:
+Set the externally visible app URL in ignored `zz-local.yml` so the dashboard
+can render the correct calendar subscription link:
 
 ```yaml
-tennis_tailscale_serve_enabled: false
+tennis_public_base_url: https://YOUR_DOMAIN/tennis
 ```
 
-For Google Calendar, a private tailnet URL usually will not work because Google
+With that configuration, the feed URL is:
+
+```text
+https://YOUR_DOMAIN/tennis/calendar/your-long-random-calendar-token/tennis.ics
+```
+
+Apple Calendar can subscribe to private Tailscale URLs when the device doing the
+refresh is on your tailnet. Google Calendar usually cannot, because Google
 fetches subscribed calendar URLs from Google's servers. Use a public HTTPS
-endpoint instead:
+endpoint if you need Google Calendar to refresh the feed directly.
 
-- Tailscale Funnel pointing to the app
-- a normal domain with Caddy/nginx reverse proxy
-- a public VPS IP/domain with HTTPS
-
-If you make the service public, put authentication in front of the dashboard or
+If you make any route public, put authentication in front of the dashboard or
 serve only the calendar feed path.
 
 ## Port Conflicts
@@ -169,14 +189,7 @@ host port in `zz-local.yml`:
 tennis_port: 8081
 ```
 
-For direct Tailscale access without Tailscale Serve, bind to the VPS Tailscale
-IP or to all interfaces:
-
-```yaml
-tennis_host_bind: 100.x.y.z
-```
-
-For Tailscale Serve/Funnel or a local reverse proxy, keep:
+For vps-management, Tailscale Serve/Funnel, or a local reverse proxy, keep:
 
 ```yaml
 tennis_host_bind: 127.0.0.1

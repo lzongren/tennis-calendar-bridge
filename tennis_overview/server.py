@@ -37,41 +37,67 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
 
     def do_HEAD(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path == "/healthz":
+        path = self._route_path(parsed.path, parsed.query, send_body=False)
+        if path is None:
+            return
+        if path == "/healthz":
             self._send_json({"ok": True}, send_body=False)
-        elif parsed.path == "/":
+        elif path == "/":
             self._send("", "text/html; charset=utf-8", send_body=False)
-        elif self._handle_pwa_asset(parsed.path, send_body=False):
+        elif self._handle_pwa_asset(path, send_body=False):
             pass
-        elif parsed.path.startswith("/calendar/") and parsed.path.endswith("/tennis.ics"):
-            self._handle_calendar(parsed.path, send_body=False)
+        elif path.startswith("/calendar/") and path.endswith("/tennis.ics"):
+            self._handle_calendar(path, send_body=False)
         else:
             self._send_text("Not found", HTTPStatus.NOT_FOUND, send_body=False)
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path == "/":
+        path = self._route_path(parsed.path, parsed.query)
+        if path is None:
+            return
+        if path == "/":
             self._handle_dashboard()
-        elif parsed.path == "/healthz":
+        elif path == "/healthz":
             self._send_json({"ok": True})
-        elif parsed.path == "/api/events":
+        elif path == "/api/events":
             self._handle_events(parsed.query)
-        elif self._handle_pwa_asset(parsed.path):
+        elif self._handle_pwa_asset(path):
             pass
-        elif parsed.path.startswith("/calendar/") and parsed.path.endswith("/tennis.ics"):
-            self._handle_calendar(parsed.path)
+        elif path.startswith("/calendar/") and path.endswith("/tennis.ics"):
+            self._handle_calendar(path)
         else:
             self._send_text("Not found", HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path == "/api/sync":
+        path = self._route_path(parsed.path, parsed.query)
+        if path is None:
+            return
+        if path == "/api/sync":
             self._handle_sync(parsed.query)
         else:
             self._send_text("Not found", HTTPStatus.NOT_FOUND)
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"{self.address_string()} - {fmt % args}")
+
+    def _route_path(self, path: str, query: str = "", send_body: bool = True) -> str | None:
+        base_path = self.server.config.app.base_path
+        if base_path and path == base_path:
+            suffix = f"?{query}" if query else ""
+            self._redirect(f"{base_path}/{suffix}", send_body=send_body)
+            return None
+        if base_path and path.startswith(f"{base_path}/"):
+            return path[len(base_path) :] or "/"
+        return path
+
+    def _redirect(self, location: str, send_body: bool = True) -> None:
+        self.send_response(HTTPStatus.PERMANENT_REDIRECT)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
 
     def _handle_dashboard(self) -> None:
         conn = db.connect(self.server.config.app.database_path)
@@ -100,7 +126,7 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
             return True
         if path == "/sw.js":
             self._send(
-                _service_worker_js(),
+                _service_worker_js(self.server.config),
                 "text/javascript; charset=utf-8",
                 send_body=send_body,
                 cache_control="no-cache",
@@ -233,13 +259,26 @@ class SchedulerThread(threading.Thread):
         self.stop_event.set()
 
 
+def _run_initial_sync(config: Config) -> None:
+    try:
+        sync_all(config)
+    except Exception as exc:
+        print(f"initial sync failed: {type(exc).__name__}: {exc}")
+
+
+def _start_initial_sync(config: Config) -> threading.Thread:
+    thread = threading.Thread(target=_run_initial_sync, args=(config,), daemon=True)
+    thread.start()
+    return thread
+
+
 def serve(host: str, port: int, config_path: str | None = None, run_initial_sync: bool = False) -> None:
     config = load_config(config_path)
-    if run_initial_sync:
-        sync_all(config)
+    httpd = TennisServer((host, port), config)
     scheduler = SchedulerThread(config)
     scheduler.start()
-    httpd = TennisServer((host, port), config)
+    if run_initial_sync:
+        _start_initial_sync(config)
     print(f"Serving Tennis Calendar Bridge at http://{host}:{port}")
     try:
         httpd.serve_forever()
@@ -263,7 +302,27 @@ def _event_json(event: TennisEvent) -> dict[str, Any]:
         "source_url": event.source_url,
         "status": event.status,
         "instructor": _event_instructor(event),
+        "access_code": _event_access_code(event),
     }
+
+
+def _app_path(config: Config, path: str) -> str:
+    if not path.startswith("/"):
+        path = f"/{path}"
+    if path == "/":
+        return f"{config.app.base_path}/" if config.app.base_path else "/"
+    return f"{config.app.base_path}{path}" if config.app.base_path else path
+
+
+def _public_app_base_url(config: Config) -> str:
+    if not config.app.public_base_url:
+        return ""
+    base = config.app.public_base_url.rstrip("/")
+    if config.app.base_path:
+        public_path = urlparse(base).path.rstrip("/")
+        if public_path != config.app.base_path and not public_path.endswith(config.app.base_path):
+            base = f"{base}{config.app.base_path}"
+    return base
 
 
 def _manifest_json(config: Config) -> str:
@@ -277,20 +336,20 @@ def _manifest_payload(config: Config) -> dict[str, Any]:
         "name": app_name,
         "short_name": short_name,
         "description": "Private tennis schedule dashboard and calendar feed.",
-        "start_url": "/",
-        "scope": "/",
+        "start_url": _app_path(config, "/"),
+        "scope": _app_path(config, "/"),
         "display": "standalone",
         "background_color": PWA_BACKGROUND_COLOR,
         "theme_color": PWA_THEME_COLOR,
         "icons": [
             {
-                "src": "/icons/icon-192.png",
+                "src": _app_path(config, "/icons/icon-192.png"),
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any maskable",
             },
             {
-                "src": "/icons/icon-512.png",
+                "src": _app_path(config, "/icons/icon-512.png"),
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any maskable",
@@ -299,14 +358,15 @@ def _manifest_payload(config: Config) -> dict[str, Any]:
     }
 
 
-def _service_worker_js() -> str:
-    return """const CACHE_NAME = "tennis-calendar-bridge-v1";
-const STATIC_ASSETS = [
-  "/manifest.webmanifest",
-  "/apple-touch-icon.png",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
-];
+def _service_worker_js(config: Config) -> str:
+    static_assets = [
+        _app_path(config, "/manifest.webmanifest"),
+        _app_path(config, "/apple-touch-icon.png"),
+        _app_path(config, "/icons/icon-192.png"),
+        _app_path(config, "/icons/icon-512.png"),
+    ]
+    return """const CACHE_NAME = "tennis-calendar-bridge-v2";
+const STATIC_ASSETS = __STATIC_ASSETS__;
 const OFFLINE_HTML = `<!doctype html>
 <html lang="en">
 <head>
@@ -377,7 +437,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
   }
 });
-"""
+""".replace("__STATIC_ASSETS__", json.dumps(static_assets, indent=2))
 
 
 @cache
@@ -433,9 +493,17 @@ def _png_from_rgba(width: int, height: int, scanlines: bytes) -> bytes:
 
 def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) -> str:
     calendar_url = ""
-    if config.app.public_base_url and config.app.calendar_token:
-        base = config.app.public_base_url.rstrip("/")
+    if config.app.calendar_token:
+        base = _public_app_base_url(config)
+    else:
+        base = ""
+    if base and config.app.calendar_token:
         calendar_url = f"{base}/calendar/{config.app.calendar_token}/tennis.ics"
+    manifest_path = _html(_app_path(config, "/manifest.webmanifest"))
+    apple_icon_path = _html(_app_path(config, "/apple-touch-icon.png"))
+    icon_192_path = _html(_app_path(config, "/icons/icon-192.png"))
+    icon_512_path = _html(_app_path(config, "/icons/icon-512.png"))
+    service_worker_path = json.dumps(_app_path(config, "/sw.js"))
     agenda_items = "\n".join(_agenda_item(event) for event in events) or (
         "<p class='empty-state'>No upcoming events are stored yet.</p>"
     )
@@ -456,10 +524,10 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="{_html(config.app.calendar_name)}">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="manifest" href="{manifest_path}">
+  <link rel="apple-touch-icon" href="{apple_icon_path}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{icon_192_path}">
+  <link rel="icon" type="image/png" sizes="512x512" href="{icon_512_path}">
   <title>{_html(config.app.calendar_name)}</title>
   <style>
     :root {{
@@ -1041,7 +1109,7 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
     }})();
     if ("serviceWorker" in navigator) {{
       window.addEventListener("load", () => {{
-        navigator.serviceWorker.register("/sw.js").catch(() => {{}});
+        navigator.serviceWorker.register({service_worker_path}).catch(() => {{}});
       }});
     }}
   </script>
@@ -1268,16 +1336,26 @@ def _event_detail(
     include_location: bool = False,
 ) -> str:
     parts = [event.club_id] if include_club else []
+    if include_location and event.location:
+        parts.append(event.location)
     instructor = _event_instructor(event)
     if instructor:
         parts.append(f"Instructor: {instructor}")
-    elif include_location and event.location:
-        parts.append(event.location)
+    access_code = _event_access_code(event)
+    if access_code:
+        parts.append(f"Access code: {access_code}")
     return " · ".join(parts)
 
 
 def _event_instructor(event: TennisEvent) -> str | None:
     value = event.raw.get("instructor")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _event_access_code(event: TennisEvent) -> str | None:
+    value = event.raw.get("access_code")
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None

@@ -6,9 +6,7 @@ tennis_remote_dir: /home/ubuntu/projects/tennis-calendar-bridge
 tennis_host_bind: 127.0.0.1
 tennis_port: 8081
 tennis_docker_become: false
-tennis_tailscale_serve_enabled: true
-tennis_tailscale_serve_become: true
-tennis_tailscale_serve_target: "{{ tennis_port }}"
+tennis_base_path: /tennis
 
 tennis_timezone: America/Los_Angeles
 tennis_calendar_name: Tennis Calendar

@@ -65,6 +65,9 @@ def _event_lines(event: TennisEvent, stamp: str) -> list[str]:
     instructor = _event_instructor(event)
     if instructor:
         description_parts.append(f"Instructor: {instructor}")
+    access_code = _event_access_code(event)
+    if access_code:
+        description_parts.append(f"Access code: {access_code}")
     if event.category:
         description_parts.append(f"Type: {event.category}")
     if event.source_url:
@@ -90,6 +93,13 @@ def _event_lines(event: TennisEvent, stamp: str) -> list[str]:
 
 def _event_instructor(event: TennisEvent) -> str | None:
     value = event.raw.get("instructor")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _event_access_code(event: TennisEvent) -> str | None:
+    value = event.raw.get("access_code")
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None

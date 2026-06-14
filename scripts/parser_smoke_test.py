@@ -28,11 +28,11 @@ def main() -> None:
     MY EVENTS
     JUN 14 Custom Group Lesson Series
     2:30pm - 3:45pm
-    Adult 3.0-3.5 | June | Wooten
+    Adult 3.0-3.5 | June | Example Coach
     MY REGISTRATIONS
     Program: Custom Group Lesson Series
     Sun | 02:30pm - 03:45pm
-    Adult 3.0-3.5 | June | Wooten (06/07/2026 - 06/28/2026)
+    Adult 3.0-3.5 | June | Example Coach (06/07/2026 - 06/28/2026)
     """
     clubautomation_events = clubautomation._parse_my_events(clubautomation_text, "local")
     clubautomation_events += clubautomation._parse_my_registrations(clubautomation_text, "local")
@@ -45,7 +45,10 @@ def main() -> None:
         for event in clubautomation_events
     )
     assert all(event.location is None for event in clubautomation_events)
-    assert all(event.raw.get("instructor") == "Wooten" for event in clubautomation_events)
+    assert all(
+        event.raw.get("instructor") == "Example Coach"
+        for event in clubautomation_events
+    )
 
     accusportview = AccuSportViewScraper(
         ClubConfig(

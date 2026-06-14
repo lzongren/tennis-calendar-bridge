@@ -19,13 +19,13 @@ def test_ics_includes_instructor_in_description_not_location() -> None:
         timezone="America/Los_Angeles",
         location=None,
         category="registration",
-        raw={"instructor": "Wooten"},
+        raw={"instructor": "Example Coach"},
     )
 
     ics = make_ics([event], "Tennis Calendar")
 
-    assert "Instructor: Wooten" in ics
-    assert "LOCATION:Wooten" not in ics
+    assert "Instructor: Example Coach" in ics
+    assert "LOCATION:Example Coach" not in ics
     parsed = parse_ics_events(ics, "example-clubautomation", "America/Los_Angeles", "local")
     assert len(parsed) == 1
     assert parsed[0].title == "Custom Group Lesson Series"
@@ -43,8 +43,12 @@ def test_ics_keeps_real_location() -> None:
         timezone="America/Los_Angeles",
         location="Tennis/Pickle 6",
         category="reservation",
+        raw={"access_code": "1234#"},
     )
 
     ics = make_ics([event], "Tennis Calendar")
 
     assert "LOCATION:Tennis/Pickle 6" in ics
+    assert "SUMMARY:Rent/Private" in ics
+    assert "Access code: 1234#" in ics
+    assert "SUMMARY:1234#" not in ics
