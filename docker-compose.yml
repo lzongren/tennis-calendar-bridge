@@ -1,0 +1,14 @@
+services:
+  tennis-overview:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TENNIS_CONFIG: /config/clubs.toml
+      TENNIS_DATA_DIR: /data
+    ports:
+      - "${TENNIS_HOST_BIND:-127.0.0.1}:${TENNIS_HOST_PORT:-8080}:8080"
+    volumes:
+      - ./data:/data
+      - ./config/clubs.toml:/config/clubs.toml:ro

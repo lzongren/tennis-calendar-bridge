@@ -1,0 +1,42 @@
+[app]
+timezone = "America/Los_Angeles"
+database_path = "data/tennis.db"
+sync_interval_minutes = 60
+lookahead_days = 90
+calendar_name = "Tennis Calendar"
+
+[[clubs]]
+id = "example-clubautomation"
+name = "Example Club Automation Club"
+provider = "clubautomation"
+base_url = "https://clubautomation.example.com/"
+login_url = "https://clubautomation.example.com/"
+username_env = "EXAMPLE_CLUBAUTOMATION_USERNAME"
+password_env = "EXAMPLE_CLUBAUTOMATION_PASSWORD"
+enabled = false
+timezone = "America/Los_Angeles"
+
+[[clubs]]
+id = "example-accusportview"
+name = "Example AccuSportView Club"
+provider = "accusportview"
+base_url = "https://example.my.accusportview.com/"
+login_url = "https://example.my.accusportview.com/login"
+username_env = "EXAMPLE_ACCUSPORTVIEW_USERNAME"
+password_env = "EXAMPLE_ACCUSPORTVIEW_PASSWORD"
+enabled = false
+timezone = "America/Los_Angeles"
+
+[[clubs]]
+id = "example-courtreserve"
+name = "Example CourtReserve Club"
+provider = "courtreserve"
+base_url = "https://app.courtreserve.com/Online/Portal/Index/0000"
+login_url = "https://app.courtreserve.com/Online/Account/LogIn/0000"
+username_env = "EXAMPLE_COURTRESERVE_USERNAME"
+password_env = "EXAMPLE_COURTRESERVE_PASSWORD"
+enabled = false
+timezone = "America/Los_Angeles"
+
+[clubs.options]
+portal_id = "0000"

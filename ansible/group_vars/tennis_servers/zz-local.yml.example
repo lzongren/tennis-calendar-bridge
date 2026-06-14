@@ -1,0 +1,26 @@
+---
+# Optional local overrides. Copy this file to zz-local.yml for deployment-specific
+# values that should not be committed. The zz- prefix makes these values load
+# after vars.yml.
+
+# tennis_public_base_url: https://calendar.example.com
+# tennis_remote_dir: /home/ubuntu/projects/tennis-calendar-bridge
+# tennis_port: 8081
+#
+# Use this file to override the public example club list with your real clubs.
+# The keys in vault_tennis_credentials must match each club's username_env and
+# password_env.
+#
+# vault_tennis_credentials:
+#   MY_CLUB_USERNAME: "{{ vault_my_club_username | default('') }}"
+#   MY_CLUB_PASSWORD: "{{ vault_my_club_password | default('') }}"
+#
+# tennis_clubs:
+#   - id: my-club
+#     name: My Club
+#     provider: courtreserve
+#     base_url: https://example.com/
+#     username_env: MY_CLUB_USERNAME
+#     password_env: MY_CLUB_PASSWORD
+#     enabled: true
+#     timezone: America/Los_Angeles

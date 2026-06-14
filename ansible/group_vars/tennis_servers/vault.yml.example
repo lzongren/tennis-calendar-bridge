@@ -1,0 +1,14 @@
+---
+# Copy this file to vault.yml, fill it in, then run:
+# ansible-vault encrypt ansible/group_vars/tennis_servers/vault.yml
+
+vault_tennis_admin_token: replace-with-a-long-random-admin-token
+vault_tennis_calendar_token: replace-with-a-long-random-calendar-token
+
+vault_tennis_credentials:
+  EXAMPLE_CLUBAUTOMATION_USERNAME: ""
+  EXAMPLE_CLUBAUTOMATION_PASSWORD: ""
+  EXAMPLE_ACCUSPORTVIEW_USERNAME: ""
+  EXAMPLE_ACCUSPORTVIEW_PASSWORD: ""
+  EXAMPLE_COURTRESERVE_USERNAME: ""
+  EXAMPLE_COURTRESERVE_PASSWORD: ""

@@ -1,0 +1,55 @@
+---
+tennis_remote_dir: /home/ubuntu/projects/tennis-calendar-bridge
+# Host interface and port published by Docker Compose.
+# Use 127.0.0.1 with Tailscale Serve/Funnel or a local reverse proxy.
+# Use 0.0.0.0 to publish on all VPS interfaces.
+tennis_host_bind: 127.0.0.1
+tennis_port: 8081
+tennis_docker_become: false
+tennis_tailscale_serve_enabled: true
+tennis_tailscale_serve_become: true
+tennis_tailscale_serve_target: "{{ tennis_port }}"
+
+tennis_timezone: America/Los_Angeles
+tennis_calendar_name: Tennis Calendar
+# Optional. Used only for showing a calendar URL on the dashboard.
+# For Apple Calendar over Tailscale, this can be your tailnet URL.
+# For Google Calendar, use a public HTTPS URL instead, such as Tailscale Funnel
+# or your own reverse proxy domain.
+tennis_public_base_url: ""
+tennis_sync_interval_minutes: 60
+tennis_lookahead_days: 90
+tennis_headless: true
+
+tennis_clubs:
+  - id: example-clubautomation
+    name: Example Club Automation Club
+    provider: clubautomation
+    base_url: https://clubautomation.example.com/
+    login_url: https://clubautomation.example.com/
+    username_env: EXAMPLE_CLUBAUTOMATION_USERNAME
+    password_env: EXAMPLE_CLUBAUTOMATION_PASSWORD
+    enabled: false
+    timezone: America/Los_Angeles
+
+  - id: example-accusportview
+    name: Example AccuSportView Club
+    provider: accusportview
+    base_url: https://example.my.accusportview.com/
+    login_url: https://example.my.accusportview.com/login
+    username_env: EXAMPLE_ACCUSPORTVIEW_USERNAME
+    password_env: EXAMPLE_ACCUSPORTVIEW_PASSWORD
+    enabled: false
+    timezone: America/Los_Angeles
+
+  - id: example-courtreserve
+    name: Example CourtReserve Club
+    provider: courtreserve
+    base_url: https://app.courtreserve.com/Online/Portal/Index/0000
+    login_url: https://app.courtreserve.com/Online/Account/LogIn/0000
+    username_env: EXAMPLE_COURTRESERVE_USERNAME
+    password_env: EXAMPLE_COURTRESERVE_PASSWORD
+    enabled: false
+    timezone: America/Los_Angeles
+    options:
+      portal_id: "0000"

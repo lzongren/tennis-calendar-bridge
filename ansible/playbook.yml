@@ -1,0 +1,140 @@
+---
+- name: Deploy Tennis Calendar Bridge
+  hosts: tennis_servers
+  gather_facts: false
+  vars:
+    tennis_project_root: "{{ playbook_dir }}/.."
+    tennis_rsync_host: "{{ ansible_host | default(inventory_hostname) }}"
+    tennis_rsync_user_prefix: "{{ (ansible_user ~ '@') if ansible_user is defined else '' }}"
+    tennis_rsync_ssh_command: "ssh{% if ansible_port is defined %} -p {{ ansible_port }}{% endif %}"
+    tennis_rsync_target: "{{ tennis_rsync_user_prefix }}{{ tennis_rsync_host }}:{{ tennis_remote_dir }}/"
+
+  pre_tasks:
+    - name: Require vault-backed tokens
+      ansible.builtin.assert:
+        that:
+          - vault_tennis_admin_token is defined
+          - vault_tennis_admin_token | length > 0
+          - vault_tennis_calendar_token is defined
+          - vault_tennis_calendar_token | length > 0
+        fail_msg: >-
+          Create ansible/group_vars/tennis_servers/vault.yml from vault.yml.example,
+          fill in the values, and encrypt it with ansible-vault.
+      no_log: true
+
+    - name: Check local rsync
+      ansible.builtin.command: rsync --version
+      delegate_to: localhost
+      changed_when: false
+
+    - name: Check Docker Compose on server
+      ansible.builtin.command: docker compose version
+      changed_when: false
+      become: "{{ tennis_docker_become }}"
+
+  tasks:
+    - name: Ensure remote project directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ tennis_remote_dir }}"
+        - "{{ tennis_remote_dir }}/config"
+        - "{{ tennis_remote_dir }}/data"
+
+    - name: Sync application source to server
+      ansible.builtin.command:
+        argv:
+          - rsync
+          - -az
+          - --delete
+          - -e
+          - "{{ tennis_rsync_ssh_command }}"
+          - --exclude=.git/
+          - --exclude=.venv/
+          - --exclude=__pycache__/
+          - --exclude=*.pyc
+          - --exclude=.pytest_cache/
+          - --exclude=*.egg-info/
+          - --exclude=data/
+          - --exclude=.env
+          - --exclude=config/clubs.toml
+          - --exclude=ansible/inventory.yml
+          - --exclude=ansible/group_vars/**/vault.yml
+          - --exclude=ansible/group_vars/**/vault.yaml
+          - --exclude=ansible/group_vars/**/local.yml
+          - --exclude=ansible/group_vars/**/local.yaml
+          - --exclude=ansible/group_vars/**/zz-local.yml
+          - --exclude=ansible/group_vars/**/zz-local.yaml
+          - "{{ tennis_project_root }}/"
+          - "{{ tennis_rsync_target }}"
+      delegate_to: localhost
+      changed_when: true
+
+    - name: Render runtime environment from vault values
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ tennis_remote_dir }}/.env"
+        mode: "0600"
+      no_log: true
+
+    - name: Render club configuration
+      ansible.builtin.template:
+        src: templates/clubs.toml.j2
+        dest: "{{ tennis_remote_dir }}/config/clubs.toml"
+        mode: "0644"
+
+    - name: Build and start service
+      ansible.builtin.command: docker compose up -d --build
+      args:
+        chdir: "{{ tennis_remote_dir }}"
+      become: "{{ tennis_docker_become }}"
+      changed_when: true
+
+    - name: Show container status
+      ansible.builtin.command: docker compose ps
+      args:
+        chdir: "{{ tennis_remote_dir }}"
+      become: "{{ tennis_docker_become }}"
+      changed_when: false
+      register: tennis_compose_ps
+
+    - name: Wait for service port
+      ansible.builtin.wait_for:
+        host: "{{ tennis_host_bind if tennis_host_bind not in ['', '0.0.0.0'] else '127.0.0.1' }}"
+        port: "{{ tennis_port }}"
+        timeout: 90
+
+    - name: Check Tailscale CLI
+      ansible.builtin.command: tailscale version
+      become: "{{ tennis_tailscale_serve_become }}"
+      changed_when: false
+      when: tennis_tailscale_serve_enabled | bool
+
+    - name: Configure Tailscale Serve
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - serve
+          - --bg
+          - --yes
+          - "{{ tennis_tailscale_serve_target }}"
+      become: "{{ tennis_tailscale_serve_become }}"
+      changed_when: true
+      when: tennis_tailscale_serve_enabled | bool
+
+    - name: Show Tailscale Serve status
+      ansible.builtin.command: tailscale serve status
+      become: "{{ tennis_tailscale_serve_become }}"
+      changed_when: false
+      register: tennis_tailscale_serve_status
+      when: tennis_tailscale_serve_enabled | bool
+
+    - name: Print deployment status
+      ansible.builtin.debug:
+        msg:
+          - "Deployed to {{ inventory_hostname }}:{{ tennis_remote_dir }}"
+          - "Service check: http://{{ tennis_host_bind if tennis_host_bind not in ['', '0.0.0.0'] else '127.0.0.1' }}:{{ tennis_port }}/healthz"
+          - "{{ tennis_tailscale_serve_status.stdout_lines | default([]) }}"
+          - "{{ tennis_compose_ps.stdout_lines }}"

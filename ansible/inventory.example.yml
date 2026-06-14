@@ -1,0 +1,5 @@
+tennis_servers:
+  hosts:
+    vps_us:
+      ansible_host: vps_us
+      ansible_user: ubuntu
