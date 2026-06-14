@@ -51,6 +51,26 @@ END_KEYS = (
     "eventEnd",
 )
 LOCATION_KEYS = ("location", "court", "resource", "room", "site")
+USERNAME_SELECTORS = (
+    "input[type='email']",
+    "input[name='username']",
+    "input[name='UserName']",
+    "input[name='Email']",
+    "input[name='email']",
+    "input[id='Username']",
+    "input[id='username']",
+    "input[id='Email']",
+    "input[id='email']",
+    "input[autocomplete='username']",
+)
+PASSWORD_SELECTORS = (
+    "input[type='password']",
+    "input[name='password']",
+    "input[name='Password']",
+    "input[id='Password']",
+    "input[id='password']",
+    "input[autocomplete='current-password']",
+)
 
 
 class BrowserPortalScraper(BaseScraper):
@@ -176,11 +196,21 @@ class BrowserPortalScraper(BaseScraper):
                 browser.close()
 
     def _login(self, page: Any, username: str, password: str) -> None:
+        self._wait_for_login_form(page)
         self._fill_username(page, username)
         self._fill_password(page, password)
         clicked = self._click_login(page)
         if clicked:
             self._settle(page)
+
+    def _wait_for_login_form(self, page: Any) -> None:
+        # Some portals, including CourtReserve, render the login form after
+        # the initial HTML arrives. Waiting here keeps the fill logic generic.
+        for selectors in (USERNAME_SELECTORS, PASSWORD_SELECTORS):
+            try:
+                page.wait_for_selector(", ".join(selectors), state="visible", timeout=30_000)
+            except Exception:
+                pass
 
     def _fill_username(self, page: Any, username: str) -> None:
         for pattern in ("email", "e-mail", "username", "user name", "login"):
@@ -191,19 +221,7 @@ class BrowserPortalScraper(BaseScraper):
                     return
             except Exception:
                 pass
-        selectors = [
-            "input[type='email']",
-            "input[name='username']",
-            "input[name='UserName']",
-            "input[name='Email']",
-            "input[name='email']",
-            "input[id='Username']",
-            "input[id='username']",
-            "input[id='Email']",
-            "input[id='email']",
-            "input[autocomplete='username']",
-        ]
-        if self._fill_first_visible(page, selectors, username):
+        if self._fill_first_visible(page, list(USERNAME_SELECTORS), username):
             return
         inputs = page.locator("input:not([type='hidden']):not([type='password'])")
         for index in range(inputs.count()):
@@ -217,15 +235,7 @@ class BrowserPortalScraper(BaseScraper):
         raise ScraperError("Could not find the username/email input on the login page.")
 
     def _fill_password(self, page: Any, password: str) -> None:
-        selectors = [
-            "input[type='password']",
-            "input[name='password']",
-            "input[name='Password']",
-            "input[id='Password']",
-            "input[id='password']",
-            "input[autocomplete='current-password']",
-        ]
-        if self._fill_first_visible(page, selectors, password):
+        if self._fill_first_visible(page, list(PASSWORD_SELECTORS), password):
             return
         raise ScraperError("Could not find the password input on the login page.")
 
