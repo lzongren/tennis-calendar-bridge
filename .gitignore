@@ -18,3 +18,5 @@ ansible/group_vars/**/local.yml
 ansible/group_vars/**/local.yaml
 ansible/group_vars/**/zz-local.yml
 ansible/group_vars/**/zz-local.yaml
+ansible/.vault-pass
+.vault-pass

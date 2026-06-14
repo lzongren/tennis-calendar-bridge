@@ -58,6 +58,20 @@ Deploy:
 bash scripts/deploy_ansible.sh
 ```
 
+For unattended local deploys, put the Ansible Vault password in an ignored file:
+
+```bash
+printf '%s\n' 'YOUR_ANSIBLE_VAULT_PASSWORD' > ansible/.vault-pass
+chmod 600 ansible/.vault-pass
+bash scripts/deploy_ansible.sh
+```
+
+You can also point at another ignored password file:
+
+```bash
+ANSIBLE_VAULT_PASSWORD_FILE=/path/to/private/vault-pass bash scripts/deploy_ansible.sh
+```
+
 Or directly:
 
 ```bash
