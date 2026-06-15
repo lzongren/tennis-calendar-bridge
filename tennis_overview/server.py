@@ -6,7 +6,7 @@ import struct
 import threading
 import time
 import zlib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,6 +23,8 @@ from .timeutils import to_db, utc_now
 
 PWA_THEME_COLOR = "#0e7c66"
 PWA_BACKGROUND_COLOR = "#f7f8f5"
+DASHBOARD_LOOKBACK = timedelta(days=1)
+DASHBOARD_END_GRACE = timedelta(minutes=15)
 
 
 class TennisServer(ThreadingHTTPServer):
@@ -103,7 +105,8 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
         conn = db.connect(self.server.config.app.database_path)
         try:
             now = utc_now()
-            events = db.list_events(conn, now - timedelta(hours=6), now + timedelta(days=45))
+            events = db.list_events(conn, now - DASHBOARD_LOOKBACK, now + timedelta(days=45))
+            events = _visible_dashboard_events(events, now)
             runs = db.list_recent_sync_runs(conn, 12)
         finally:
             conn.close()
@@ -151,10 +154,11 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
             now = utc_now()
             events = db.list_events(
                 conn,
-                now - timedelta(hours=6),
+                now - DASHBOARD_LOOKBACK,
                 now + timedelta(days=days),
                 include_cancelled=include_cancelled,
             )
+            events = _visible_dashboard_events(events, now)
         finally:
             conn.close()
         self._send_json([_event_json(event) for event in events])
@@ -304,6 +308,11 @@ def _event_json(event: TennisEvent) -> dict[str, Any]:
         "instructor": _event_instructor(event),
         "access_code": _event_access_code(event),
     }
+
+
+def _visible_dashboard_events(events: list[TennisEvent], now: datetime) -> list[TennisEvent]:
+    cutoff = now - DASHBOARD_END_GRACE
+    return [event for event in events if event.ends_at >= cutoff]
 
 
 def _app_path(config: Config, path: str) -> str:

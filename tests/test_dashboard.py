@@ -75,6 +75,43 @@ def test_dashboard_renders_calendar_and_keeps_instructor_out_of_location(monkeyp
     assert ">https://example.test/calendar/calendar-token/tennis.ics<" not in html
 
 
+def test_dashboard_events_drop_sessions_after_grace_period() -> None:
+    zone = ZoneInfo("America/Los_Angeles")
+    now = datetime(2026, 6, 14, 19, 14, tzinfo=zone)
+
+    def event_at(
+        external_id: str,
+        start_hour: int,
+        start_minute: int,
+        end_hour: int,
+        end_minute: int,
+    ) -> TennisEvent:
+        return TennisEvent(
+            club_id="example-clubautomation",
+            external_id=external_id,
+            title=external_id,
+            starts_at=datetime(2026, 6, 14, start_hour, start_minute, tzinfo=zone),
+            ends_at=datetime(2026, 6, 14, end_hour, end_minute, tzinfo=zone),
+            timezone="America/Los_Angeles",
+        )
+
+    visible = server._visible_dashboard_events(
+        [
+            event_at("ended-hours-ago", 14, 30, 15, 45),
+            event_at("ended-in-grace", 18, 0, 19, 5),
+            event_at("active-now", 18, 30, 19, 30),
+            event_at("future", 20, 0, 21, 0),
+        ],
+        now,
+    )
+
+    assert [event.external_id for event in visible] == [
+        "ended-in-grace",
+        "active-now",
+        "future",
+    ]
+
+
 def test_dashboard_includes_home_screen_metadata() -> None:
     html = server._dashboard_html(_config(), [], [])
 
