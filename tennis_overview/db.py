@@ -224,7 +224,9 @@ def start_sync_run(conn: sqlite3.Connection, club_id: str) -> int:
         (club_id, to_db(utc_now())),
     )
     conn.commit()
-    return int(cursor.lastrowid)
+    if cursor.lastrowid is None:
+        raise RuntimeError("SQLite did not return a sync run ID")
+    return cursor.lastrowid
 
 
 def finish_sync_run(

@@ -8,6 +8,8 @@ __pycache__/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+build/
+dist/
 data/
 config/clubs.toml
 *.egg-info/

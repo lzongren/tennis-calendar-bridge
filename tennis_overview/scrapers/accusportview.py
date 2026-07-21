@@ -53,9 +53,7 @@ class AccuSportViewScraper(BrowserPortalScraper):
                 continue
             title = _nearest_title(lines, index)
             nearby_lines = lines[max(0, index - 4) : min(len(lines), index + 5)]
-            card_text = "\n".join(
-                [title, *nearby_lines]
-            )
+            card_text = "\n".join([title, *nearby_lines])
             event = self._event_from_card_text(card_text, source_url)
             if event:
                 key = f"{event.starts_at.isoformat()}|{event.ends_at.isoformat()}|{event.location}"

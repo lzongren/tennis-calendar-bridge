@@ -45,10 +45,7 @@ def main() -> None:
         for event in clubautomation_events
     )
     assert all(event.location is None for event in clubautomation_events)
-    assert all(
-        event.raw.get("instructor") == "Example Coach"
-        for event in clubautomation_events
-    )
+    assert all(event.raw.get("instructor") == "Example Coach" for event in clubautomation_events)
 
     accusportview = AccuSportViewScraper(
         ClubConfig(
@@ -92,8 +89,12 @@ def main() -> None:
     """
     events = accusportview._events_from_body_text(body_text, "local")
     assert len(events) == 2
-    assert events[0].starts_at == datetime(2026, 6, 17, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
-    assert events[1].starts_at == datetime(2026, 6, 19, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
+    assert events[0].starts_at == datetime(
+        2026, 6, 17, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles")
+    )
+    assert events[1].starts_at == datetime(
+        2026, 6, 19, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles")
+    )
     assert events[1].ends_at == datetime(2026, 6, 19, 22, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
     assert events[1].location == "Tennis Court 1"
     print("parser smoke test passed")

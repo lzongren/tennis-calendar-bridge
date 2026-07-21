@@ -34,17 +34,13 @@ def test_body_parser_keeps_active_reservations_only(
     assert events[0].starts_at == datetime(
         2026, 6, 17, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles")
     )
-    assert events[0].ends_at == datetime(
-        2026, 6, 17, 21, 0, tzinfo=ZoneInfo("America/Los_Angeles")
-    )
+    assert events[0].ends_at == datetime(2026, 6, 17, 21, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
     assert events[0].location == "Tennis/Pickle 6"
     assert events[0].raw["instructor"] == "Instructor Name"
     assert events[1].starts_at == datetime(
         2026, 6, 19, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles")
     )
-    assert events[1].ends_at == datetime(
-        2026, 6, 19, 22, 0, tzinfo=ZoneInfo("America/Los_Angeles")
-    )
+    assert events[1].ends_at == datetime(2026, 6, 19, 22, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
     assert events[1].location == "Tennis Court 1"
 
 

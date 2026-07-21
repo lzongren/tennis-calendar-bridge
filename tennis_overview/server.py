@@ -4,7 +4,6 @@ import calendar as calendar_module
 import json
 import struct
 import threading
-import time
 import zlib
 from datetime import date, datetime, timedelta
 from functools import cache
@@ -276,7 +275,9 @@ def _start_initial_sync(config: Config) -> threading.Thread:
     return thread
 
 
-def serve(host: str, port: int, config_path: str | None = None, run_initial_sync: bool = False) -> None:
+def serve(
+    host: str, port: int, config_path: str | None = None, run_initial_sync: bool = False
+) -> None:
     config = load_config(config_path)
     httpd = TennisServer((host, port), config)
     scheduler = SchedulerThread(config)
@@ -1233,8 +1234,7 @@ def _calendar_view(events: list[TennisEvent], timezone_name: str) -> str:
     for day_events in events_by_day.values():
         day_events.sort(key=lambda event: event.starts_at.astimezone(zone))
     return "\n".join(
-        _calendar_month(year, month, events_by_day, today, zone)
-        for year, month in sorted(months)
+        _calendar_month(year, month, events_by_day, today, zone) for year, month in sorted(months)
     )
 
 
@@ -1332,10 +1332,7 @@ def _run_row(run: Any) -> str:
 
 def _html(value: str) -> str:
     return (
-        value.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
+        value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
     )
 
 

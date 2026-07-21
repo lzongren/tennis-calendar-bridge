@@ -11,6 +11,44 @@ not tied to one city or one club. New providers can be added as scraper adapters
 and deployment is intentionally boring: a small Python service, Docker Compose,
 and optional Ansible support for a VPS.
 
+For OpenAI Build Week, the bridge adds an opt-in GPT-5.6 weekly brief. It turns
+the next seven days of normalized tennis events into a concise plan while
+keeping credentials, access codes, raw portal data, real venue names, source
+URLs, instructors, and account identifiers out of the model request.
+
+## Two-Minute Judge Path
+
+This path uses only synthetic data and does not need club credentials or a
+browser download:
+
+```bash
+git clone https://github.com/lzongren/tennis-calendar-bridge.git
+cd tennis-calendar-bridge
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -e .
+python scripts/seed_demo_data.py /tmp/tennis-calendar-bridge-demo.db
+
+TENNIS_DATABASE_PATH=/tmp/tennis-calendar-bridge-demo.db \
+TENNIS_CALENDAR_TOKEN=judge-demo-token \
+tennis-overview --config docs/demo/clubs.toml serve --host 127.0.0.1 --port 8097
+```
+
+Open <http://127.0.0.1:8097>, then inspect the synthetic feed at
+<http://127.0.0.1:8097/calendar/judge-demo-token/tennis.ics>.
+
+In a second terminal, inspect the exact privacy-redacted GPT-5.6 request without
+making an API call:
+
+```bash
+TENNIS_DATABASE_PATH=/tmp/tennis-calendar-bridge-demo.db \
+tennis-overview --config docs/demo/clubs.toml brief --preview
+```
+
+To run the live AI feature, set `OPENAI_API_KEY` and remove `--preview`. See
+[the judge guide](docs/JUDGE_GUIDE.md) for expected results.
+
 ## Why This Exists
 
 Club portals are optimized for booking inside one facility. Players who train or
@@ -30,6 +68,7 @@ asking for write access to a personal calendar account.
 - Small web dashboard with next-session, agenda, calendar, and sync views.
 - Home Screen/PWA metadata for a lightweight mobile-app experience.
 - Periodic background sync while the server is running.
+- Opt-in GPT-5.6 weekly brief with a previewable, privacy-redacted request.
 - Docker Compose deployment with optional Ansible Vault support.
 - Pytest coverage for parser regressions, sync orchestration, storage, ICS
   output, and dashboard rendering.
@@ -45,11 +84,16 @@ clubs, credentials, tokens, hosts, or schedules are shown.
 
 ## Architecture
 
-```text
-Club portals -> scraper adapters -> normalized events -> SQLite
-                                                |
-                                                +-> dashboard
-                                                +-> private .ics feed
+```mermaid
+flowchart LR
+    A[Club portals] --> B[Provider adapters]
+    B --> C[Normalized events]
+    C --> D[(Local SQLite)]
+    D --> E[Private dashboard]
+    D --> F[Tokenized iCalendar feed]
+    D --> G[Privacy filter]
+    G -->|Titles, times, categories, venue aliases only| H[GPT-5.6 Responses API]
+    H --> I[Weekly tennis brief]
 ```
 
 The service is deliberately small. It favors explicit provider adapters and
@@ -66,6 +110,40 @@ sample-driven parser tests over a broad, fragile "scrape anything" approach.
 - **Private by default.** The dashboard is intended to sit behind a private
   network or authenticated proxy; the public surface should be the calendar feed
   only when needed.
+- **AI is explicit and inspectable.** `brief --preview` prints the exact model
+  payload, and real venue names remain only in a local alias key.
+
+## GPT-5.6 Product Role
+
+`tennis-overview brief` uses the OpenAI Responses API with `gpt-5.6-sol` and
+low reasoning effort. It synthesizes a week of cross-provider events into an
+at-a-glance plan, logistics, and watch-outs such as tight gaps, late finishes,
+and venue changes. Deterministic scraping, storage, and calendar export continue
+to work without an API key.
+
+The model receives only event title, local start/end time, category, status, and
+pseudonymous labels such as `Venue 1`. The response is not written back to a
+personal calendar. Run `brief --preview` to audit the complete request first.
+
+## How Codex Was Used
+
+Codex was the implementation and verification partner for the Build Week
+extension. In the primary project session it inspected the architecture and
+official rules, implemented the privacy boundary and GPT-5.6 Responses API
+integration, added redaction and response tests, expanded CI, exercised a clean
+Python 3.12 install, and prepared judge/release/submission documentation.
+
+Human decisions remained explicit: preserve the no-calendar-write architecture,
+keep model use opt-in, send venue aliases rather than real names, use synthetic
+demo data, and avoid claims not supported by a live test. The primary Codex
+Session ID is supplied directly in the Devpost form.
+
+## Build Week Scope
+
+This repository predates the July 13, 2026 submission period. Judges should
+evaluate the meaningful extension documented in
+[BUILD_WEEK.md](docs/BUILD_WEEK.md): the GPT-5.6 brief and privacy filter, tests,
+judge workflow, stronger CI/package validation, and submission documentation.
 
 ## Privacy And Security
 
@@ -134,7 +212,17 @@ pytest
 The unit tests use local sample data only. They do not log in to tennis-club
 websites or require real credentials.
 
-GitHub Actions runs the same test suite on Python 3.11 and 3.12.
+GitHub Actions runs formatting, lint, type checking, tests, package builds, and
+distribution metadata checks on Python 3.11 and 3.12.
+
+```bash
+ruff format --check .
+ruff check .
+mypy tennis_overview
+pytest
+python -m build
+twine check dist/*
+```
 
 ## Calendar Setup
 
@@ -292,8 +380,27 @@ docker compose up -d --build
 
 - Harden dashboard authentication for public deployments.
 - Add more provider adapters from sanitized fixtures.
-- Add packaging checks and static analysis to CI.
 - Add debug-artifact retention limits.
+
+## Supported Platforms And Limitations
+
+- Python 3.11 or 3.12 on macOS and Linux; Docker deployment is also provided.
+  Playwright Chromium is required only for live scraping.
+- Portal markup and login flows can change; adapters may need updates.
+- The GPT-5.6 brief requires network access, an OpenAI API key, and applicable
+  API charges. It is not medical advice and does not modify calendar events.
+- Google Calendar generally needs a publicly reachable HTTPS feed URL, while
+  the dashboard should remain private or sit behind authentication.
+- The project is not affiliated with the example portal vendors or clubs.
+
+## Release And Submission
+
+- Release artifacts: wheel and source distribution on the `v0.2.0` GitHub
+  release.
+- Demo video: pending final review and public YouTube publication.
+- Devpost project: pending final submission.
+
+The video and Devpost links will replace the pending labels before submission.
 
 ## License
 

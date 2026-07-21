@@ -24,16 +24,12 @@ def test_sidebar_parses_events_and_instructor(
     registrations = clubautomation_scraper._parse_my_registrations(text, "local")
 
     assert any(
-        event.starts_at
-        == datetime(2026, 6, 14, 14, 30, tzinfo=ZoneInfo("America/Los_Angeles"))
+        event.starts_at == datetime(2026, 6, 14, 14, 30, tzinfo=ZoneInfo("America/Los_Angeles"))
         for event in events
     )
     assert [event.starts_at.day for event in registrations] == [7, 14, 21, 28]
     assert all(event.location is None for event in events + registrations)
-    assert all(
-        event.raw.get("instructor") == "Example Coach"
-        for event in events + registrations
-    )
+    assert all(event.raw.get("instructor") == "Example Coach" for event in events + registrations)
 
 
 def test_detail_keeps_court_like_values_as_location(

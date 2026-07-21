@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import timedelta
 
 from . import db
+from .brief import DEFAULT_MODEL, BriefError, build_request_payload, create_calendar_brief
 from .config import append_club, init_config, load_config
 from .server import serve
 from .sync import sync_all
@@ -27,6 +29,21 @@ def main() -> None:
     events_parser = subparsers.add_parser("events", help="Print upcoming events as JSON")
     events_parser.add_argument("--days", type=int, default=45)
     events_parser.add_argument("--include-cancelled", action="store_true")
+
+    brief_parser = subparsers.add_parser(
+        "brief", help="Create a privacy-redacted GPT-5.6 weekly tennis brief"
+    )
+    brief_parser.add_argument("--days", type=int, default=7)
+    brief_parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Print the exact redacted API request without calling OpenAI",
+    )
+    brief_parser.add_argument(
+        "--model",
+        default=os.getenv("TENNIS_OPENAI_MODEL", DEFAULT_MODEL),
+        help=f"GPT-5.6 family model (default: {DEFAULT_MODEL})",
+    )
 
     subparsers.add_parser("init-config", help="Create config/clubs.toml from the example")
 
@@ -77,6 +94,39 @@ def main() -> None:
                 indent=2,
             )
         )
+    elif args.command == "brief":
+        config = load_config(args.config)
+        now = utc_now()
+        conn = db.connect(config.app.database_path)
+        try:
+            events = db.list_events(conn, now, now + timedelta(days=args.days))
+        finally:
+            conn.close()
+        safety_identifier = os.getenv("TENNIS_OPENAI_SAFETY_IDENTIFIER")
+        if args.preview:
+            payload, venue_key = build_request_payload(
+                events,
+                timezone_name=config.app.timezone,
+                model=args.model,
+                safety_identifier=safety_identifier,
+            )
+            print(json.dumps({"request": payload, "local_venue_key": venue_key}, indent=2))
+            return
+        try:
+            result = create_calendar_brief(
+                events,
+                timezone_name=config.app.timezone,
+                model=args.model,
+                safety_identifier=safety_identifier,
+            )
+        except BriefError as exc:
+            parser.error(str(exc))
+        print(f"Weekly tennis brief ({result.model})\n")
+        print(result.text)
+        if result.venue_key:
+            print("\nLocal venue key (real names were not sent to OpenAI):")
+            for alias, location in result.venue_key.items():
+                print(f"- {alias}: {location}")
     elif args.command == "init-config":
         print(init_config(args.config))
     elif args.command == "add-club":

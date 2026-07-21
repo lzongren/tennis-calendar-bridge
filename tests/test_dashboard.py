@@ -207,9 +207,7 @@ def test_request_paths_are_normalized_under_configured_base_path() -> None:
     handler = object.__new__(server.TennisRequestHandler)
     handler.server = SimpleNamespace(config=config)
     redirects: list[tuple[str, bool]] = []
-    handler._redirect = lambda location, send_body=True: redirects.append(
-        (location, send_body)
-    )
+    handler._redirect = lambda location, send_body=True: redirects.append((location, send_body))
 
     assert handler._route_path("/tennis/") == "/"
     assert handler._route_path("/tennis/api/events") == "/api/events"
