@@ -396,11 +396,9 @@ docker compose up -d --build
 ## Release And Submission
 
 - Release artifacts: wheel and source distribution on the `v0.2.0` GitHub
-  release.
-- Demo video: pending final review and public YouTube publication.
-- Devpost project: pending final submission.
-
-The video and Devpost links will replace the pending labels before submission.
+  [release](https://github.com/lzongren/tennis-calendar-bridge/releases/tag/v0.2.0).
+- Demo video: [two-minute unlisted YouTube walkthrough](https://youtu.be/VzU0iqLYuHk).
+- Devpost project: [OpenAI Build Week submission](https://devpost.com/software/tennis-calendar-bridge).
 
 ## License
 

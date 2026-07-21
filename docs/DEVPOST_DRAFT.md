@@ -96,8 +96,9 @@ authorized portal credentials. The GPT-5.6 brief requires an OpenAI API key;
 ## Links and individual contribution
 
 - Repository: https://github.com/lzongren/tennis-calendar-bridge
-- Release: pending `v0.2.0` publication
-- Public YouTube demo: pending final approval and upload
+- Release: https://github.com/lzongren/tennis-calendar-bridge/releases/tag/v0.2.0
+- YouTube demo: https://youtu.be/VzU0iqLYuHk
+- Devpost: https://devpost.com/software/tennis-calendar-bridge
 - Individual contribution: Zongren Liu designed, implemented, tested,
   documented, and submitted the project, using Codex as described above.
 - Country: United States
