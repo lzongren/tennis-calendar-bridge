@@ -78,11 +78,8 @@ def load_config(path: str | None = None) -> Config:
             "TENNIS_LOOKAHEAD_DAYS", int(app_raw.get("lookahead_days", 90))
         ),
         calendar_name=app_raw.get("calendar_name", "Tennis Calendar"),
-        base_path=_normalize_base_path(
-            os.getenv("TENNIS_BASE_PATH") or app_raw.get("base_path")
-        ),
-        public_base_url=os.getenv("TENNIS_PUBLIC_BASE_URL")
-        or app_raw.get("public_base_url"),
+        base_path=_normalize_base_path(os.getenv("TENNIS_BASE_PATH") or app_raw.get("base_path")),
+        public_base_url=os.getenv("TENNIS_PUBLIC_BASE_URL") or app_raw.get("public_base_url"),
         admin_token=os.getenv("TENNIS_ADMIN_TOKEN"),
         calendar_token=os.getenv("TENNIS_CALENDAR_TOKEN"),
         headless=_bool_from_env("TENNIS_HEADLESS", True),

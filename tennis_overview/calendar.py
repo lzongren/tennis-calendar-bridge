@@ -29,7 +29,9 @@ def make_ics(
     return "\r\n".join(_fold(line) for line in lines) + "\r\n"
 
 
-def parse_ics_events(text: str, club_id: str, timezone_name: str, source_url: str) -> list[TennisEvent]:
+def parse_ics_events(
+    text: str, club_id: str, timezone_name: str, source_url: str
+) -> list[TennisEvent]:
     events: list[TennisEvent] = []
     for block in _blocks(text, "VEVENT"):
         data = _parse_block(block)
@@ -38,7 +40,11 @@ def parse_ics_events(text: str, club_id: str, timezone_name: str, source_url: st
         if not start_raw:
             continue
         starts_at = _parse_ics_datetime(start_raw, timezone_name)
-        ends_at = _parse_ics_datetime(end_raw, timezone_name) if end_raw else starts_at + timedelta(hours=1)
+        ends_at = (
+            _parse_ics_datetime(end_raw, timezone_name)
+            if end_raw
+            else starts_at + timedelta(hours=1)
+        )
         title = data.get("SUMMARY", "Tennis")
         events.append(
             TennisEvent(

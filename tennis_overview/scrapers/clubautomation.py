@@ -88,7 +88,9 @@ class ClubAutomationScraper(BrowserPortalScraper):
             if month is None:
                 continue
             start_date = date(year, month, int(match.group("day")))
-            starts_at, ends_at = _combine_times(start_date, match.group("start"), match.group("end"), zone)
+            starts_at, ends_at = _combine_times(
+                start_date, match.group("start"), match.group("end"), zone
+            )
             title = _clean(match.group("title"))
             detail = _clean(match.group("detail"))
             location, instructor = _detail_metadata(detail)
@@ -130,7 +132,9 @@ class ClubAutomationScraper(BrowserPortalScraper):
             detail = _clean(match.group("detail"))
             location, instructor = _detail_metadata(detail)
             while current <= range_end:
-                starts_at, ends_at = _combine_times(current, match.group("start"), match.group("end"), zone)
+                starts_at, ends_at = _combine_times(
+                    current, match.group("start"), match.group("end"), zone
+                )
                 events.append(
                     TennisEvent(
                         club_id=self.club.id,
@@ -178,7 +182,9 @@ def _month_number(value: str) -> int | None:
     return months.get(value[:3].lower())
 
 
-def _combine_times(start_date: date, start_value: str, end_value: str, zone: ZoneInfo) -> tuple[datetime, datetime]:
+def _combine_times(
+    start_date: date, start_value: str, end_value: str, zone: ZoneInfo
+) -> tuple[datetime, datetime]:
     start_time = _parse_time(start_value)
     end_time = _parse_time(end_value)
     starts_at = datetime.combine(start_date, start_time, zone)

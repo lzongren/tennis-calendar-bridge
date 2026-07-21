@@ -5,9 +5,7 @@ from pathlib import Path
 from tennis_overview.config import load_config
 
 
-def test_load_config_normalizes_base_path_from_env(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_load_config_normalizes_base_path_from_env(tmp_path: Path, monkeypatch) -> None:
     config_path = tmp_path / "clubs.toml"
     config_path.write_text(
         """

@@ -420,7 +420,9 @@ def _events_from_payload(payload: Any, club: ClubConfig, source_url: str) -> lis
     return found
 
 
-def _event_from_dict(value: dict[str, Any], club: ClubConfig, source_url: str) -> TennisEvent | None:
+def _event_from_dict(
+    value: dict[str, Any], club: ClubConfig, source_url: str
+) -> TennisEvent | None:
     start_raw = _pick(value, START_KEYS)
     if start_raw is None:
         return None
@@ -498,7 +500,9 @@ def _parse_datetime_value(value: Any, timezone_name: str) -> datetime | None:
     return None
 
 
-def _parse_datetime_from_text(text: str, timezone_name: str) -> tuple[datetime, datetime | None] | None:
+def _parse_datetime_from_text(
+    text: str, timezone_name: str
+) -> tuple[datetime, datetime | None] | None:
     month = r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
     date_time = re.search(
         rf"{month}\s+\d{{1,2}},?\s+\d{{4}}[^\d]{{0,8}}\d{{1,2}}:\d{{2}}\s*[AP]M",
@@ -523,7 +527,7 @@ def _parse_datetime_from_text(text: str, timezone_name: str) -> tuple[datetime, 
 
 def _dedupe_events(events: list[TennisEvent]) -> list[TennisEvent]:
     now = utc_now()
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str, str, str, str]] = set()
     unique: list[TennisEvent] = []
     for event in events:
         if event.ends_at < now - timedelta(days=1):
