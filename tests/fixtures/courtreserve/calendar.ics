@@ -1,0 +1,42 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Example Club//Calendar Fixture//EN
+METHOD:PUBLISH
+X-WR-TIMEZONE:America/Los_Angeles
+BEGIN:VEVENT
+UID:private-lesson@example.invalid
+DTSTART:20260908T020000Z
+DTEND:20260908T030000Z
+SUMMARY:Private Lesson
+LOCATION:Court 2\, Indoor
+DESCRIPTION:Private details and https://example.invalid/secret-feed-token
+URL:https://example.invalid/secret-feed-token
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-clinic@example.invalid
+DTSTART;TZID=America/Los_Angeles:20260908T193000
+DTEND;TZID=America/Los_Angeles:20260908T210000
+RRULE:FREQ=WEEKLY;COUNT=4
+EXDATE;TZID=America/Los_Angeles:20260915T193000
+SUMMARY:Adult Clinic
+LOCATION:Court 1
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-clinic@example.invalid
+RECURRENCE-ID;TZID=America/Los_Angeles:20260922T193000
+DTSTART;TZID=America/Los_Angeles:20260923T180000
+DTEND;TZID=America/Los_Angeles:20260923T193000
+SUMMARY:Adult Clinic - Rescheduled
+LOCATION:Court 3
+SEQUENCE:1
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-clinic@example.invalid
+RECURRENCE-ID;TZID=America/Los_Angeles:20260929T193000
+DTSTART;TZID=America/Los_Angeles:20260929T193000
+DTEND;TZID=America/Los_Angeles:20260929T210000
+STATUS:CANCELLED
+SUMMARY:Adult Clinic
+SEQUENCE:1
+END:VEVENT
+END:VCALENDAR

@@ -146,7 +146,8 @@ class BrowserPortalScraper(BaseScraper):
             page.on("response", remember_response)
             try:
                 login_url = self.club.login_url or self.club.base_url
-                page.goto(login_url, wait_until="domcontentloaded", timeout=45_000)
+                response = page.goto(login_url, wait_until="domcontentloaded", timeout=45_000)
+                self._check_login_page(page, response)
                 self._settle(page)
                 self._login(page, username, password)
                 self._settle(page)
@@ -186,7 +187,9 @@ class BrowserPortalScraper(BaseScraper):
                         str(artifact),
                     )
                 return events
-            except ScraperError:
+            except ScraperError as exc:
+                if not exc.artifact_path:
+                    exc.artifact_path = str(self._save_artifacts(page, debug_dir, "error"))
                 raise
             except Exception as exc:
                 artifact = self._save_artifacts(page, debug_dir, "error")
@@ -194,6 +197,13 @@ class BrowserPortalScraper(BaseScraper):
             finally:
                 context.close()
                 browser.close()
+
+    def _check_login_page(self, page: Any, response: Any) -> None:
+        if response is not None and response.status >= 400:
+            raise ScraperError(
+                f"Login page request failed (HTTP {response.status}). "
+                "The portal did not provide a usable login page."
+            )
 
     def _login(self, page: Any, username: str, password: str) -> None:
         self._wait_for_login_form(page)

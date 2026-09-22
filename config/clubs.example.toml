@@ -42,3 +42,6 @@ timezone = "America/Los_Angeles"
 
 [clubs.options]
 portal_id = "0000"
+# Uncomment to use the official member feed instead of username/password login.
+# Store the URL in the named environment variable, never in this file.
+# calendar_feed_env = "EXAMPLE_COURTRESERVE_CALENDAR_FEED_URL"

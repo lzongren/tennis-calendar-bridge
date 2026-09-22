@@ -175,6 +175,71 @@ The example config includes starting adapters for:
 These are examples, not endorsements or official integrations. The project is
 not affiliated with any club-management software provider or tennis club.
 
+AccuSportView uses the signed-in member's reservations query for individual
+bookings and group courses (including lessons, tactics, clinics, open play, and
+leagues). It requests the configured `lookahead_days` beyond the portal's default
+month, treats provider timestamps as club-local time, and keeps coaches and
+access codes separate from event titles and courts. An unexpected or partial API
+response fails the sync and preserves previously stored events. A verified empty
+response permits cancellation reconciliation. Sanitized schema fixtures and
+storage/calendar regression tests live in `tests/fixtures/accusportview/` and
+`tests/test_accusportview_parser.py`.
+
+Class court locations come from the booking's uncanceled court slots, matched
+to the session time. Repeated slots are deduplicated, multiple assigned courts
+are retained, and adding or changing these court assignments preserves the
+existing calendar event identity. An unassigned court is left blank rather than
+inferred from a course title or instructor name.
+
+CourtReserve's login page may be blocked by Cloudflare for server-hosted browsers,
+even when it loads on a personal device. The adapter detects this before submitting
+credentials and records a failed sync rather than an empty schedule. Previously
+stored bookings are preserved. A Cloudflare block is not a username-selector or
+password error; ask the club or CourtReserve support about allowing server access.
+The bridge can instead import CourtReserve's official member Calendar Feed;
+see [Calendar Feed Import](#calendar-feed-import) below.
+
+## Calendar Feed Import
+
+CourtReserve provides a personal [member Calendar Feed](https://help.courtreserve.com/en/articles/3642069-courtreserve-calendar-feed).
+On mobile, select **More > Calendar Feed > Copy Link**; on desktop, select the
+club, then **your name > Calendar Feed > Copy Link**. Use the subscription URL,
+not a downloaded one-time calendar file. Treat the URL as a bearer secret.
+
+For a `courtreserve` club in your private `config/clubs.toml`, add this to its
+existing options table:
+
+```toml
+[clubs.options]
+calendar_feed_env = "MY_CLUB_CALENDAR_FEED_URL"
+```
+
+Store the URL in the named environment variable (or `.env` for Docker Compose).
+For Ansible, use `vault_tennis_calendar_feeds` as described in the
+[deployment guide](ansible/README.md#calendar-feed-import).
+
+- Feed mode skips browser login entirely; username/password settings can be omitted.
+- The existing hourly sync, dashboard, and combined Apple/Google calendar export
+  all use the imported events. No routing or calendar subscription URL changes.
+- Downloads use HTTPS, a 30-second timeout, an explicit application User-Agent,
+  and a 5 MB limit. `webcal://` links are fetched over HTTPS. Redirects must stay
+  on the same HTTPS origin.
+- `icalendar` and `recurring-ical-events` handle time zones, floating local times,
+  recurrence, exclusions, and moved/cancelled sessions over the configured
+  lookahead. Sub-hour recurrences and snapshots over 10,000 events are rejected.
+- Failures, HTML login pages, incomplete calendars, and malformed events fail
+  the whole sync without cancelling saved bookings. A valid empty feed is a
+  successful empty snapshot and reconciles previously imported bookings.
+- The feed URL, descriptions, attendees, and provider URL fields are not stored
+  or republished. Event links point to the club portal. UIDs are hashed for
+  stable identity; changing a session title/time does not create a new booking.
+
+The bridge can only import what the provider includes in the feed, and cannot
+guarantee its publication window or freshness. If a successful feed is empty or
+incomplete, check the selected club/account and ask the provider about feed
+coverage. HTTP 403 still requires provider access to be resolved; feed mode
+does not bypass access checks or silently fall back to browser scraping.
+
 ## Local Setup
 
 ```bash
@@ -361,10 +426,11 @@ cp .env.example .env
 Edit `.env` with your tokens and club credentials, then deploy:
 
 ```bash
-bash scripts/deploy_vps.sh
+SSH_TARGET=my-vps bash scripts/deploy_vps.sh
 ```
 
-Override the SSH target or remote directory when needed:
+`SSH_TARGET` is required; use your own SSH alias or `user@hostname`.
+Override the remote directory when needed:
 
 ```bash
 SSH_TARGET=my-vps REMOTE_DIR=/home/ubuntu/projects/tennis-calendar-bridge bash scripts/deploy_vps.sh

@@ -12,3 +12,7 @@ vault_tennis_credentials:
   EXAMPLE_ACCUSPORTVIEW_PASSWORD: ""
   EXAMPLE_COURTRESERVE_USERNAME: ""
   EXAMPLE_COURTRESERVE_PASSWORD: ""
+
+# Keys must match options.calendar_feed_env for feed-enabled clubs.
+vault_tennis_calendar_feeds:
+  EXAMPLE_COURTRESERVE_CALENDAR_FEED_URL: ""

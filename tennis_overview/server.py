@@ -1167,11 +1167,10 @@ def _next_session_card(events: list[TennisEvent], timezone_name: str) -> str:
     zone = ZoneInfo(timezone_name)
     event = min(events, key=lambda item: item.starts_at)
     start = event.starts_at.astimezone(zone)
-    end = event.ends_at.astimezone(zone)
     month = start.strftime("%b")
     day = start.strftime("%-d")
     weekday = start.strftime("%A")
-    time_range = f"{start.strftime('%-I:%M %p')} - {end.strftime('%-I:%M %p')}"
+    time_range = _event_time_range(event, zone)
     detail = _event_detail(event, include_club=True, include_location=True) or event.club_id
     return (
         "<article class='next-card'>"
@@ -1193,10 +1192,9 @@ def _next_session_card(events: list[TennisEvent], timezone_name: str) -> str:
 def _agenda_item(event: TennisEvent) -> str:
     zone = ZoneInfo(event.timezone)
     start = event.starts_at.astimezone(zone)
-    end = event.ends_at.astimezone(zone)
     day = start.strftime("%b %-d")
     weekday = start.strftime("%A")
-    time_range = f"{start.strftime('%-I:%M %p')} - {end.strftime('%-I:%M %p')}"
+    time_range = _event_time_range(event, zone)
     detail = _event_detail(event, include_club=True, include_location=True) or event.club_id
     return (
         "<article class='agenda-item'>"
@@ -1282,14 +1280,20 @@ def _calendar_month(
     )
 
 
-def _calendar_event(event: TennisEvent, zone: ZoneInfo) -> str:
+def _event_time_range(event: TennisEvent, zone: ZoneInfo) -> str:
+    if event.raw.get("all_day"):
+        return "All day"
     start = event.starts_at.astimezone(zone).strftime("%-I:%M %p")
     end = event.ends_at.astimezone(zone).strftime("%-I:%M %p")
+    return f"{start} - {end}"
+
+
+def _calendar_event(event: TennisEvent, zone: ZoneInfo) -> str:
     detail = _event_detail(event, include_club=True, include_location=True)
     detail_html = f"<div class='event-secondary'>{_html(detail)}</div>" if detail else ""
     return (
         "<div class='calendar-event'>"
-        f"<div class='calendar-event-time'>{_html(start)} - {_html(end)}</div>"
+        f"<div class='calendar-event-time'>{_html(_event_time_range(event, zone))}</div>"
         f"<div class='calendar-event-title'>{_html(event.title)}</div>"
         f"{detail_html}"
         "</div>"
@@ -1298,15 +1302,15 @@ def _calendar_event(event: TennisEvent, zone: ZoneInfo) -> str:
 
 def _event_row(event: TennisEvent) -> str:
     zone = ZoneInfo(event.timezone)
-    start = event.starts_at.astimezone(zone).strftime("%a %b %-d, %-I:%M %p")
-    end = event.ends_at.astimezone(zone).strftime("%-I:%M %p")
+    day = event.starts_at.astimezone(zone).strftime("%a %b %-d")
+    when = f"{day}, {_event_time_range(event, zone)}"
     detail = _event_detail(event)
     event_cell = _html(event.title)
     if detail:
         event_cell += f"<div class='event-secondary'>{_html(detail)}</div>"
     return (
         "<tr>"
-        f"<td data-label='When'>{_html(start)} - {_html(end)}</td>"
+        f"<td data-label='When'>{_html(when)}</td>"
         f"<td data-label='Club'>{_html(event.club_id)}</td>"
         f"<td data-label='Event'>{event_cell}</td>"
         f"<td data-label='Location'>{_html(event.location or '')}</td>"

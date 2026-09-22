@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SSH_TARGET="${SSH_TARGET:-vps_us}"
+if [[ -z "${SSH_TARGET:-}" ]]; then
+  echo "Set SSH_TARGET to your SSH host alias or user@hostname before deploying." >&2
+  exit 1
+fi
 REMOTE_DIR="${REMOTE_DIR:-/home/ubuntu/projects/tennis-calendar-bridge}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -38,6 +41,7 @@ rsync -az --delete \
   --exclude "*.pyc" \
   --exclude ".pytest_cache/" \
   --exclude "*.egg-info/" \
+  --exclude ".vault-pass" \
   --exclude "data/" \
   --exclude "ansible/inventory.yml" \
   --exclude "ansible/group_vars/**/vault.yml" \
@@ -52,4 +56,5 @@ ssh "$SSH_TARGET" "cd $REMOTE_DIR_QUOTED && docker compose up -d --build && dock
 
 echo
 echo "Deployment complete."
-echo "Service URL, if port 8080 is open: http://${SSH_TARGET}:8080"
+echo "Docker Compose publishes to localhost by default."
+echo "Use your private ingress route; check docker compose ps for the configured port."

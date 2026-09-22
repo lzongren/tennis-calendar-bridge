@@ -12,7 +12,8 @@ cp ansible/group_vars/tennis_servers/vault.yml.example \
   ansible/group_vars/tennis_servers/vault.yml
 ```
 
-Edit `ansible/inventory.yml` for your SSH target.
+Edit `ansible/inventory.yml` for your SSH target. Replace `your-vps-hostname`
+with your server's hostname or SSH alias, and adjust `ansible_user` as needed.
 
 Edit the vault file with tokens and club credentials. Credential keys should
 match the `username_env` and `password_env` values in your club config:
@@ -95,6 +96,9 @@ tennis_remote_dir: /home/ubuntu/projects/tennis-calendar-bridge
 
 ## Calendar Token And URL
 
+For **incoming** club feeds, see [Calendar Feed Import](#calendar-feed-import).
+The token below protects this app's **outgoing** combined calendar.
+
 The calendar feed token comes from this vault variable:
 
 ```yaml
@@ -119,6 +123,50 @@ deployment, set this in `zz-local.yml`:
 ```yaml
 tennis_public_base_url: https://YOUR_DOMAIN
 ```
+
+## Calendar Feed Import
+
+To use CourtReserve's official member calendar feed instead of browser login,
+add `calendar_feed_env` to the relevant club's existing `options` in your ignored
+`ansible/group_vars/tennis_servers/zz-local.yml`:
+
+```yaml
+# Inside the relevant tennis_clubs entry:
+options:
+  portal_id: "0000"
+  calendar_feed_env: MY_CLUB_CALENDAR_FEED_URL
+```
+
+Keep the same club ID, provider (`courtreserve`), and portal `base_url` so the
+feed updates the existing club. Username/password fields are optional in feed
+mode; other clubs' settings are unchanged. Then edit the encrypted Vault:
+
+```bash
+ansible-vault edit ansible/group_vars/tennis_servers/vault.yml
+```
+
+Add a top-level mapping (preserve existing tokens and credentials):
+
+```yaml
+vault_tennis_calendar_feeds:
+  MY_CLUB_CALENDAR_FEED_URL: "<paste the private CourtReserve feed URL>"
+```
+
+The key must exactly match `calendar_feed_env`. Ansible renders the URL into the
+server's mode-0600 `.env`, not `clubs.toml`, and suppresses secret task output.
+An enabled feed club with a missing secret fails validation before deployment.
+This is separate from `vault_tennis_calendar_token`, which protects the bridge's
+outgoing calendar subscription.
+
+Deploy from the repository root:
+
+```bash
+bash scripts/deploy_ansible.sh
+```
+
+No Tailscale or reverse-proxy changes are required. A valid empty provider feed
+produces a successful sync with zero events; a failed download preserves the
+previous schedule and records an error.
 
 ## Base Path And Routing
 

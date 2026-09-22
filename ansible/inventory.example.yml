@@ -1,5 +1,5 @@
 tennis_servers:
   hosts:
-    vps_us:
-      ansible_host: vps_us
+    tennis_vps:
+      ansible_host: your-vps-hostname
       ansible_user: ubuntu

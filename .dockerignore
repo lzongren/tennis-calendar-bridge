@@ -8,6 +8,8 @@ htmlcov/
 *.egg-info/
 data/
 .env
+.vault-pass
+ansible/.vault-pass
 config/clubs.toml
 ansible/inventory.yml
 ansible/group_vars/**/vault.yml

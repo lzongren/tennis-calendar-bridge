@@ -15,8 +15,12 @@ base_url = {{ club.base_url | to_json }}
 {% if club.login_url is defined and club.login_url %}
 login_url = {{ club.login_url | to_json }}
 {% endif %}
+{% if club.username_env is defined %}
 username_env = {{ club.username_env | to_json }}
+{% endif %}
+{% if club.password_env is defined %}
 password_env = {{ club.password_env | to_json }}
+{% endif %}
 enabled = {{ 'true' if club.enabled | default(true) else 'false' }}
 timezone = {{ club.timezone | default(tennis_timezone) | to_json }}
 {% if club.options is defined and club.options %}
