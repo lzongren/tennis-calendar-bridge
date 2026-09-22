@@ -26,3 +26,7 @@
 #     password_env: MY_CLUB_PASSWORD
 #     enabled: true
 #     timezone: America/Los_Angeles
+#     options:
+#       calendar_feed_env: MY_CLUB_CALENDAR_FEED_URL
+#
+# Put the actual URL in vault_tennis_calendar_feeds in encrypted vault.yml.

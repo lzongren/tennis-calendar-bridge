@@ -159,7 +159,6 @@ def mark_missing_cancelled(
         club_id,
         to_db(lower),
         to_db(upper),
-        "confirmed",
     ]
     seen_clause = ""
     if seen_external_ids:
@@ -173,7 +172,7 @@ def mark_missing_cancelled(
         WHERE club_id = ?
           AND starts_at >= ?
           AND starts_at <= ?
-          AND status = ?
+          AND status != 'cancelled'
           {seen_clause}
         """,
         params,

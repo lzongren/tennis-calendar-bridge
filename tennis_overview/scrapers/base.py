@@ -12,10 +12,17 @@ class ScraperError(RuntimeError):
 
 
 class BaseScraper:
-    def __init__(self, club: ClubConfig, data_dir: Path, headless: bool = True):
+    def __init__(
+        self,
+        club: ClubConfig,
+        data_dir: Path,
+        headless: bool = True,
+        lookahead_days: int = 90,
+    ):
         self.club = club
         self.data_dir = data_dir
         self.headless = headless
+        self.lookahead_days = lookahead_days
 
     def fetch(self) -> list[TennisEvent]:
         raise NotImplementedError

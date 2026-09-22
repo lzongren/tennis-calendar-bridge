@@ -51,3 +51,5 @@ tennis_clubs:
     timezone: America/Los_Angeles
     options:
       portal_id: "0000"
+      # Optional: use the official member feed instead of browser login.
+      # calendar_feed_env: EXAMPLE_COURTRESERVE_CALENDAR_FEED_URL
