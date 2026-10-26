@@ -36,7 +36,15 @@ jobs:
         run: mypy tennis_overview
 
       - name: Install browser for calendar acceptance tests
-        run: python -m playwright install --with-deps chromium
+        timeout-minutes: 5
+        run: |
+          # The Azure Ubuntu mirror can stall package downloads on hosted runners.
+          for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [ -f "$source" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' "$source"
+            fi
+          done
+          python -m playwright install --with-deps chromium
 
       - name: Run tests
         run: pytest
