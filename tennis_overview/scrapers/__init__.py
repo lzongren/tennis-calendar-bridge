@@ -16,9 +16,11 @@ SCRAPERS: dict[str, type[BaseScraper]] = {
 }
 
 
-def make_scraper(club: ClubConfig, data_dir: Path, headless: bool = True) -> BaseScraper:
+def make_scraper(
+    club: ClubConfig, data_dir: Path, headless: bool = True, lookahead_days: int = 90
+) -> BaseScraper:
     scraper_class = SCRAPERS.get(club.provider)
     if scraper_class is None:
         supported = ", ".join(sorted(SCRAPERS))
         raise ScraperError(f"Unsupported provider '{club.provider}'. Supported: {supported}.")
-    return scraper_class(club, data_dir, headless=headless)
+    return scraper_class(club, data_dir, headless=headless, lookahead_days=lookahead_days)

@@ -83,6 +83,10 @@ def load_config(path: str | None = None) -> Config:
         admin_token=os.getenv("TENNIS_ADMIN_TOKEN"),
         calendar_token=os.getenv("TENNIS_CALENDAR_TOKEN"),
         headless=_bool_from_env("TENNIS_HEADLESS", True),
+        discovery_enabled=_bool_from_env("TENNIS_DISCOVERY_ENABLED", False),
+        discovery_api_url=os.getenv("TENNIS_DISCOVERY_API_URL", ""),
+        discovery_model=os.getenv("TENNIS_DISCOVERY_MODEL", "tennis-discovery"),
+        discovery_api_key=os.getenv("TENNIS_DISCOVERY_API_KEY", ""),
     )
 
     club_rows = raw.get("clubs", [])
@@ -104,8 +108,8 @@ def load_config(path: str | None = None) -> Config:
                 provider=item["provider"],
                 base_url=item["base_url"],
                 login_url=item.get("login_url"),
-                username_env=item["username_env"],
-                password_env=item["password_env"],
+                username_env=item.get("username_env", ""),
+                password_env=item.get("password_env", ""),
                 enabled=bool(item.get("enabled", True)),
                 timezone=item.get("timezone", app.timezone),
                 options=item_options,

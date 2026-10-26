@@ -78,12 +78,22 @@ def _event_lines(event: TennisEvent, stamp: str) -> list[str]:
         description_parts.append(f"Type: {event.category}")
     if event.source_url:
         description_parts.append(f"Source: {event.source_url}")
+    if event.raw.get("all_day"):
+        zone = ZoneInfo(event.timezone)
+        date_lines = [
+            f"DTSTART;VALUE=DATE:{event.starts_at.astimezone(zone):%Y%m%d}",
+            f"DTEND;VALUE=DATE:{event.ends_at.astimezone(zone):%Y%m%d}",
+        ]
+    else:
+        date_lines = [
+            f"DTSTART:{_format_utc(event.starts_at)}",
+            f"DTEND:{_format_utc(event.ends_at)}",
+        ]
     lines = [
         "BEGIN:VEVENT",
         f"UID:{_escape(uid)}@tennis-calendar-bridge",
         f"DTSTAMP:{stamp}",
-        f"DTSTART:{_format_utc(event.starts_at)}",
-        f"DTEND:{_format_utc(event.ends_at)}",
+        *date_lines,
         f"SUMMARY:{_escape(event.title)}",
         f"DESCRIPTION:{_escape(chr(10).join(description_parts))}",
     ]
@@ -91,8 +101,8 @@ def _event_lines(event: TennisEvent, stamp: str) -> list[str]:
         lines.append(f"LOCATION:{_escape(event.location)}")
     if event.source_url:
         lines.append(f"URL:{_escape(event.source_url)}")
-    if event.status == "cancelled":
-        lines.append("STATUS:CANCELLED")
+    if event.status in {"cancelled", "tentative"}:
+        lines.append(f"STATUS:{event.status.upper()}")
     lines.append("END:VEVENT")
     return lines
 

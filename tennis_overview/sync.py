@@ -35,7 +35,12 @@ def sync_all(config: Config | None = None, only_club_id: str | None = None) -> l
 def _sync_club(conn, config: Config, club: ClubConfig) -> SyncResult:
     run_id = db.start_sync_run(conn, club.id)
     data_dir = Path(config.app.database_path).parent
-    scraper = make_scraper(club, data_dir, headless=config.app.headless)
+    scraper = make_scraper(
+        club,
+        data_dir,
+        headless=config.app.headless,
+        lookahead_days=config.app.lookahead_days,
+    )
     try:
         events = scraper.fetch()
         seen = db.upsert_events(conn, events)

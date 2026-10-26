@@ -1,0 +1,100 @@
+{
+  "request": {
+    "variables": {
+      "individualFilter": {
+        "client_id": {"_eq": "example-member"},
+        "schedule_slot_reserves": {"canceled": {"_eq": false}},
+        "is_archive": {"_eq": false},
+        "implementations": {
+          "datetime": {"_gte": "2026-09-01 00:00:00", "_lte": "2026-10-01 00:00:00"},
+          "cancel_id": {"_is_null": true},
+          "service": {"_eq": "rent"}
+        }
+      },
+      "groupFilter": {
+        "schedule_slot_reserves": {"canceled": {"_eq": false}},
+        "is_archive": {"_eq": false},
+        "implementations": {
+          "datetime": {"_gte": "2026-09-01 00:00:00", "_lte": "2026-10-01 00:00:00"},
+          "client_id": {"_eq": "example-member"},
+          "service": {"_eq": "group"},
+          "operation": {"_eq": "sell"},
+          "cancel_id": {"_is_null": true}
+        }
+      }
+    }
+  },
+  "response": {
+    "data": {
+      "individual": [
+        {
+          "id": "example-private-booking",
+          "implementations": [
+            {"datetime": "2026-09-09T19:00:00", "duration": 120, "place": "Court A", "client_datum": {"client": {"id": "example-member"}}},
+            {"datetime": "2026-09-09T19:00:00", "duration": 120, "place": "Court A", "client_datum": {"client": {"id": "example-member"}}}
+          ],
+          "coaches": [{"coach": {"employee": {"full_name": "Example Coach Alpha"}}}],
+          "client_remote_accesses": [{"client_id": "example-member", "pin": "0000#"}]
+        },
+        {
+          "id": "example-court-only",
+          "implementations": [
+            {"datetime": "2026-09-11T19:00:00", "duration": 180, "place": "Court B", "client_datum": {"client": {"id": "example-member"}}}
+          ],
+          "coaches": [],
+          "client_remote_accesses": []
+        }
+      ],
+      "group": [
+        {
+          "id": "example-tactics",
+          "schedule_slot_reserves": [
+            {"canceled": false, "schedule_slots": [
+              {"datetime_start": "2026-09-07T19:30:00", "datetime_end": "2026-09-07T19:45:00", "court": {"name": "Court D"}},
+              {"datetime_start": "2026-09-07T20:00:00", "datetime_end": "2026-09-07T20:15:00", "court": {"name": "Court D"}},
+              {"datetime_start": "2026-09-07T19:45:00", "datetime_end": "2026-09-07T20:00:00", "court": {"name": "Court D"}},
+              {"datetime_start": "2026-09-07T20:15:00", "datetime_end": "2026-09-07T20:30:00", "court": {"name": "Court D"}}
+            ]}
+          ],
+          "implementations": [
+            {"datetime": "2026-09-07T19:30:00", "duration": 60, "place": "Tennis Adult Tactics (Single Strategy) (Mon) 07:30 PM - 08:30 PM", "court_id": null, "client_datum": {"client": {"id": "example-member"}}}
+          ],
+          "group": {"name": "Tennis Adult Tactics (Single Strategy) (Mon) 07:30 PM - 08:30 PM", "group_view": {"name": "Tennis Adult Tactics"}},
+          "groupMainCoach": {"employee": {"full_name": "Example Coach Beta"}},
+          "client_remote_accesses": [{"client_id": "example-member", "pin": "1111#"}]
+        },
+        {
+          "id": "example-doubles",
+          "schedule_slot_reserves": [],
+          "implementations": [
+            {"datetime": "2026-09-10T19:30:00", "duration": 90, "place": null, "client_datum": {"client": {"id": "example-member"}}}
+          ],
+          "group": {"name": "Tennis Adult Doubles Strategy (Thu) 7:30-9:00pm / Example Coach Gamma", "group_view": {"name": "Tennis Adult Doubles Strategy"}},
+          "groupMainCoach": {"employee": {"full_name": "Example Coach Gamma"}},
+          "client_remote_accesses": [{"client_id": "example-member", "pin": "2222#"}]
+        },
+        {
+          "id": "example-open-play",
+          "schedule_slot_reserves": [],
+          "implementations": [
+            {"datetime": "2026-09-10T20:30:00", "duration": 120, "place": null, "client_datum": {"client": {"id": "example-member"}}}
+          ],
+          "group": {"name": "Tennis Adult Open Play (Thu) 8:30-10:30pm", "group_view": {"name": "Tennis Adult Open Play"}},
+          "groupMainCoach": null,
+          "client_remote_accesses": []
+        },
+        {
+          "id": "example-flex-league",
+          "schedule_slot_reserves": [],
+          "implementations": [
+            {"datetime": "2026-10-01T20:00:00", "duration": 120, "place": "Court C", "court_id": "example-court", "client_datum": {"client": {"id": "example-member"}}},
+            {"datetime": "2026-10-08T20:00:00", "duration": 120, "place": "Court C", "court_id": "example-court", "client_datum": {"client": {"id": "example-member"}}}
+          ],
+          "group": {"name": "Mixed Doubles Flex League", "group_view": null},
+          "groupMainCoach": null,
+          "client_remote_accesses": []
+        }
+      ]
+    }
+  }
+}

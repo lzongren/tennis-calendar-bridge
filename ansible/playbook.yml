@@ -22,6 +22,19 @@
           fill in the values, and encrypt it with ansible-vault.
       no_log: true
 
+    - name: Require vault-backed calendar feed URLs for enabled feed clubs
+      ansible.builtin.assert:
+        that:
+          - item.provider == 'courtreserve'
+          - item.options.calendar_feed_env is match('^[A-Za-z_][A-Za-z0-9_]*$')
+          - (vault_tennis_calendar_feeds | default({})).get(item.options.calendar_feed_env, '') | length > 0
+        fail_msg: Add each enabled club's calendar_feed_env key to vault_tennis_calendar_feeds.
+      loop: "{{ tennis_clubs }}"
+      when:
+        - item.enabled | default(true)
+        - item.get('options', {}).get('calendar_feed_env') is not none
+      no_log: true
+
     - name: Check local rsync
       ansible.builtin.command: rsync --version
       delegate_to: localhost
@@ -59,6 +72,8 @@
           - --exclude=*.egg-info/
           - --exclude=data/
           - --exclude=.env
+          - --exclude=.inference.env
+          - --exclude=.vault-pass
           - --exclude=config/clubs.toml
           - --exclude=ansible/inventory.yml
           - --exclude=ansible/group_vars/**/vault.yml
@@ -84,6 +99,14 @@
         src: templates/clubs.toml.j2
         dest: "{{ tennis_remote_dir }}/config/clubs.toml"
         mode: "0644"
+
+    - name: Render optional private inference settings
+      ansible.builtin.template:
+        src: templates/inference.env.j2
+        dest: "{{ tennis_remote_dir }}/.inference.env"
+        mode: "0600"
+      when: vault_tennis_discovery_api_key | default('') | length > 0
+      no_log: true
 
     - name: Build and start service
       ansible.builtin.command: docker compose up -d --build

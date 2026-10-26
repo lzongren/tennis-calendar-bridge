@@ -3,11 +3,16 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.playwright-cli/
+output/playwright/
 .coverage
 htmlcov/
 *.egg-info/
 data/
 .env
+.inference.env
+.vault-pass
+ansible/.vault-pass
 config/clubs.toml
 ansible/inventory.yml
 ansible/group_vars/**/vault.yml

@@ -16,6 +16,8 @@ from zoneinfo import ZoneInfo
 from . import db
 from .calendar import make_ics
 from .config import load_config
+from .discovery import DiscoveryService
+from .discovery_ui import discovery_html
 from .models import Config, TennisEvent
 from .sync import sync_all
 from .timeutils import to_db, utc_now
@@ -31,6 +33,13 @@ class TennisServer(ThreadingHTTPServer):
         self.config = config
         db.connect(config.app.database_path).close()
         super().__init__(server_address, TennisRequestHandler)
+        self.discovery = DiscoveryService(config.app)
+        self.discovery.start()
+
+    def server_close(self) -> None:
+        if hasattr(self, "discovery"):
+            self.discovery.stop()
+        super().server_close()
 
 
 class TennisRequestHandler(BaseHTTPRequestHandler):
@@ -59,6 +68,15 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/":
             self._handle_dashboard()
+        elif path == "/discover":
+            self._send(discovery_html(self.server.config), "text/html; charset=utf-8")
+        elif path == "/api/discovery":
+            self._send_json(
+                {
+                    "enabled": self.server.config.app.discovery_enabled,
+                    "locations": self.server.discovery.list(),
+                }
+            )
         elif path == "/healthz":
             self._send_json({"ok": True})
         elif path == "/api/events":
@@ -77,11 +95,49 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/sync":
             self._handle_sync(parsed.query)
+        elif path == "/api/discovery":
+            self._handle_discovery()
         else:
             self._send_text("Not found", HTTPStatus.NOT_FOUND)
 
     def log_message(self, fmt: str, *args: Any) -> None:
-        print(f"{self.address_string()} - {fmt % args}")
+        # Request paths may contain personal calendar tokens; log no URL/query/header data.
+        print(f"{self.address_string()} - {self.command}")
+
+    def _handle_discovery(self) -> None:
+        if not self._is_admin(""):
+            self._send_json({"error": "Unauthorized"}, HTTPStatus.UNAUTHORIZED)
+            return
+        if not self.server.config.app.discovery_enabled:
+            self._send_json(
+                {"error": "Course discovery is disabled."}, HTTPStatus.SERVICE_UNAVAILABLE
+            )
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 12000 or self.headers.get("Transfer-Encoding"):
+                raise ValueError("Invalid request size.")
+            self.connection.settimeout(10)
+            payload = json.loads(self.rfile.read(length))
+            if not isinstance(payload, dict):
+                raise ValueError("Expected a JSON object.")
+            action = payload.get("action")
+            if action == "add":
+                result = {"id": self.server.discovery.add(payload)}
+            elif action in {"refresh", "delete"}:
+                location_id = int(payload.get("id", 0))
+                if action == "refresh":
+                    self.server.discovery.refresh(location_id)
+                else:
+                    self.server.discovery.delete(location_id)
+                result = {"ok": True}
+            else:
+                raise ValueError("Unknown discovery action.")
+        except (ValueError, TypeError, UnicodeDecodeError, TimeoutError) as exc:
+            message = str(exc) if type(exc) is ValueError else "Invalid request."
+            self._send_json({"error": message}, HTTPStatus.BAD_REQUEST)
+            return
+        self._send_json(result, HTTPStatus.ACCEPTED)
 
     def _route_path(self, path: str, query: str = "", send_body: bool = True) -> str | None:
         base_path = self.server.config.app.base_path
@@ -524,6 +580,11 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
     feed_actions = _feed_actions(calendar_url)
     next_session = _next_session_card(events, config.app.timezone)
     sync_summary = _sync_summary(runs)
+    discovery_link = (
+        f'<a class="view-tab" href="{_html(_app_path(config, "/discover"))}">Find courses</a>'
+        if config.app.discovery_enabled
+        else ""
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1062,6 +1123,7 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
       <button class="view-tab is-active" type="button" data-view-tab="agenda" aria-controls="agenda-view" aria-selected="true">Agenda</button>
       <button class="view-tab" type="button" data-view-tab="calendar" aria-controls="calendar-view" aria-selected="false">Calendar</button>
       <button class="view-tab" type="button" data-view-tab="sync" aria-controls="sync-view" aria-selected="false">Sync</button>
+      {discovery_link}
     </nav>
 
     <section id="agenda-view" class="view is-active" data-view-panel="agenda" aria-labelledby="agenda-title">
@@ -1167,11 +1229,10 @@ def _next_session_card(events: list[TennisEvent], timezone_name: str) -> str:
     zone = ZoneInfo(timezone_name)
     event = min(events, key=lambda item: item.starts_at)
     start = event.starts_at.astimezone(zone)
-    end = event.ends_at.astimezone(zone)
     month = start.strftime("%b")
     day = start.strftime("%-d")
     weekday = start.strftime("%A")
-    time_range = f"{start.strftime('%-I:%M %p')} - {end.strftime('%-I:%M %p')}"
+    time_range = _event_time_range(event, zone)
     detail = _event_detail(event, include_club=True, include_location=True) or event.club_id
     return (
         "<article class='next-card'>"
@@ -1193,10 +1254,9 @@ def _next_session_card(events: list[TennisEvent], timezone_name: str) -> str:
 def _agenda_item(event: TennisEvent) -> str:
     zone = ZoneInfo(event.timezone)
     start = event.starts_at.astimezone(zone)
-    end = event.ends_at.astimezone(zone)
     day = start.strftime("%b %-d")
     weekday = start.strftime("%A")
-    time_range = f"{start.strftime('%-I:%M %p')} - {end.strftime('%-I:%M %p')}"
+    time_range = _event_time_range(event, zone)
     detail = _event_detail(event, include_club=True, include_location=True) or event.club_id
     return (
         "<article class='agenda-item'>"
@@ -1282,14 +1342,20 @@ def _calendar_month(
     )
 
 
-def _calendar_event(event: TennisEvent, zone: ZoneInfo) -> str:
+def _event_time_range(event: TennisEvent, zone: ZoneInfo) -> str:
+    if event.raw.get("all_day"):
+        return "All day"
     start = event.starts_at.astimezone(zone).strftime("%-I:%M %p")
     end = event.ends_at.astimezone(zone).strftime("%-I:%M %p")
+    return f"{start} - {end}"
+
+
+def _calendar_event(event: TennisEvent, zone: ZoneInfo) -> str:
     detail = _event_detail(event, include_club=True, include_location=True)
     detail_html = f"<div class='event-secondary'>{_html(detail)}</div>" if detail else ""
     return (
         "<div class='calendar-event'>"
-        f"<div class='calendar-event-time'>{_html(start)} - {_html(end)}</div>"
+        f"<div class='calendar-event-time'>{_html(_event_time_range(event, zone))}</div>"
         f"<div class='calendar-event-title'>{_html(event.title)}</div>"
         f"{detail_html}"
         "</div>"
@@ -1298,15 +1364,15 @@ def _calendar_event(event: TennisEvent, zone: ZoneInfo) -> str:
 
 def _event_row(event: TennisEvent) -> str:
     zone = ZoneInfo(event.timezone)
-    start = event.starts_at.astimezone(zone).strftime("%a %b %-d, %-I:%M %p")
-    end = event.ends_at.astimezone(zone).strftime("%-I:%M %p")
+    day = event.starts_at.astimezone(zone).strftime("%a %b %-d")
+    when = f"{day}, {_event_time_range(event, zone)}"
     detail = _event_detail(event)
     event_cell = _html(event.title)
     if detail:
         event_cell += f"<div class='event-secondary'>{_html(detail)}</div>"
     return (
         "<tr>"
-        f"<td data-label='When'>{_html(start)} - {_html(end)}</td>"
+        f"<td data-label='When'>{_html(when)}</td>"
         f"<td data-label='Club'>{_html(event.club_id)}</td>"
         f"<td data-label='Event'>{event_cell}</td>"
         f"<td data-label='Location'>{_html(event.location or '')}</td>"

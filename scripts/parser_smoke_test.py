@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 from pathlib import Path
 import sys
 from zoneinfo import ZoneInfo
@@ -58,45 +59,26 @@ def main() -> None:
         ),
         Path("/tmp"),
     )
-    card = """
-    Rent/Private
-    Member Name
-    Wed, 06/17/2026, 07:00 PM - 09:00 PM, Tennis/Pickle 6
-    Instructor Name
-    """
-    event = accusportview._event_from_card_text(card, "local")
-    assert event is not None
-    assert event.starts_at == datetime(2026, 6, 17, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
-    assert event.ends_at == datetime(2026, 6, 17, 21, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
-    assert event.location == "Tennis/Pickle 6"
-
-    body_text = """
-    06/01/2026 - 06/30/2026
-    Rent/Private
-    Member Name
-    Wed, 06/17/2026, 07:00 PM - 09:00 PM, Tennis/Pickle 6
-    Instructor Name
-    2 h
-    Rent/Private
-    Member Name
-    Fri, 06/19/2026, 07:00 PM - 10:00 PM, Tennis Court 1
-    Instructor Name
-    3 h
-    PAST RESERVATIONS
-    Rent/Private
-    Member Name
-    Sat, 06/06/2026, 01:00 PM - 05:00 PM, Tennis Court 3
-    """
-    events = accusportview._events_from_body_text(body_text, "local")
-    assert len(events) == 2
-    assert events[0].starts_at == datetime(
-        2026, 6, 17, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles")
+    fixture = (
+        Path(__file__).resolve().parents[1]
+        / "tests/fixtures/accusportview/member-reservations.json"
     )
-    assert events[1].starts_at == datetime(
-        2026, 6, 19, 19, 0, tzinfo=ZoneInfo("America/Los_Angeles")
+    payload = json.loads(fixture.read_text())["response"]
+    zone = ZoneInfo("America/Los_Angeles")
+    events = accusportview._events_from_schedule(
+        payload,
+        "example-member",
+        "https://example.my.accusportview.com/my",
+        datetime(2026, 9, 6, tzinfo=zone),
+        datetime(2026, 12, 6, tzinfo=zone),
     )
-    assert events[1].ends_at == datetime(2026, 6, 19, 22, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
-    assert events[1].location == "Tennis Court 1"
+    assert len(events) == 7
+    assert events[0].title == "Tennis Adult Tactics"
+    assert events[0].starts_at == datetime(2026, 9, 7, 19, 30, tzinfo=zone)
+    assert events[0].ends_at == datetime(2026, 9, 7, 20, 30, tzinfo=zone)
+    assert events[0].location == "Court D"
+    assert events[0].raw["instructor"] == "Example Coach Beta"
+    assert events[0].raw["access_code"] == "1111#"
     print("parser smoke test passed")
 
 
