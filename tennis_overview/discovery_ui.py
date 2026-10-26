@@ -40,7 +40,7 @@ dialog{width:min(560px,calc(100% - 28px));border:1px solid #cbd5ce;border-radius
 @media(max-width:760px){main{padding-right:14px;padding-left:14px}header h1{font-size:24px}.week{display:block;min-height:0;border:0;background:transparent}.week .day{border:0;padding:12px 0}.week .day:has(.empty){display:none}.week .course{background:white;border:1px solid #d3ddd5;border-left:3px solid #0e7c66}.list .course{display:block}.toolbar{gap:8px;padding:14px 0}.range{min-width:0;flex:1;font-size:15px}.segment{display:none}.toolbar select{max-width:none}.toolbar .spacer{display:none}header{gap:8px}header a{font-size:14px}.course{padding:12px}#status{line-height:1.6}}
 @media(max-width:760px){#locations{flex:1 0 100%;width:100%;max-width:100%}}
 </style></head><body><main>
-<header><h1>Find Courses</h1><a href="__HOME__">My schedule</a></header>
+<header><h1>Find Courses</h1><nav><a href="__HOME__walls">Practice walls</a> · <a href="__HOME__">My schedule</a></nav></header>
 <div class="toolbar"><select id="locations" aria-label="Saved location"></select><button id="add" class="primary">Add location</button><span class="spacer"></span><button id="refresh">Refresh</button><button id="remove">Remove</button></div>
 <p id="status" class="muted small" role="status" aria-live="polite"></p>
 <p id="error" class="error" role="alert"></p>

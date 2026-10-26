@@ -1,0 +1,2 @@
+# Preserve upstream distribution bytes and their published integrity hashes.
+tennis_overview/static/vendor/** -text whitespace=cr-at-eol

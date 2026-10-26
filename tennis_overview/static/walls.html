@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="theme-color" content="#0e7c66" />
+    <title>Practice walls | Tennis Calendar</title>
+    <link rel="icon" href="__HOME__icons/icon-192.png" />
+    <link
+      rel="stylesheet"
+      href="__HOME__wall-assets/vendor/leaflet/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="__HOME__wall-assets/walls.css?v=__STYLE_VERSION__"
+    />
+    <script defer src="__HOME__wall-assets/vendor/leaflet/leaflet.js"></script>
+    <script
+      defer
+      src="__HOME__wall-assets/walls.js?v=__SCRIPT_VERSION__"
+    ></script>
+  </head>
+  <body data-api="__HOME__api/walls">
+    <main>
+      <header>
+        <h1>Practice walls</h1>
+        <nav aria-label="Tennis navigation">
+          <a href="__HOME__">My schedule</a>__DISCOVERY__
+        </nav>
+      </header>
+      <div class="toolbar">
+        <label class="search"
+          >Search locations<input
+            type="search"
+            id="search"
+            placeholder="Park, city or address"
+            autocomplete="off"
+        /></label>
+        <label
+          >City<select id="city" aria-label="City">
+            <option value="">All cities</option>
+          </select></label
+        >
+        <label
+          >Evidence<select id="evidence" aria-label="Evidence">
+            <option value="">All evidence</option>
+            <option value="official_practice_wall">
+              Official practice wall
+            </option>
+            <option value="community_report">Community report</option>
+            <option value="handball_wall">Handball; tennis unverified</option>
+          </select></label
+        >
+      </div>
+      <p id="count" role="status" aria-live="polite">Loading locations...</p>
+      <p id="error" role="alert" hidden></p>
+      <div class="workspace">
+        <section class="map-area" aria-label="Wall locations">
+          <button
+            id="fit"
+            class="fit"
+            type="button"
+            title="Show all filtered locations"
+            aria-label="Show all filtered locations"
+            hidden
+          >
+            <img
+              src="__HOME__wall-assets/vendor/lucide/maximize.svg"
+              width="20"
+              height="20"
+              alt=""
+            />
+          </button>
+          <div id="map" role="region" aria-label="Practice wall map"></div>
+          <p class="map-note">
+            Pins mark venues unless an exact wall position is documented.
+          </p>
+          <p id="map-status" role="status" hidden></p>
+        </section>
+        <section
+          aria-label="Location list"
+          id="results"
+          tabindex="-1"
+        ></section>
+      </div>
+      <section class="leads" aria-labelledby="leads-title">
+        <h2 id="leads-title">Unmapped leads</h2>
+        <p class="muted">Location or access still needs verification.</p>
+        <div id="leads"></div>
+      </section>
+      <footer>
+        <p>
+          Facility listings are not live availability. Check posted rules and
+          current access before travelling.
+        </p>
+        <details>
+          <summary>Sources and privacy</summary>
+          <p>
+            This is a curated directory, not an exhaustive search. Review dates
+            refer to source checks, not on-site inspections. No device location,
+            booking data or model API is used.
+          </p>
+          <p>
+            Map tiles load directly from OpenStreetMap, which receives your IP
+            address, the app origin and the viewed map area. External navigation
+            links open only when selected.
+          </p>
+          <p>
+            Venue coordinates:
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noopener noreferrer"
+              >OpenStreetMap contributors, ODbL</a
+            >.
+            <a
+              href="https://www.openstreetmap.org/fixthemap"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Report a map issue</a
+            >.
+          </p>
+        </details>
+      </footer>
+      <noscript
+        ><p>
+          JavaScript is required for the interactive map.
+          <a href="__HOME__api/walls">Read the location catalog</a>.
+        </p></noscript
+      >
+    </main>
+  </body>
+</html>
