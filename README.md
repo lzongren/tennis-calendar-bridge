@@ -168,6 +168,19 @@ private service unless you add authentication in front of the dashboard.
 This repository includes placeholder config only. Real deployment-specific
 values should live in ignored files or Ansible Vault.
 
+## Practice Wall Map
+
+The **Practice walls** view adds a map and searchable venue list alongside your
+schedule and course discovery. It distinguishes officially documented practice
+walls, community reports, and handball facilities where tennis use is unverified.
+The starter catalog covers South Bay venues; custom catalogs can cover any region.
+Unresolved locations and school-access questions remain unmapped leads.
+
+No LLM or map API key is needed. The browser loads OpenStreetMap tiles directly;
+venue coordinates and source links are public, separate from private bookings.
+See [Practice Walls](docs/practice-walls.md) for evidence, privacy, dataset licensing,
+custom catalogs, and tests.
+
 ## Supported Adapter Examples
 
 The example config includes starting adapters for:

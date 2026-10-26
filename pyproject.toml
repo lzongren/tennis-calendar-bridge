@@ -47,6 +47,15 @@ tennis-overview = "tennis_overview.cli:main"
 [tool.setuptools.packages.find]
 include = ["tennis_overview*"]
 
+[tool.setuptools.package-data]
+tennis_overview = [
+  "catalogs/*.json",
+  "static/*",
+  "static/vendor/leaflet/*",
+  "static/vendor/leaflet/images/*",
+  "static/vendor/lucide/*",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

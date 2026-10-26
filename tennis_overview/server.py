@@ -21,6 +21,8 @@ from .discovery_ui import discovery_html
 from .models import Config, TennisEvent
 from .sync import sync_all
 from .timeutils import to_db, utc_now
+from .walls import load_catalog
+from .walls_ui import wall_asset, walls_html
 
 PWA_THEME_COLOR = "#0e7c66"
 PWA_BACKGROUND_COLOR = "#f7f8f5"
@@ -50,7 +52,9 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
         path = self._route_path(parsed.path, parsed.query, send_body=False)
         if path is None:
             return
-        if path == "/healthz":
+        if self._handle_walls(path, send_body=False):
+            pass
+        elif path == "/healthz":
             self._send_json({"ok": True}, send_body=False)
         elif path == "/":
             self._send("", "text/html; charset=utf-8", send_body=False)
@@ -66,7 +70,9 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
         path = self._route_path(parsed.path, parsed.query)
         if path is None:
             return
-        if path == "/":
+        if self._handle_walls(path):
+            pass
+        elif path == "/":
             self._handle_dashboard()
         elif path == "/discover":
             self._send(discovery_html(self.server.config), "text/html; charset=utf-8")
@@ -87,6 +93,29 @@ class TennisRequestHandler(BaseHTTPRequestHandler):
             self._handle_calendar(path)
         else:
             self._send_text("Not found", HTTPStatus.NOT_FOUND)
+
+    def _handle_walls(self, path: str, send_body: bool = True) -> bool:
+        if path in {"/walls", "/walls/"}:
+            self._send(
+                walls_html(self.server.config), "text/html; charset=utf-8", send_body=send_body
+            )
+        elif path == "/api/walls":
+            try:
+                catalog = load_catalog(self.server.config.app.walls_catalog_path)
+            except (OSError, ValueError, TypeError):
+                # Paths and operator-provided content must not appear in errors.
+                self._send_json(
+                    {"error": "Wall catalog unavailable."},
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    send_body=send_body,
+                )
+            else:
+                self._send_json(catalog, send_body=send_body)
+        elif asset := wall_asset(path):
+            self._send_bytes(*asset, send_body=send_body, cache_control="public, max-age=3600")
+        else:
+            return False
+        return True
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -779,7 +808,7 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
       top: 0;
       z-index: 1;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
       gap: 4px;
       margin: 0 0 16px;
       padding: 4px;
@@ -789,6 +818,12 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
       backdrop-filter: blur(16px);
     }}
     .view-tab {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      text-decoration: none;
+      padding: 8px;
       min-height: 40px;
       border: 0;
       border-radius: 7px;
@@ -1124,6 +1159,7 @@ def _dashboard_html(config: Config, events: list[TennisEvent], runs: list[Any]) 
       <button class="view-tab" type="button" data-view-tab="calendar" aria-controls="calendar-view" aria-selected="false">Calendar</button>
       <button class="view-tab" type="button" data-view-tab="sync" aria-controls="sync-view" aria-selected="false">Sync</button>
       {discovery_link}
+      <a class="view-tab" href="{_html(_app_path(config, "/walls"))}">Practice walls</a>
     </nav>
 
     <section id="agenda-view" class="view is-active" data-view-panel="agenda" aria-labelledby="agenda-title">

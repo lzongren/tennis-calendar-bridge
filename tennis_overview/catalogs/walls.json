@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "locations": [
+    {
+      "id": "campbell-community-center",
+      "name": "Campbell Community Center",
+      "city": "Campbell, CA",
+      "address": "1 W. Campbell Ave., Campbell, CA",
+      "lat": 37.2889943,
+      "lon": -121.951981,
+      "precision": "venue",
+      "coordinate_source": "https://www.openstreetmap.org/way/945012800",
+      "status": "official_practice_wall",
+      "notes": "The city campus map labels a practice wall beside the tennis courts, separately from the handball courts. Check posted rules and current access; this is not a live availability report.",
+      "reviewed_on": "2026-10-26",
+      "sources": [
+        {
+          "label": "City campus map (practice wall)",
+          "url": "https://campbellca.gov/DocumentCenter/View/26461/Location-Map-Dec2025"
+        },
+        {
+          "label": "City community center",
+          "url": "https://www.campbellca.gov/328/Community-Center-Facility-Rentals"
+        }
+      ]
+    },
+    {
+      "id": "marijane-hamann-park",
+      "name": "Marijane Hamann Park",
+      "city": "San Jose, CA",
+      "address": "2747 Westfield Ave., San Jose, CA",
+      "lat": 37.3042663,
+      "lon": -121.9419957,
+      "precision": "venue",
+      "coordinate_source": "https://www.openstreetmap.org/way/28789390",
+      "status": "community_report",
+      "notes": "A community report mentions a wall near the tennis courts. The city lists three tennis courts but does not confirm a practice wall. Wall condition and access remain unverified.",
+      "reviewed_on": "2026-10-26",
+      "sources": [
+        {
+          "label": "Community wall report",
+          "url": "https://www.reddit.com/r/SanJose/comments/1udpmvu/any_tennis_walls_in_san_jose/"
+        },
+        {
+          "label": "City park directory (courts only)",
+          "url": "https://www.sanjoseca.gov/Home/Components/FacilityDirectory/FacilityDirectory/2271/2028"
+        }
+      ]
+    },
+    {
+      "id": "backesto-park",
+      "name": "Backesto Park",
+      "city": "San Jose, CA",
+      "address": "518 North 13th Street, San Jose, CA",
+      "lat": 37.3524832,
+      "lon": -121.8846069,
+      "precision": "venue",
+      "coordinate_source": "https://www.openstreetmap.org/way/25966765",
+      "status": "handball_wall",
+      "notes": "The visitor bureau lists handball courts. A community thread suggests this park for hitting against a wall, but tennis use is not confirmed. Respect handball users and posted restrictions.",
+      "reviewed_on": "2026-10-26",
+      "sources": [
+        {
+          "label": "San Jose visitor bureau (handball courts)",
+          "url": "https://www.sanjose.org/listings/backesto-park"
+        },
+        {
+          "label": "Community discussion",
+          "url": "https://www.reddit.com/r/SanJose/comments/1udpmvu/any_tennis_walls_in_san_jose/"
+        }
+      ]
+    }
+  ],
+  "leads": [
+    {
+      "id": "santa-clara-swim-center-lead",
+      "name": "Near the Santa Clara swim center",
+      "city": "Santa Clara, CA",
+      "notes": "The report does not identify the wall or precise venue. No map pin until the location is resolved.",
+      "reviewed_on": "2026-10-26",
+      "sources": [
+        {
+          "label": "Community discussion",
+          "url": "https://www.reddit.com/r/SanJose/comments/1udpmvu/any_tennis_walls_in_san_jose/"
+        }
+      ]
+    },
+    {
+      "id": "evergreen-valley-school-lead",
+      "name": "Evergreen Valley High School",
+      "city": "San Jose, CA",
+      "notes": "Community-reported school wall. Public access and permitted hours have not been established; do not assume the campus is open.",
+      "reviewed_on": "2026-10-26",
+      "sources": [
+        {
+          "label": "Community discussion",
+          "url": "https://www.reddit.com/r/SanJose/comments/1udpmvu/any_tennis_walls_in_san_jose/"
+        }
+      ]
+    },
+    {
+      "id": "williams-school-lead",
+      "name": "Williams Elementary, Almaden",
+      "city": "San Jose, CA",
+      "notes": "Community-reported school wall. Public access and permitted hours have not been established; do not assume the campus is open.",
+      "reviewed_on": "2026-10-26",
+      "sources": [
+        {
+          "label": "Community discussion",
+          "url": "https://www.reddit.com/r/SanJose/comments/1udpmvu/any_tennis_walls_in_san_jose/"
+        }
+      ]
+    },
+    {
+      "id": "willow-glen-lead",
+      "name": "Willow Glen: Bramhall / Bird and Pine",
+      "city": "San Jose, CA",
+      "notes": "A comment names Bramhall Park and a court at Bird and Pine. The venues and wall positions need separate verification before mapping.",
+      "reviewed_on": "2026-10-26",
+      "sources": [
+        {
+          "label": "Community discussion",
+          "url": "https://www.reddit.com/r/SanJose/comments/1udpmvu/any_tennis_walls_in_san_jose/"
+        }
+      ]
+    }
+  ]
+}
