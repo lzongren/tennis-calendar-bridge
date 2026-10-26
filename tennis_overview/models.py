@@ -31,6 +31,10 @@ class AppConfig:
     admin_token: str | None = None
     calendar_token: str | None = None
     headless: bool = True
+    discovery_enabled: bool = False
+    discovery_api_url: str = ""
+    discovery_model: str = "tennis-discovery"
+    discovery_api_key: str = field(default="", repr=False)
 
 
 @dataclass(frozen=True)

@@ -35,6 +35,9 @@ jobs:
       - name: Type check
         run: mypy tennis_overview
 
+      - name: Install browser for calendar acceptance tests
+        run: python -m playwright install --with-deps chromium
+
       - name: Run tests
         run: pytest
 

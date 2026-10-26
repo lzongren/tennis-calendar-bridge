@@ -25,6 +25,9 @@ dependencies = [
   "playwright>=1.44.0",
   "icalendar>=7.0,<8",
   "recurring-ical-events>=3.8.2,<4",
+  "beautifulsoup4>=4.12,<5",
+  "ddgs>=9.9,<10",
+  "python-dateutil>=2.9,<3",
 ]
 
 [project.optional-dependencies]
