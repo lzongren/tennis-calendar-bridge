@@ -1,5 +1,9 @@
 # Tennis Calendar Bridge
 
+Optional [private course discovery](docs/COURSE_DISCOVERY.md) finds public adult
+tennis courses by location using a local model over Tailscale. Its calendar of
+suggestions is separate from confirmed reservations and calendar subscriptions.
+
 Tennis Calendar Bridge is a private-first schedule aggregator for tennis clubs,
 training centers, and court-booking portals. It logs in to configured provider
 sites, normalizes reservations and lessons into one SQLite-backed event store,

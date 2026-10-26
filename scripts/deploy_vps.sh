@@ -42,6 +42,7 @@ rsync -az --delete \
   --exclude ".pytest_cache/" \
   --exclude "*.egg-info/" \
   --exclude ".vault-pass" \
+  --exclude ".inference.env" \
   --exclude "data/" \
   --exclude "ansible/inventory.yml" \
   --exclude "ansible/group_vars/**/vault.yml" \

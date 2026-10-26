@@ -13,6 +13,27 @@ from tennis_overview.config import load_config
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_private_inference_environment_is_isolated_and_optional():
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(ROOT / "ansible/templates"), undefined=jinja2.StrictUndefined
+    )
+    rendered = env.get_template("inference.env.j2").render(
+        tennis_discovery_enabled=True,
+        tennis_discovery_api_url="https://model.example.org/v1",
+        vault_tennis_discovery_api_key="synthetic-secret",
+    )
+    assert "TENNIS_DISCOVERY_ENABLED=true" in rendered
+    assert "TENNIS_DISCOVERY_API_KEY='synthetic-secret'" in rendered
+    assert "TENNIS_ADMIN_TOKEN" not in rendered
+    play = yaml.safe_load((ROOT / "ansible/playbook.yml").read_text())[0]
+    task = next(
+        t for t in play["tasks"] if t["name"] == "Render optional private inference settings"
+    )
+    assert task["no_log"] and task["ansible.builtin.template"]["mode"] == "0600"
+    for name in (".gitignore", ".dockerignore", "scripts/deploy_vps.sh", "ansible/playbook.yml"):
+        assert ".inference.env" in (ROOT / name).read_text()
+
+
 def test_vault_feed_is_rendered_only_into_environment(tmp_path):
     values = yaml.safe_load((ROOT / "ansible/group_vars/tennis_servers/vars.yml").read_text())
     values.update(

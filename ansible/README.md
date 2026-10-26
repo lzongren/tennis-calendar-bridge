@@ -1,5 +1,11 @@
 # Ansible Deployment
 
+For optional local-model course discovery, see
+[Private Course Discovery](../docs/COURSE_DISCOVERY.md). The inference API key can
+be stored as `vault_tennis_discovery_api_key`; inference settings are rendered into
+a separate owner-only `.inference.env`. Deployments preserve an existing file when
+that Vault value is absent. This playbook never configures model-host or VPS ingress.
+
 This deployment path provisions Tennis Calendar Bridge onto a VPS with Docker
 Compose. Secrets are rendered from Ansible Vault on the target machine; no local
 `.env` file is required.

@@ -72,6 +72,7 @@
           - --exclude=*.egg-info/
           - --exclude=data/
           - --exclude=.env
+          - --exclude=.inference.env
           - --exclude=.vault-pass
           - --exclude=config/clubs.toml
           - --exclude=ansible/inventory.yml
@@ -98,6 +99,14 @@
         src: templates/clubs.toml.j2
         dest: "{{ tennis_remote_dir }}/config/clubs.toml"
         mode: "0644"
+
+    - name: Render optional private inference settings
+      ansible.builtin.template:
+        src: templates/inference.env.j2
+        dest: "{{ tennis_remote_dir }}/.inference.env"
+        mode: "0600"
+      when: vault_tennis_discovery_api_key | default('') | length > 0
+      no_log: true
 
     - name: Build and start service
       ansible.builtin.command: docker compose up -d --build
