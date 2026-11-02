@@ -29,6 +29,9 @@ dependencies = [
   "ddgs>=9.9,<10",
   "python-dateutil>=2.9,<3",
   "pydantic>=2.12,<3",
+  "pydantic-ai-slim[openai]==2.64.0",
+  "openai==3.42.1",
+  "httpx2==2.16.0",
 ]
 
 [project.optional-dependencies]
@@ -76,7 +79,7 @@ check_untyped_defs = true
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "tennis_overview.course_evidence"
+module = ["tennis_overview.course_evidence", "tennis_overview.discovery_agent", "tennis_overview.private_model"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 disallow_untyped_calls = true

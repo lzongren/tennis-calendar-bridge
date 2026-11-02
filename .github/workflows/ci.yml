@@ -33,7 +33,7 @@ jobs:
         run: ruff check .
 
       - name: Type check
-        run: mypy tennis_overview
+        run: mypy tennis_overview benchmarks
 
       - name: Install browser for calendar acceptance tests
         timeout-minutes: 5
