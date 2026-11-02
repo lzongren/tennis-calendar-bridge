@@ -16,7 +16,7 @@ from .course_evidence import EvidenceModel
 from .discovery import _quoted, matches_level, validate_course
 from .discovery_agent import DiscoveryRequest
 from .public_registration import registration_courses
-from .public_schedules import DATE, timetable_courses
+from .public_schedules import DATE, annual_table_courses, timetable_courses
 from .public_web import Page, public_url
 
 Quote = Annotated[str, Field(max_length=240)]
@@ -230,6 +230,8 @@ class CourseExtractor:
         direct = registration_courses(page, request.timezone, request.start)
         if direct is None:
             direct = timetable_courses(page, request.timezone, request.start)
+        if direct is None:
+            direct = annual_table_courses(page, request.timezone, request.start)
         if direct is not None:
             return tuple(
                 candidate

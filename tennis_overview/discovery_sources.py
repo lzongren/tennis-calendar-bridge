@@ -20,7 +20,6 @@ from .discovery_agent import (
     SourceDocument,
     SourceRef,
     SourceUnavailable,
-    TransientSourceError,
 )
 from .public_documents import read_public_document, search_public_courses
 from .public_web import Page, PageLink, public_url
@@ -93,12 +92,10 @@ class PublicSourceBackend:
             candidates += await self.searcher(
                 city, request.level, request.start.year, request.search_focus
             )
-        except TransientSourceError:
-            raise
         except SourceUnavailable:
-            self.search_failed = True
             if not candidates:
                 raise
+            self.search_failed = True
         refs: dict[str, SourceRef] = {}
         for candidate in candidates:
             try:
@@ -197,7 +194,11 @@ class PublicSourceBackend:
                     **detail.model_dump(mode="json"),
                     "id": key,
                     "title": session.title,
-                    "price": f"${session.price_usd:.2f}" if session.price_usd is not None else "",
+                    "price": f"${session.price_usd:.2f}"
+                    if session.price_usd is not None
+                    else detail.price
+                    if usd_price(detail.price) is None
+                    else "",
                     "availability": "Not checked"
                     if session.availability == "unknown"
                     else session.availability,

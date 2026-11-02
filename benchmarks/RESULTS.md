@@ -186,3 +186,52 @@ provide two working backends. A separate one-shot Brave probe returned 429 and
 was not retried. Neither probe establishes a usable replacement. No alternate
 provider or permissive automatic fallback has been added. The PR remains draft:
 source-search reliability is an open gate, not a successful empty-city result.
+
+## Search Backend And Annual Table Follow-up: 2026-11-02
+
+An isolated Mojeek probe returned HTTP 200 but no parsed results. An isolated Yahoo
+probe returned HTTP 200 and seven public source references, including the expected
+operator. The opt-in worker now selects Yahoo explicitly, leaving legacy behavior
+unchanged. A runtime guard rejects a disabled/missing backend before DDGS can choose
+its automatic provider fallback. This is not a claim that HTML search is reliable:
+the repeated runs below still fail. User-supplied public source URLs remain readable
+when search is unavailable; their results are marked partial, not city-wide coverage.
+
+The first repeated run with explicit search passed **1/2**. Its successful run took
+102.45s, 16 requests and 11 tools, returning eight candidates from six checked sources,
+with no denied calls and partial coverage. The second failed at PDF extraction after
+57.31s and 15 requests. The model copied a year and member-only price from a table
+header but cited only one course row, then repeated the same error after correction.
+The validator correctly refused the unsupported field ownership.
+
+A deterministic adapter now recognizes explicitly year-labelled adult clinic tables
+with `DAY TYPE TIME LEVEL PRO` columns. It retains row ownership, separate per-page
+pricing tiers, and the published year boundary. Term restrictions and closures keep
+the schedule unresolved rather than inventing exceptions. No operator, city, URL or
+expected course is hard-coded. A fresh read of the
+[public annual PDF](https://lgsrc.com/wp-content/uploads/2026/03/2026-Tennis-Clinics-Schedule.pdf)
+with the final installed wheel yielded eight candidates and 32 weekly timetable
+occurrences with **zero model requests**. Membership labels remain attached to all
+prices; these are not confirmed dates, seats or user eligibility. The generic price
+projection now preserves qualified price text instead of dropping it when no single
+numeric price can be established.
+
+The following city-search run, before the final term-restriction guard, remained
+**1/2**: 95.08s, 17 requests, 12 tools, four candidates and five checked sources in
+the successful partial run, with no denied calls. The second failed at its initial
+search after 3.77s and one model request, before any source was registered. No more
+provider probes were used to chase a passing score. A supported search-API option
+has been requested; no paid service was activated or new credential provisioned.
+
+Final local checks: **384 tests**, **23 benchmarks**, Ruff lint/format, mypy and
+wheel/Twine checks pass. Sanitized table fixtures test row and page ownership,
+year boundaries, changed layouts, restricted terms, qualified prices through the
+agent result, and no model calls for recognized tables. The real-city search gate
+remains open. Production is unchanged and the PR remains draft.
+
+On the final installed candidate, the original private-model oracle again passed
+**8/8** with its network/process audit: baseline 7.05/2.99s, injection 4.01/3.04s,
+date conflict 5.30/4.30s, and transient read 3.42/3.49s. The generic quoted-page
+case passed **2/2** (9.95/4.79s, four requests each), including exact title, price,
+date/time and evidence, with no denied calls and non-partial completion. These
+replay results do not resolve the separate live-search failure.

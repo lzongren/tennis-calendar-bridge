@@ -500,16 +500,67 @@ def test_empty_app_shell_is_unavailable_not_a_successful_empty_catalog():
     asyncio.run(scenario())
 
 
-def test_search_failure_can_use_explicit_sources_but_is_partial():
+@pytest.mark.parametrize("error_type", [SourceUnavailable, TransientSourceError])
+def test_search_failure_can_use_explicit_sources_but_is_partial(error_type):
     async def scenario():
         backend = PublicSourceBackend(
             CourseExtractor(planning_model(), RunUsage(), 12),
             (URL,),
-            searcher=AsyncMock(side_effect=SourceUnavailable("source failed")),
+            searcher=AsyncMock(side_effect=error_type("source failed")),
         )
         result = await backend.search(REQUEST.city, REQUEST)
         assert result.sources[0].id == identity(URL)
         assert backend.search_failed
+
+    asyncio.run(scenario())
+
+
+def test_agent_can_read_user_sources_during_search_outage_without_claiming_full_coverage():
+    async def scenario():
+        model, usage = planning_model(), RunUsage()
+        backend = PublicSourceBackend(
+            CourseExtractor(model, usage, 12),
+            (URL,),
+            searcher=AsyncMock(side_effect=TransientSourceError("search unavailable")),
+            reader=AsyncMock(return_value=generic_page()),
+        )
+        run = await run_discovery_agent(REQUEST, backend, model, usage=usage)
+        result = backend.result(run, REQUEST)
+        assert result["partial"] and result["search_failed"]
+        assert result["courses"][0]["title"] == "Adult Coach Clinic"
+        assert result["courses"][0]["sessions"][0]["starts_at"] == "2026-11-02T18:30:00-08:00"
+        assert result["courses"][0]["availability"] == "Not checked"
+        assert result["sources"][0]["status"] == "checked"
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.benchmark
+def test_annual_pdf_adapter_preserves_qualified_prices_in_agent_result():
+    async def scenario():
+        model, usage = planning_model(), RunUsage()
+        page = Page(
+            URL,
+            "Public annual timetable",
+            (FIXTURES / "discovery_annual_table.txt").read_text(),
+            (),
+            content_type="application/pdf",
+        )
+        backend = PublicSourceBackend(
+            CourseExtractor(model, usage, 12),
+            (URL,),
+            reader=AsyncMock(return_value=page),
+            searcher=no_search,
+        )
+        run = await run_discovery_agent(REQUEST, backend, model, usage=usage)
+        result = backend.result(run, REQUEST)
+        assert usage.requests == 3  # Planner only: no model interpretation of table columns.
+        assert len(result["courses"]) == 3  # 3.5-4.0 row does not match a 3.0 request.
+        assert all(session.price_usd is None for session in run.sessions)
+        assert all("MEMBER:" in course["price"] for course in result["courses"])
+        assert all(course["sessions"] for course in result["courses"])
+        assert all(course["evidence_ids"] for course in result["courses"])
+        assert not result["partial"]
 
     asyncio.run(scenario())
 

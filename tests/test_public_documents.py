@@ -37,11 +37,42 @@ def test_legacy_search_query_is_preserved_and_agent_focus_is_explicit(monkeypatc
     monkeypatch.setattr("ddgs.DDGS", lambda **kwargs: MagicMock(text=search))
     assert search_courses("Example City", "3.0", 2026) == []
     assert search.call_args.args[0] == "Example City adult tennis clinics classes schedule"
+    assert search.call_args.kwargs["backend"] == "bing,duckduckgo"
     assert search_courses("Example City", "3.0", 2026, "overview") == []
     assert search.call_args.args[0] == "adult tennis group clinics near Example City"
+    assert search.call_args.kwargs["backend"] == "yahoo"
     with pytest.raises(ValueError, match="Invalid search focus"):
         search_courses("Example City", "3.0", 2026, "arbitrary query")
     assert search.call_count == 2
+
+
+def test_selected_agent_search_backend_is_available_in_installed_dependency():
+    from ddgs.engines import ENGINES
+
+    assert "yahoo" in ENGINES["text"]
+
+
+def test_disabled_search_backend_fails_before_ddgs_can_select_other_providers(monkeypatch):
+    from ddgs.engines import ENGINES
+
+    search = MagicMock()
+    monkeypatch.delitem(ENGINES["text"], "yahoo")
+    monkeypatch.setattr("ddgs.DDGS", search)
+    with pytest.raises(ValueError, match="backend is unavailable"):
+        search_courses("Example City", "3.0", 2026, "overview")
+    search.assert_not_called()
+
+
+@pytest.mark.parametrize("focus", ["overview", "registration", "schedule"])
+def test_agent_search_does_not_enable_automatic_provider_fallback(monkeypatch, focus):
+    from ddgs.exceptions import DDGSException
+
+    search = MagicMock(side_effect=DDGSException("No results found."))
+    monkeypatch.setattr("ddgs.DDGS", lambda **kwargs: MagicMock(text=search))
+    with pytest.raises(DDGSException):
+        search_courses("Example City", "3.0", 2026, focus)
+    search.assert_called_once()
+    assert search.call_args.kwargs["backend"] == "yahoo"
 
 
 def pdf_bytes(text="Adult Clinic", links=(), *, pages=1, password=None):

@@ -139,3 +139,90 @@ def timetable_courses(page: Page, zone: str, start: date) -> list[dict[str, Any]
             }
         )
     return courses
+
+
+def annual_table_courses(page: Page, zone: str, start: date) -> list[dict[str, Any]] | None:
+    """Read a named-column annual PDF timetable without mixing rows or price tiers."""
+    if page.content_type != "application/pdf":
+        return None
+    heading = re.compile(r"^\s*(20\d{2})\s+Adult\s+Tennis\s+Clinic\s*Schedule\s*$", re.I)
+    row_pattern = re.compile(
+        r"^\s*("
+        + "|".join(WEEKDAYS)
+        + r")\s{2,}(.+?)\s{2,}("
+        + TIME
+        + r")\s*[-\u2013\u2014]\s*("
+        + TIME
+        + r")\s{2,}(.+?)\s{2,}(.+?)\s*$",
+        re.I,
+    )
+    restrictions = [
+        line
+        for line in page.text.splitlines()
+        if re.search(
+            r"\b(skip|except|excluding|holiday|cancelled|canceled|closed|closure|"
+            r"spring|summer|fall|autumn|winter|term|effective|through|until)\b|"
+            r"no (?:class|clinic|lesson)",
+            line,
+            re.I,
+        )
+        or RANGE.search(line)
+    ]
+    courses: list[dict[str, Any]] = []
+    year, title, prices, columns = 0, "", "", ""
+    recognized = False
+    for line in page.text.splitlines():
+        if re.fullmatch(r"\[PDF page \d+\]", line):
+            year, title, prices, columns = 0, "", "", ""
+        elif match := heading.fullmatch(line):
+            year, title, prices, columns = int(match[1]), line.strip(), "", ""
+        elif year and re.fullmatch(
+            r"TENNIS MEMBER: \$\d+(?:\.\d{2})? FITNESS MEMBER: \$\d+(?:\.\d{2})? "
+            r"NON-MEMBER: \$\d+(?:\.\d{2})?",
+            " ".join(line.split()),
+            re.I,
+        ):
+            prices = line.strip()
+        elif year and " ".join(line.upper().split()) == "DAY TYPE TIME LEVEL PRO":
+            columns, recognized = line.strip(), True
+        elif columns and DAY.match(line.strip()):
+            row = row_pattern.fullmatch(line)
+            if row is None:
+                return None  # A changed layout must not silently discard a course row.
+            if not start.year <= year <= (start + timedelta(days=27)).year:
+                continue
+            kind, level = row[2].strip(), row[5].strip()
+            block = ScheduleBlock(
+                f"{kind} Adult Tennis Clinic",
+                level,
+                line.strip(),
+                page.url,
+            )
+            sessions, basis, note = _sessions(block, zone, start, ongoing=True)
+            if restrictions:
+                sessions, basis = [], "unresolved"
+                note = "Published term restrictions or closures need confirmation."
+            sessions = [
+                session for session in sessions if session["starts_at"].startswith(str(year))
+            ]
+            evidence = "\n".join([title, prices, columns, line.strip(), *restrictions]).strip()
+            if len(evidence) > 1800:
+                return None
+            courses.append(
+                {
+                    "id": hashlib.sha256(f"{page.url}\n{year}\n{line}".encode()).hexdigest()[:20],
+                    "title": block.title,
+                    "club": "",
+                    "venue": "",
+                    "level": level,
+                    "price": " ".join(prices.split()),
+                    "signup_url": page.url,
+                    "source_url": page.url,
+                    "availability": "Not checked",
+                    "evidence": evidence,
+                    "sessions": sessions,
+                    "schedule_basis": basis,
+                    "schedule_note": f"Published {year} weekly timetable. {note}",
+                }
+            )
+    return courses if recognized else None

@@ -18,6 +18,19 @@ credentials, personal bookings, access codes, calendar tokens, or admin tokens a
 included. Web-search providers receive the location query; this is not fully offline
 discovery. No cloud AI account or API key is required.
 
+The opt-in Pydantic AI worker currently uses Yahoo public search through DDGS,
+with fixed query templates and no automatic provider selection. The legacy worker's
+search settings are unchanged. Public HTML search can be rate-limited or change
+without notice; failures are not evidence that a city has no courses. When a user
+has supplied public source URLs, the agent can still read them and mark the result
+as partial. Otherwise, failed search retains the previous successful snapshot.
+
+Named-column annual PDF timetables have a deterministic adapter. It keeps row
+ownership and membership-specific prices, limits weekly expansion to the published
+year, and leaves schedules with term restrictions or closures unresolved. These are
+published timetable candidates, not confirmed dates or seats. Other PDF layouts
+still require generic extraction and source validation.
+
 The backend uses `/v1/chat/completions` and an explicit model identifier. It is not
 tied to a particular club, city, host, or vendor. Qwen3-Coder in Rapid-MLX is the
 initial local deployment; other compatible servers need their own extraction tests.
