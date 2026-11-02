@@ -23,7 +23,7 @@ Tailnet hostnames belong in fixtures or PR artifacts.
 | Layer | Gate | Current scope |
 | --- | --- | --- |
 | Evidence reconciliation | Exact time, price, status, no invented queue position, complete provenance; conflicts fail closed | `pytest -m benchmark`; real-case transcription plus synthetic counterexamples |
-| Agent orchestration | Expand neighboring cities, read linked registration sources, recover transient reads, enforce request/tool/time budgets | Pending Pydantic AI integration; no current passing claim |
+| Agent orchestration | Expand neighboring cities, read linked registration sources, recover transient reads, enforce request/tool/time budgets | Pydantic AI loop and replay harness implemented; see `benchmarks/README.md`; production source integration pending |
 | Real-source retrieval | Find the clinic from a city request; read dynamic/PDF detail when needed; retain retrieval evidence | Pending; fixture search is not this gate |
 | Existing calendar regressions | Ongoing clinics, term dates, DST, exclusions, source-to-card ownership, mobile rendering | Existing discovery tests remain mandatory |
 | Runtime/security | Private model only, credential redaction, no arbitrary URL/file/payment tools, outage preservation, cancellation | Pending integrated worker and private endpoint checks |
@@ -50,7 +50,7 @@ all layers above; there is no fallback from a failed live gate to an offline-onl
 python -m pip install -e '.[dev]'
 ruff format --check tennis_overview tests
 ruff check tennis_overview tests
-mypy tennis_overview
+mypy tennis_overview benchmarks
 pytest -q -m benchmark
 pytest -q
 ```
@@ -59,6 +59,16 @@ The evidence module uses strict mypy settings and Pydantic validation. Source fa
 are accepted only after an adapter establishes ownership and identity. A model
 must not be allowed to label its own output as authoritative registration evidence.
 Evidence IDs are derived from the records actually supplied, not model citations.
+
+The agent exposes only bounded city searches and reads of discovered opaque source
+IDs. Required detail links must be read before completion. The application derives
+results from source records and retains all relevant evidence, even if the model
+tries to finish early. It has no shell, filesystem, booking or payment tools.
+
+The private client uses an explicit model and key, Tailscale HTTPS or loopback HTTP,
+no environment proxy, no redirects, bounded decoded responses and no SDK transport
+retries. Agent instrumentation is explicitly disabled. A `.ts.net` hostname alone
+does not prove that Serve/Funnel and Tailnet grants are correctly configured.
 
 Live model results must identify dependency/model configuration, repeat count,
 latency, individual failures and retrieval audit. Keep credentials and unredacted
