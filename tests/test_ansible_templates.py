@@ -21,10 +21,14 @@ def test_private_inference_environment_is_isolated_and_optional():
         tennis_discovery_enabled=True,
         tennis_discovery_api_url="https://model.example.org/v1",
         vault_tennis_discovery_api_key="synthetic-secret",
+        tennis_discovery_search_provider="brave",
+        vault_tennis_discovery_search_api_key="synthetic-search-secret",
     )
     assert "TENNIS_DISCOVERY_ENABLED=true" in rendered
     assert "TENNIS_DISCOVERY_API_KEY='synthetic-secret'" in rendered
     assert "TENNIS_ADMIN_TOKEN" not in rendered
+    assert "TENNIS_DISCOVERY_SEARCH_PROVIDER='brave'" in rendered
+    assert "TENNIS_DISCOVERY_SEARCH_API_KEY='synthetic-search-secret'" in rendered
     play = yaml.safe_load((ROOT / "ansible/playbook.yml").read_text())[0]
     task = next(
         t for t in play["tasks"] if t["name"] == "Render optional private inference settings"

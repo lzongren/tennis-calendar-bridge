@@ -31,6 +31,40 @@ year, and leaves schedules with term restrictions or closures unresolved. These 
 published timetable candidates, not confirmed dates or seats. Other PDF layouts
 still require generic extraction and source validation.
 
+### Optional Search API
+
+The agent can optionally use the official
+[Brave Web Search API](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
+instead of public HTML search. This is a separate search service, not a cloud model;
+Qwen inference stays on the configured private endpoint. No subscription or paid
+service is enabled automatically. Provider quotas and account terms still apply.
+
+After choosing and provisioning that service, set both values in `.inference.env`:
+
+```dotenv
+TENNIS_DISCOVERY_SEARCH_PROVIDER=brave
+TENNIS_DISCOVERY_SEARCH_API_KEY=your-dedicated-search-key
+```
+
+For Ansible, set `tennis_discovery_search_provider: brave` in the ignored local vars
+file and `vault_tennis_discovery_search_api_key` in the encrypted Vault. Manage the
+existing inference settings/key in the same Vault-backed deployment; the optional
+environment template is rendered only when `vault_tennis_discovery_api_key` is set.
+Without it, the existing file is preserved rather than partially rewritten.
+
+The default provider remains `public`. The API receives only fixed location/level
+queries and uses a fixed HTTPS endpoint. It does not receive model credentials,
+bookings or public page contents. Its key is not passed to the model or public
+document workers. Redirects, proxy environment variables and automatic provider
+fallback are disabled. A 429 response stops the search without immediate retries;
+only timeouts and transient server failures enter the existing bounded retry path.
+Responses and decoded sizes are validated before source URLs are admitted.
+
+The API adapter is covered by mock HTTP and application-path tests, not yet by a
+credentialed live acceptance run. Selecting it does not establish production
+readiness: run the existing city-search benchmark from the deployment host with the
+dedicated key configured securely, then verify the application calendar.
+
 The backend uses `/v1/chat/completions` and an explicit model identifier. It is not
 tied to a particular club, city, host, or vendor. Qwen3-Coder in Rapid-MLX is the
 initial local deployment; other compatible servers need their own extraction tests.

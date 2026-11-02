@@ -235,3 +235,39 @@ date conflict 5.30/4.30s, and transient read 3.42/3.49s. The generic quoted-page
 case passed **2/2** (9.95/4.79s, four requests each), including exact title, price,
 date/time and evidence, with no denied calls and non-partial completion. These
 replay results do not resolve the separate live-search failure.
+
+## Optional Search API Candidate: 2026-11-02
+
+A separately configured Brave Web Search API adapter now provides a supported
+transport option without changing the default public search provider. The fixed
+HTTPS endpoint receives a dedicated search key, never the inference key. Mock HTTP
+tests cover response schemas, bounded decoded sizes, credential echoes, redirects,
+authentication failures, rate limits, transient errors, total deadlines and response
+cleanup on cancellation. A server `Retry-After` response is not retried immediately.
+No alternate provider is selected implicitly.
+
+The application-path test exercises provider selection through `discover_async`,
+retains the November 2 18:30-19:50 / $54 fixture assertions, and checks captured model
+messages for both synthetic credentials. Desktop/mobile calendar tests exercise
+legacy, public-agent and API-agent modes. These use mocked search/model transports;
+they do not prove that a credentialed API request or live city discovery succeeds.
+
+Local verification: **422 tests**, including **24 benchmarks**, Ruff lint/format,
+mypy across 39 source modules, and wheel/sdist/Twine validation pass. The previous
+browser fixture accepted only two backend constructor arguments; it was updated
+to preserve the selected searcher after the new dependency injection. Existing
+calendar assertions were not relaxed.
+
+Installing the candidate wheel into the isolated deployment-host evaluation
+environment left production unchanged. Fresh private-model replay of the original
+oracle passed **8/8**: baseline 4.11/3.02s, injection 4.04/3.07s, date conflict
+4.27/4.28s, and transient read 3.46/3.48s. The generic quoted-page replay passed
+**2/2** (9.91/4.77s, four requests each), with exact title, $54 price, date/time,
+evidence, no denied tool calls and non-partial completion. Both replay suites use
+controlled source fixtures, not the new search API or current registration data.
+
+No search subscription was activated, no search credential was provisioned and no
+credentialed search API request was made. The API's live reliability, city coverage,
+registration-source reconciliation and production calendar remain open gates.
+This change is a draft stacked on the source-backend candidate, not a reason to
+merge that candidate or enable the agent in production.

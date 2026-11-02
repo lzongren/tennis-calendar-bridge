@@ -21,6 +21,7 @@ from .discovery_agent import (
 from .discovery_sources import PublicSourceBackend
 from .models import AppConfig
 from .private_model import PrivateModelConfig, private_model
+from .search_api import configured_searcher
 
 
 async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, Any]:
@@ -32,6 +33,7 @@ async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, 
     )
     limits = DiscoveryLimits(model_requests=24, tool_calls=30, tool_seconds=60, total_seconds=300)
     usage = RunUsage()
+    searcher = configured_searcher(app.discovery_search_provider, app.discovery_search_api_key)
     config = PrivateModelConfig(
         base_url=app.discovery_api_url,
         model=app.discovery_model,
@@ -39,7 +41,7 @@ async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, 
     )
     async with private_model(config) as model:
         extractor = CourseExtractor(model, usage, limits.model_requests)
-        backend = PublicSourceBackend(extractor, tuple(location["sources"]))
+        backend = PublicSourceBackend(extractor, tuple(location["sources"]), searcher=searcher)
         result = await run_discovery_agent(request, backend, model, limits=limits, usage=usage)
         return backend.result(result, request)
 

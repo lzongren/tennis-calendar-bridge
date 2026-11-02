@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+import httpx2 as httpx
 from playwright.sync_api import sync_playwright, expect
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
@@ -16,6 +17,7 @@ from tennis_overview.discovery_sources import PublicSourceBackend, identity
 from tennis_overview.models import AppConfig, Config
 from tennis_overview.public_web import page_from_html
 from tennis_overview.server import TennisServer
+from tennis_overview.search_api import BraveSearch
 
 NOW = datetime(2026, 10, 25, 23, tzinfo=timezone.utc)
 
@@ -26,7 +28,7 @@ class FrozenDateTime(datetime):
         return NOW.astimezone(tz)
 
 
-@pytest.fixture(params=["legacy", "agent"])
+@pytest.fixture(params=["legacy", "agent", "agent-api"])
 def populated_server(tmp_path, monkeypatch, request):
     fixtures = Path(__file__).parent / "fixtures"
     urls = ["https://club.example.org/ongoing", "https://academy.example.org/terms"]
@@ -41,7 +43,7 @@ def populated_server(tmp_path, monkeypatch, request):
         discovery, "extract", lambda *a: pytest.fail("Structured schedule must not depend on LLM")
     )
     monkeypatch.setattr(discovery.DiscoveryService, "start", lambda *a: None)
-    if request.param == "agent":
+    if request.param != "legacy":
         details = pages[urls[1]].links
         for url in details:
             pages[url] = page_from_html(
@@ -76,11 +78,23 @@ def populated_server(tmp_path, monkeypatch, request):
 
         monkeypatch.setattr(agent_discovery, "datetime", FrozenDateTime)
         monkeypatch.setattr(agent_discovery, "private_model", model_context)
+        if request.param == "agent-api":
+
+            def search_response(request):
+                assert request.headers["x-subscription-token"] == "synthetic-search-key"
+                return httpx.Response(200, json={"web": {"results": []}})
+
+            monkeypatch.setattr(
+                "tennis_overview.search_api.BraveSearch",
+                lambda key: BraveSearch(key, httpx.MockTransport(search_response)),
+            )
+        else:
+            monkeypatch.setattr(agent_discovery, "configured_searcher", lambda *args: search)
         monkeypatch.setattr(
             agent_discovery,
             "PublicSourceBackend",
-            lambda extractor, sources: PublicSourceBackend(
-                extractor, sources, reader=read, searcher=search
+            lambda extractor, sources, **kwargs: PublicSourceBackend(
+                extractor, sources, reader=read, **kwargs
             ),
         )
     config = Config(
@@ -89,9 +103,11 @@ def populated_server(tmp_path, monkeypatch, request):
             base_path="/tennis",
             timezone="America/Los_Angeles",
             discovery_enabled=True,
-            discovery_agent_enabled=request.param == "agent",
+            discovery_agent_enabled=request.param != "legacy",
             discovery_api_url="https://model.example.ts.net/v1",
             discovery_api_key="test-only-key",
+            discovery_search_provider="brave" if request.param == "agent-api" else "public",
+            discovery_search_api_key="synthetic-search-key" if request.param == "agent-api" else "",
             admin_token="test-admin",
         ),
         [],

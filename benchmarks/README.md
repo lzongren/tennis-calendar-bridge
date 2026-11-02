@@ -78,6 +78,12 @@ Python isolated mode; install the candidate wheel in the evaluation environment
 so parent and worker code match. No production service restart is needed to run
 these checks. Keep failures and subsequent reruns separate in the results report.
 
+Live mode uses the same `TENNIS_DISCOVERY_SEARCH_PROVIDER` and optional
+`TENNIS_DISCOVERY_SEARCH_API_KEY` settings as the app. The default is `public`;
+`brave` selects the official search API explicitly. Provision credentials through
+an owner-only environment file or Vault, never command-line values or committed
+reports. Replay modes always use controlled sources and do not call the search API.
+
 Offline browser acceptance now runs both legacy and agent paths through the actual
 worker, persistence, API and desktop/mobile calendar with controlled sources and a
 `FunctionModel`. This tests application integration, not live model reliability.

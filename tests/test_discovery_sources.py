@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
-from datetime import date
+from contextlib import asynccontextmanager
+from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
+import httpx2 as httpx
+from pydantic_ai import capture_run_messages
 from pydantic import ValidationError
 from pydantic_ai.messages import ModelResponse, ToolCallPart, RetryPromptPart, ToolReturnPart
 from pydantic_ai.exceptions import UnexpectedModelBehavior
@@ -17,6 +20,8 @@ from pydantic_ai.usage import RunUsage
 from benchmarks.source_discovery import error_types
 
 from tennis_overview.agent_discovery import run_until_stopped
+from tennis_overview.agent_discovery import discover_async
+from tennis_overview.search_api import BraveSearch
 from tennis_overview.course_extraction import (
     CourseExtractor,
     ExtractedCourse,
@@ -106,6 +111,66 @@ def planning_model():
 
 async def no_search(*args):
     return []
+
+
+@pytest.mark.benchmark
+def test_app_uses_search_api_without_sending_search_credentials_to_model(monkeypatch):
+    search_key, model_key = "synthetic-search-secret", "synthetic-model-secret"
+    model = planning_model()
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        assert request.headers["x-subscription-token"] == search_key
+        return httpx.Response(
+            200, json={"web": {"results": [{"url": URL, "title": "Adult clinics"}]}}
+        )
+
+    @asynccontextmanager
+    async def private_model(config):
+        assert config.api_key.get_secret_value() == model_key
+        yield model
+
+    class FixedTime:
+        @staticmethod
+        def now(zone):
+            return datetime(2026, 11, 1, tzinfo=zone)
+
+    monkeypatch.setattr("tennis_overview.agent_discovery.datetime", FixedTime)
+    monkeypatch.setattr("tennis_overview.agent_discovery.private_model", private_model)
+    monkeypatch.setattr(
+        "tennis_overview.search_api.BraveSearch",
+        lambda key: BraveSearch(key, httpx.MockTransport(handler)),
+    )
+    monkeypatch.setattr(
+        "tennis_overview.agent_discovery.PublicSourceBackend",
+        lambda *args, **kwargs: PublicSourceBackend(
+            *args, reader=AsyncMock(return_value=generic_page()), **kwargs
+        ),
+    )
+    with capture_run_messages() as messages:
+        result = asyncio.run(
+            discover_async(
+                AppConfig(
+                    discovery_api_url="http://127.0.0.1:8123/v1",
+                    discovery_api_key=model_key,
+                    discovery_search_provider="brave",
+                    discovery_search_api_key=search_key,
+                ),
+                {
+                    "query": REQUEST.city,
+                    "level": REQUEST.level,
+                    "timezone": REQUEST.timezone,
+                    "sources": [],
+                },
+            )
+        )
+    assert len(calls) == 1
+    assert result["courses"][0]["sessions"][0]["starts_at"] == "2026-11-02T18:30:00-08:00"
+    assert result["courses"][0]["price"] == "$54.00"
+    assert result["agent"]["requests"] == 4
+    assert not result["partial"]
+    assert search_key not in str(messages) and model_key not in str(messages)
 
 
 @pytest.mark.parametrize("recovers", [True, False])

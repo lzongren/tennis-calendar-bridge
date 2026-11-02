@@ -36,6 +36,8 @@ class AppConfig:
     discovery_api_url: str = ""
     discovery_model: str = "tennis-discovery"
     discovery_api_key: str = field(default="", repr=False)
+    discovery_search_provider: str = "public"
+    discovery_search_api_key: str = field(default="", repr=False)
     walls_catalog_path: str = ""
 
 

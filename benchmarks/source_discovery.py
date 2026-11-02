@@ -20,6 +20,7 @@ from tennis_overview.discovery_agent import DiscoveryLimits, DiscoveryRequest, r
 from tennis_overview.discovery_sources import PublicSourceBackend
 from tennis_overview.private_model import PrivateModelConfig, private_model
 from tennis_overview.public_web import Page, page_from_html
+from tennis_overview.search_api import configured_searcher
 
 from .network_guard import install_model_only_guard
 
@@ -66,6 +67,11 @@ async def evaluate(
                 model_requests=24, tool_calls=30, tool_seconds=60, total_seconds=300
             )
             backend = PublicSourceBackend(CourseExtractor(model, usage, limits.model_requests))
+            if live:
+                backend.searcher = configured_searcher(
+                    os.getenv("TENNIS_DISCOVERY_SEARCH_PROVIDER", "public"),
+                    os.getenv("TENNIS_DISCOVERY_SEARCH_API_KEY", ""),
+                )
             if not live:
                 page = page_from_html(
                     REPLAY_URL, (FIXTURES / "discovery_ongoing.html").read_bytes()
@@ -178,8 +184,19 @@ def main() -> None:
         rows = asyncio.run(
             evaluate(config, live=args.live_web, repeats=args.repeats, case=args.case)
         )
+        provider = (
+            os.getenv("TENNIS_DISCOVERY_SEARCH_PROVIDER", "public") if args.live_web else "replay"
+        )
         json.dump(
-            {"live_web": args.live_web, "case": args.case, "rows": rows, "network_audit": audit},
+            {
+                "live_web": args.live_web,
+                "case": args.case,
+                "rows": rows,
+                "network_audit": audit,
+                "search_provider": provider
+                if provider in {"public", "brave", "replay"}
+                else "invalid",
+            },
             output,
             indent=2,
         )

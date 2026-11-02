@@ -31,3 +31,9 @@ enabled = false
     assert not config.app.discovery_agent_enabled
     monkeypatch.setenv("TENNIS_DISCOVERY_AGENT_ENABLED", "true")
     assert load_config(str(config_path)).app.discovery_agent_enabled
+    monkeypatch.setenv("TENNIS_DISCOVERY_SEARCH_PROVIDER", "brave")
+    monkeypatch.setenv("TENNIS_DISCOVERY_SEARCH_API_KEY", "synthetic-search-key")
+    configured = load_config(str(config_path)).app
+    assert configured.discovery_search_provider == "brave"
+    assert configured.discovery_search_api_key == "synthetic-search-key"
+    assert "synthetic-search-key" not in repr(configured)

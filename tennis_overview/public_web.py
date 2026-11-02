@@ -206,12 +206,15 @@ def page_from_html(url: str, body: bytes) -> Page:
     )
 
 
-def search_courses(
-    location: str, level: str, year: int, focus: str | None = None
-) -> list[dict[str, str]]:
-    from ddgs import DDGS
-    from ddgs.engines import ENGINES
-
+def course_search_query(location: str, level: str, year: int, focus: str | None = None) -> str:
+    if (
+        not 1 <= len(location) <= 120
+        or len(level) > 80
+        or type(year) is not int
+        or not 2000 <= year <= 2100
+        or any(ord(character) < 32 for character in location + level)
+    ):
+        raise ValueError("Invalid public search request")
     queries = {
         None: f"{location} adult tennis clinics classes schedule",
         "overview": f"adult tennis group clinics near {location}",
@@ -220,7 +223,16 @@ def search_courses(
     }
     if focus not in queries:
         raise ValueError("Invalid search focus")
-    query = queries[focus]
+    return queries[focus]
+
+
+def search_courses(
+    location: str, level: str, year: int, focus: str | None = None
+) -> list[dict[str, str]]:
+    from ddgs import DDGS
+    from ddgs.engines import ENGINES
+
+    query = course_search_query(location, level, year, focus)
     # Keep legacy behavior separate. Explicit selection avoids DDGS's unrestricted
     # provider fallback; Bing is disabled in the evaluated DDGS release.
     backend = "bing,duckduckgo" if focus is None else "yahoo"

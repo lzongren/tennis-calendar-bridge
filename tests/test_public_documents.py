@@ -186,6 +186,7 @@ def test_document_child_does_not_inherit_credentials_or_proxy(monkeypatch):
     page = Page(URL, "PDF", "Public course", (), content_type="application/pdf")
     process, spawn = fake_process(monkeypatch, body=json.dumps(asdict(page)).encode())
     monkeypatch.setenv("TENNIS_DISCOVERY_API_KEY", "test-secret")
+    monkeypatch.setenv("TENNIS_DISCOVERY_SEARCH_API_KEY", "test-search-secret")
     monkeypatch.setenv("HTTPS_PROXY", "https://proxy.invalid")
     monkeypatch.setenv("PYTHONPATH", "/untrusted")
     assert asyncio.run(read_public_document(URL)) == page
