@@ -133,3 +133,10 @@ non-partial completion. Case timings were 7.05/2.98s (baseline), 4.02/3.00s
 model-only network/process audit also passed. This repairs the orchestration
 regression; it does not establish live city-search or dynamic registration recall.
 Do not merge or enable the integrated worker based on replay and offline tests alone.
+
+The final generic quoted-page replay after the city-schema change failed **0/2**
+(69.24s/five requests and 6.75s/four requests). Both runs registered the fixture
+source but failed typed extraction before accepting it. The exact cause still
+requires message-level inspection on the sanitized fixture; the earlier 2/2
+extraction result must not be presented as the final candidate's result. This is
+an additional open merge gate, separate from the now-passing original-oracle replay.
