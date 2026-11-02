@@ -150,6 +150,11 @@ Refresh cooldown is two minutes; at most ten locations may be saved.
 
 ## Tests
 
+The Pydantic AI migration follows the case-level gates in
+[Benchmark-Driven Course Discovery](AGENT_DEVELOPMENT.md). Its evidence contract
+is tested independently; the existing worker remains active until the integrated
+agent passes the live-source and release gates.
+
 ```sh
 python -m pytest -q
 ruff check .
