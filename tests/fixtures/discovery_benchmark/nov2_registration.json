@@ -1,0 +1,29 @@
+{
+  "provenance": {
+    "kind": "manual_transcription",
+    "source": "User-provided November 2 clinic screenshot",
+    "scope": "Visible public course facts only; not a captured HTML page or live availability",
+    "redactions": "Instructor name and personal waitlist controls omitted; IDs are synthetic",
+    "year_context": "2026 from the dated user request, not inferred from the screenshot alone"
+  },
+  "record": {
+    "source_id": "dated-registration",
+    "session_key": "adult-clinic-nov2",
+    "kind": "registration",
+    "title": "Adult Coach Clinic (NTRP 2.5 - 3.0)",
+    "starts_at": "2026-11-02T18:30:00-08:00",
+    "ends_at": "2026-11-02T19:50:00-08:00",
+    "price_usd": "54.00",
+    "availability": "full",
+    "waitlist_count": 2
+  },
+  "expected": {
+    "starts_at": "2026-11-02T18:30:00-08:00",
+    "ends_at": "2026-11-02T19:50:00-08:00",
+    "price_usd": "54.00",
+    "availability": "full",
+    "waitlist_count": 2,
+    "user_waitlist_position": null,
+    "evidence_ids": ["dated-registration"]
+  }
+}

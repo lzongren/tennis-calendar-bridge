@@ -49,6 +49,9 @@ jobs:
       - name: Run tests
         run: pytest
 
+      - name: Discovery evidence benchmark
+        run: pytest -q -m benchmark
+
       - name: Build distribution
         run: python -m build
 
