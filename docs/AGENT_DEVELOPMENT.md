@@ -23,10 +23,10 @@ Tailnet hostnames belong in fixtures or PR artifacts.
 | Layer | Gate | Current scope |
 | --- | --- | --- |
 | Evidence reconciliation | Exact time, price, status, no invented queue position, complete provenance; conflicts fail closed | `pytest -m benchmark`; real-case transcription plus synthetic counterexamples |
-| Agent orchestration | Expand neighboring cities, read linked registration sources, recover transient reads, enforce request/tool/time budgets | Pydantic AI loop and replay harness implemented; see `benchmarks/README.md`; production source integration pending |
-| Real-source retrieval | Find the clinic from a city request; read dynamic/PDF detail when needed; retain retrieval evidence | Public HTML/PDF reader implemented and live-tested; dynamic registration, search/backend integration and factual extraction remain pending |
+| Agent orchestration | Expand neighboring cities, read linked registration sources, recover transient reads, enforce request/tool/time budgets | Pydantic AI loop and replay harness implemented; opt-in source backend shares the model budget with extraction; see `benchmarks/README.md` |
+| Real-source retrieval | Find the clinic from a city request; read dynamic/PDF detail when needed; retain retrieval evidence | Public HTML/PDF reader and search backend implemented; dynamic registration and complete live acceptance remain pending |
 | Existing calendar regressions | Ongoing clinics, term dates, DST, exclusions, source-to-card ownership, mobile rendering | Existing discovery tests remain mandatory |
-| Runtime/security | Private model only, credential redaction, no arbitrary URL/file/payment tools, outage preservation, cancellation | Pending integrated worker and private endpoint checks |
+| Runtime/security | Private model only, credential redaction, no arbitrary URL/file/payment tools, outage preservation, cancellation | Opt-in worker, shutdown cancellation and snapshot preservation covered offline; live container/network checks still pending |
 | Release | Green CI and code review, live-model benchmark, container/API/UI acceptance, rollback | Pending; a component pass does not satisfy the deployment gate |
 
 ## PR Policy
@@ -92,6 +92,23 @@ macOS does not receive the address-space limit. This is resource containment,
 not an OS sandbox. Encrypted, scanned-only and over-limit documents fail closed.
 
 The original synchronous worker remains HTML-only until the new source backend is
-integrated. Reading a seasonal PDF does not establish registration availability.
+enabled. The integrated agent is available behind `TENNIS_DISCOVERY_AGENT_ENABLED`,
+defaulting to false. Reading a seasonal PDF does not establish registration availability.
 The real November case still requires dynamic detail retrieval and reconciliation
 against the dated registration, not substituting a seasonal price.
+
+## Extraction Gate
+
+Generic page extraction uses a nested typed report, but an OpenAI-compatible endpoint
+need not understand reference-based tool schemas under a private model alias. The
+client explicitly uses Pydantic AI's built-in definition inliner. Wire-level tests
+verify that required fields and `additionalProperties: false` survive that conversion.
+Missing course lists or evidence fields cannot default to a successful empty result.
+
+The model selects inclusive start/end evidence lines; Python retains the full bounded
+span, including intervening exclusion text. Core quoted fields are checked against
+that span before date expansion; unsupported optional club/venue/level labels are
+omitted rather than borrowed from other courses or the requested level.
+A valid JSON object is not a sufficient gate:
+live replay and live-web extraction must pass separately. A fixed minimal transcription
+cannot establish dynamic registration recall, occupancy or geographic completeness.

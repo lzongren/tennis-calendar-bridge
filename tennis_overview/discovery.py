@@ -316,7 +316,21 @@ def matches_level(course: dict[str, Any], requested: str) -> bool:
     return max(wanted) >= low and min(wanted) <= high
 
 
-def discover(app: AppConfig, location: dict[str, Any]) -> dict[str, Any]:
+def discover(
+    app: AppConfig,
+    location: dict[str, Any],
+    *,
+    stop: threading.Event | None = None,
+) -> dict[str, Any]:
+    if app.discovery_agent_enabled:
+        # Keep optional agent dependencies out of the legacy worker's import path.
+        from .agent_discovery import discover_with_agent
+        from .discovery_agent import AgentDiscoveryError
+
+        try:
+            return discover_with_agent(app, location, stop)
+        except AgentDiscoveryError as exc:
+            raise DiscoveryError(str(exc)) from None
     start = datetime.now(ZoneInfo(location["timezone"])).date()
     candidates: list[dict[str, Any]] = [
         {"url": u, "title": "Added source", "depth": 0} for u in location["sources"]
@@ -519,7 +533,11 @@ class DiscoveryService:
         location = dict(row)
         location["sources"] = json.loads(location["sources"])
         try:
-            result = discover(self.app, location)
+            result = (
+                discover(self.app, location, stop=self.stop_event)
+                if self.app.discovery_agent_enabled
+                else discover(self.app, location)
+            )
             with self.connect() as conn:
                 conn.execute(
                     "UPDATE locations SET result=?, status='ready', error=NULL WHERE id=?",
@@ -555,3 +573,9 @@ class DiscoveryService:
     def stop(self) -> None:
         self.stop_event.set()
         self.wake.set()
+        if (
+            self.app.discovery_agent_enabled
+            and self.worker
+            and self.worker is not threading.current_thread()
+        ):
+            self.worker.join(timeout=5)

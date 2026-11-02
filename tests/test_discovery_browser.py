@@ -2,13 +2,17 @@
 
 import os
 import threading
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import sync_playwright, expect
+from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.models.function import FunctionModel
 
-from tennis_overview import discovery
+from tennis_overview import agent_discovery, discovery
+from tennis_overview.discovery_sources import PublicSourceBackend, identity
 from tennis_overview.models import AppConfig, Config
 from tennis_overview.public_web import page_from_html
 from tennis_overview.server import TennisServer
@@ -22,8 +26,8 @@ class FrozenDateTime(datetime):
         return NOW.astimezone(tz)
 
 
-@pytest.fixture
-def populated_server(tmp_path, monkeypatch):
+@pytest.fixture(params=["legacy", "agent"])
+def populated_server(tmp_path, monkeypatch, request):
     fixtures = Path(__file__).parent / "fixtures"
     urls = ["https://club.example.org/ongoing", "https://academy.example.org/terms"]
     pages = {
@@ -37,12 +41,57 @@ def populated_server(tmp_path, monkeypatch):
         discovery, "extract", lambda *a: pytest.fail("Structured schedule must not depend on LLM")
     )
     monkeypatch.setattr(discovery.DiscoveryService, "start", lambda *a: None)
+    if request.param == "agent":
+        details = pages[urls[1]].links
+        for url in details:
+            pages[url] = page_from_html(
+                url,
+                b"<p>Public registration information without additional dated sessions for this fixture.</p>",
+            )
+        calls = iter(
+            [
+                ToolCallPart("search_courses", {"city": "Example City"}),
+                *(
+                    ToolCallPart("read_source", {"source_id": identity(url)})
+                    for url in (*urls, *details)
+                ),
+                ToolCallPart("finish_discovery", {"outcome": "sources_checked"}),
+            ]
+        )
+
+        async def respond(messages, info):
+            if any(tool.name == "extract_courses" for tool in info.output_tools):
+                return ModelResponse([ToolCallPart("extract_courses", {"courses": []})])
+            return ModelResponse([next(calls)])
+
+        @asynccontextmanager
+        async def model_context(config):
+            yield FunctionModel(respond)
+
+        async def read(url):
+            return pages[url]
+
+        async def search(*args):
+            return []
+
+        monkeypatch.setattr(agent_discovery, "datetime", FrozenDateTime)
+        monkeypatch.setattr(agent_discovery, "private_model", model_context)
+        monkeypatch.setattr(
+            agent_discovery,
+            "PublicSourceBackend",
+            lambda extractor, sources: PublicSourceBackend(
+                extractor, sources, reader=read, searcher=search
+            ),
+        )
     config = Config(
         AppConfig(
             database_path=str(tmp_path / "test.db"),
             base_path="/tennis",
             timezone="America/Los_Angeles",
             discovery_enabled=True,
+            discovery_agent_enabled=request.param == "agent",
+            discovery_api_url="https://model.example.ts.net/v1",
+            discovery_api_key="test-only-key",
             admin_token="test-admin",
         ),
         [],

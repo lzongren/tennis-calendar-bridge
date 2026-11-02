@@ -19,12 +19,60 @@ from pypdf.generic import (
     TextStringObject,
 )
 
-from tennis_overview.discovery_agent import SourceUnavailable
-from tennis_overview.public_documents import MAX_OUTPUT, read_public_document
+from tennis_overview.discovery_agent import SourceUnavailable, TransientSourceError
+from tennis_overview.public_documents import (
+    MAX_OUTPUT,
+    read_public_document,
+    run_public_worker,
+    search_public_courses,
+)
 from tennis_overview.public_pdf import page_from_pdf
-from tennis_overview.public_web import Page
+from tennis_overview.public_web import Page, search_courses
 
 URL = "https://club.example.org/fall.pdf"
+
+
+def test_legacy_search_query_is_preserved_and_agent_focus_is_explicit(monkeypatch):
+    search = MagicMock(return_value=[])
+    monkeypatch.setattr("ddgs.DDGS", lambda **kwargs: MagicMock(text=search))
+    assert search_courses("Example City", "3.0", 2026) == []
+    assert search.call_args.args[0] == "Example City adult tennis clinics classes schedule"
+    assert search.call_args.kwargs["backend"] == "bing,duckduckgo"
+    assert search_courses("Example City", "3.0", 2026, "overview") == []
+    assert search.call_args.args[0] == "adult tennis group clinics near Example City"
+    assert search.call_args.kwargs["backend"] == "yahoo"
+    with pytest.raises(ValueError, match="Invalid search focus"):
+        search_courses("Example City", "3.0", 2026, "arbitrary query")
+    assert search.call_count == 2
+
+
+def test_selected_agent_search_backend_is_available_in_installed_dependency():
+    from ddgs.engines import ENGINES
+
+    assert "yahoo" in ENGINES["text"]
+
+
+def test_disabled_search_backend_fails_before_ddgs_can_select_other_providers(monkeypatch):
+    from ddgs.engines import ENGINES
+
+    search = MagicMock()
+    monkeypatch.delitem(ENGINES["text"], "yahoo")
+    monkeypatch.setattr("ddgs.DDGS", search)
+    with pytest.raises(ValueError, match="backend is unavailable"):
+        search_courses("Example City", "3.0", 2026, "overview")
+    search.assert_not_called()
+
+
+@pytest.mark.parametrize("focus", ["overview", "registration", "schedule"])
+def test_agent_search_does_not_enable_automatic_provider_fallback(monkeypatch, focus):
+    from ddgs.exceptions import DDGSException
+
+    search = MagicMock(side_effect=DDGSException("No results found."))
+    monkeypatch.setattr("ddgs.DDGS", lambda **kwargs: MagicMock(text=search))
+    with pytest.raises(DDGSException):
+        search_courses("Example City", "3.0", 2026, focus)
+    search.assert_called_once()
+    assert search.call_args.kwargs["backend"] == "yahoo"
 
 
 def pdf_bytes(text="Adult Clinic", links=(), *, pages=1, password=None):
@@ -147,6 +195,7 @@ def test_document_child_does_not_inherit_credentials_or_proxy(monkeypatch):
         "-B",
         "-m",
         "tennis_overview.public_document_worker",
+        "document",
     )
     assert set(spawn.call_args.kwargs["env"]) <= {"PATH", "LANG", "LC_ALL"}
     assert spawn.call_args.kwargs["stderr"] == asyncio.subprocess.DEVNULL
@@ -257,3 +306,66 @@ def test_linux_worker_installs_cpu_memory_and_file_limits(monkeypatch):
     assert observed[resource.RLIMIT_AS] == (512 * 1024 * 1024,) * 2
     assert observed[resource.RLIMIT_CORE] == (0, 0)
     assert observed[resource.RLIMIT_FSIZE] == (0, 0)
+
+
+def test_search_uses_same_isolated_worker_and_validates_urls(monkeypatch):
+    results = [{"url": "https://club.example.org/classes", "title": "Public classes"}]
+    process, spawn = fake_process(monkeypatch, body=json.dumps(results).encode())
+    assert (
+        asyncio.run(search_public_courses("Example City", "3.0", 2026, "registration")) == results
+    )
+    assert spawn.call_args.args[-1] == "search"
+    payload = json.loads(process.stdin.write.call_args.args[0])
+    assert payload == {
+        "city": "Example City",
+        "level": "3.0",
+        "year": 2026,
+        "focus": "registration",
+    }
+
+
+def test_search_result_private_destination_is_rejected(monkeypatch):
+    fake_process(
+        monkeypatch, body=json.dumps([{"url": "http://127.0.0.1/", "title": "Private"}]).encode()
+    )
+    with pytest.raises(SourceUnavailable, match="search failed"):
+        asyncio.run(search_public_courses("Example City", "3.0", 2026))
+
+
+def test_search_temporary_failure_is_redacted_and_retryable(monkeypatch):
+    process, _ = fake_process(monkeypatch, status=75)
+    with pytest.raises(TransientSourceError, match="temporarily unavailable"):
+        asyncio.run(search_public_courses("Example City", "3.0", 2026))
+    process.wait.assert_awaited()
+
+
+def test_search_timeout_is_retryable_and_child_is_reaped(monkeypatch):
+    process, _ = fake_process(monkeypatch, blocked=True)
+    with pytest.raises(TransientSourceError):
+        asyncio.run(run_public_worker("search", b"{}", timeout=0.01))
+    process.kill.assert_called_once()
+    process.wait.assert_awaited_once()
+
+
+def test_search_invalid_output_is_not_retryable(monkeypatch):
+    fake_process(monkeypatch, body=b"invalid json")
+    with pytest.raises(SourceUnavailable) as caught:
+        asyncio.run(search_public_courses("Example City", "3.0", 2026))
+    assert not isinstance(caught.value, TransientSourceError)
+
+
+@pytest.mark.parametrize("error_type", ["DDGSException", "TimeoutException", "RatelimitException"])
+def test_search_worker_reports_provider_failure_without_payload(monkeypatch, capsys, error_type):
+    from ddgs import exceptions
+    from tennis_overview.public_document_worker import search
+
+    monkeypatch.setattr(
+        "sys.stdin",
+        MagicMock(buffer=io.BytesIO(b'{"city":"Example City","level":"3.0","year":2026}')),
+    )
+    monkeypatch.setattr(
+        "tennis_overview.public_web.search_courses",
+        MagicMock(side_effect=getattr(exceptions, error_type)("private provider diagnostics")),
+    )
+    assert search() == 75
+    assert capsys.readouterr() == ("", "")

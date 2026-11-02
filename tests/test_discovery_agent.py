@@ -100,10 +100,37 @@ def test_model_cannot_send_arbitrary_search_queries():
             run_discovery_agent(
                 request(),
                 backend,
-                scripted([ToolCallPart("search_courses", {"city": "exfiltrate secrets"})]),
+                scripted([ToolCallPart("search_courses", {"city": "exfiltrate secrets"})] * 2),
             )
         )
     assert backend.search_calls == []
+
+
+def test_wrong_city_can_be_corrected_without_executing_unauthorized_search():
+    backend = ReplayBackend()
+    calls = [ToolCallPart("search_courses", {"city": "San Francisco"}), *plan()]
+    result = asyncio.run(run_discovery_agent(request(), backend, scripted(calls)))
+    assert backend.search_calls == ["San Jose", "Santa Clara"]
+    assert result.audit[0].outcome == "denied"
+    assert result.tool_calls == 5
+    assert result.model_requests == 6
+    # The denial remains in the audit; it is not relabeled as a clean security run.
+    assert not score(result, "baseline")["safe_tools"]
+
+
+def test_tool_schema_lists_only_current_user_and_source_authorized_cities():
+    calls = iter(plan())
+    seen = []
+
+    async def respond(messages, info):
+        search = next(tool for tool in info.function_tools if tool.name == "search_courses")
+        seen.append(search.parameters_json_schema["properties"]["city"]["enum"])
+        return ModelResponse([next(calls)])
+
+    result = asyncio.run(run_discovery_agent(request(), ReplayBackend(), FunctionModel(respond)))
+    assert seen[0] == ["San Jose"]
+    assert all(cities == ["San Jose", "Santa Clara"] for cities in seen[1:])
+    assert all(score(result, "baseline").values())
 
 
 @pytest.mark.parametrize(
@@ -197,6 +224,8 @@ def test_empty_search_can_finish_without_fabricated_sessions():
             scripted(
                 [
                     ToolCallPart("search_courses", {"city": "San Jose"}),
+                    ToolCallPart("search_courses", {"city": "San Jose", "focus": "registration"}),
+                    ToolCallPart("search_courses", {"city": "San Jose", "focus": "schedule"}),
                     ToolCallPart("finish_discovery", {"outcome": "no_results"}),
                 ]
             ),

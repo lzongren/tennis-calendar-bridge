@@ -18,6 +18,19 @@ credentials, personal bookings, access codes, calendar tokens, or admin tokens a
 included. Web-search providers receive the location query; this is not fully offline
 discovery. No cloud AI account or API key is required.
 
+The opt-in Pydantic AI worker currently uses Yahoo public search through DDGS,
+with fixed query templates and no automatic provider selection. The legacy worker's
+search settings are unchanged. Public HTML search can be rate-limited or change
+without notice; failures are not evidence that a city has no courses. When a user
+has supplied public source URLs, the agent can still read them and mark the result
+as partial. Otherwise, failed search retains the previous successful snapshot.
+
+Named-column annual PDF timetables have a deterministic adapter. It keeps row
+ownership and membership-specific prices, limits weekly expansion to the published
+year, and leaves schedules with term restrictions or closures unresolved. These are
+published timetable candidates, not confirmed dates or seats. Other PDF layouts
+still require generic extraction and source validation.
+
 The backend uses `/v1/chat/completions` and an explicit model identifier. It is not
 tied to a particular club, city, host, or vendor. Qwen3-Coder in Rapid-MLX is the
 initial local deployment; other compatible servers need their own extraction tests.
@@ -73,6 +86,7 @@ Put these values in `.inference.env` on the VPS (mode 0600):
 
 ```dotenv
 TENNIS_DISCOVERY_ENABLED=true
+TENNIS_DISCOVERY_AGENT_ENABLED=false
 TENNIS_DISCOVERY_API_URL=https://model-host.your-tailnet.ts.net:8443/v1
 TENNIS_DISCOVERY_MODEL=tennis-discovery
 TENNIS_DISCOVERY_API_KEY=your-dedicated-inference-key
@@ -88,6 +102,7 @@ For reproducible Ansible deployment, put the non-secret values in the ignored
 
 ```yaml
 tennis_discovery_enabled: true
+tennis_discovery_agent_enabled: false
 tennis_discovery_api_url: https://model-host.your-tailnet.ts.net:8443/v1
 tennis_discovery_model: tennis-discovery
 ```
@@ -118,6 +133,40 @@ Search is best-effort and may be throttled. Seed URLs remain usable if search fa
 The worker checks at most six pages per location, serializes inference, refreshes
 saved locations daily, and preserves the prior snapshot when inference fails.
 Refresh cooldown is two minutes; at most ten locations may be saved.
+
+### Agent Integration Preview
+
+`TENNIS_DISCOVERY_AGENT_ENABLED=true` selects the Pydantic AI worker while retaining
+the same saved locations, discovery database, API and calendar. It is **off by
+default** until the live-source and release gates in [AGENT_DEVELOPMENT.md](AGENT_DEVELOPMENT.md)
+are met. Ansible renders the corresponding `tennis_discovery_agent_enabled` value
+only when it manages the inference file with the Vault key present. Do not enable
+this preview as a substitute for the remaining production acceptance checks.
+
+The agent searches fixed city/level query templates, reads discovered opaque source
+IDs and follows operator-linked schedules, public PDFs and registration links,
+including cross-site links. It cannot supply arbitrary URLs, shell commands or
+booking actions. Explicitly added sources and course-owned registration links
+must be read before completion. A blocked registration page is not an empty catalog.
+
+Each run permits up to 24 model requests shared between planning and extraction,
+30 tool calls, 12 source reads, 24 registered sources and a five-minute deadline.
+Individual reads/searches run in cancellable, credential-free child processes.
+Stopping the worker cancels its active client tasks and reaps document workers;
+this does not prove that the model server stops GPU generation.
+
+Known timetable and registration-page formats use deterministic adapters. Other
+public pages use typed extraction with source-owned evidence spans and local
+validation. Nested tool schemas are inlined for private model aliases without
+weakening validation. Missing required fields trigger one bounded retry, not a
+successful empty report. Generic extraction does not establish registration
+authority or availability; extracted candidates are not confirmed bookings.
+
+The preview supports public text PDFs but not authenticated or JavaScript-only
+registration details. Search/source limits and unread sources are retained in
+the partial-result metadata. Inference or required-source failures preserve the
+previous snapshot and report an error. The legacy six-page limit above applies
+only when the agent flag is false.
 
 ## Accuracy Boundaries
 

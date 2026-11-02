@@ -10,6 +10,7 @@ import httpx2 as httpx
 from openai import AsyncOpenAI
 from pydantic import Field, SecretStr, field_validator
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.profiles import InlineDefsJsonSchemaTransformer, ModelProfile
 from pydantic_ai.providers.openai_compatible import OpenAICompatibleProvider
 
 from .course_evidence import EvidenceModel
@@ -120,5 +121,11 @@ async def private_model(
         async with client:
             yield OpenAIChatModel(
                 config.model,
-                provider=OpenAICompatibleProvider("private-tennis", openai_client=client),
+                provider=OpenAICompatibleProvider(
+                    "private-tennis",
+                    openai_client=client,
+                    # Local aliases need not encode a vendor. Inline nested tool
+                    # schemas without changing their local validation contract.
+                    profile=ModelProfile(json_schema_transformer=InlineDefsJsonSchemaTransformer),
+                ),
             )

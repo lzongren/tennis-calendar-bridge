@@ -1,0 +1,16 @@
+[PDF page 1]
+updated: 4/2026
+2026  Adult  Tennis  ClinicSchedule
+TENNIS MEMBER: $31    FITNESS MEMBER: $36    NON-MEMBER: $42
+DAY       TYPE       TIME                   LEVEL       PRO
+MONDAY    CO ED      10:30AM - 12:00PM       3.0 / 3.5   COACH A
+TUESDAY   WOMEN'S    9:00AM - 10:30AM        2.5 / 3.0   COACH B
+Example Club adult tennis clinics - page 1
+
+[PDF page 2]
+2026  Adult  Tennis  ClinicSchedule
+TENNIS MEMBER: $33    FITNESS MEMBER: $38    NON-MEMBER: $44
+DAY       TYPE       TIME                   LEVEL       PRO
+THURSDAY  MEN'S      6:00PM - 7:30PM         3.5 / 4.0   COACH C
+FRIDAY    COED       9:00AM - 10:30AM        2.5 / 3.5   COACH D
+Example Club adult tennis clinics - page 2

@@ -87,6 +87,9 @@ module = [
   "tennis_overview.public_documents",
   "tennis_overview.public_document_worker",
   "tennis_overview.public_pdf",
+  "tennis_overview.course_extraction",
+  "tennis_overview.discovery_sources",
+  "tennis_overview.agent_discovery",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

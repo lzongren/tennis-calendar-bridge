@@ -206,11 +206,28 @@ def page_from_html(url: str, body: bytes) -> Page:
     )
 
 
-def search_courses(location: str, level: str, year: int) -> list[dict[str, str]]:
+def search_courses(
+    location: str, level: str, year: int, focus: str | None = None
+) -> list[dict[str, str]]:
     from ddgs import DDGS
+    from ddgs.engines import ENGINES
 
-    query = f"{location} adult tennis clinics classes schedule"
-    results = DDGS(timeout=12).text(query, max_results=8, backend="bing,duckduckgo")
+    queries = {
+        None: f"{location} adult tennis clinics classes schedule",
+        "overview": f"adult tennis group clinics near {location}",
+        "registration": f"{location} adult tennis clinics registration {level} {year}",
+        "schedule": f"{location} adult tennis clinic schedule {year} filetype:pdf",
+    }
+    if focus not in queries:
+        raise ValueError("Invalid search focus")
+    query = queries[focus]
+    # Keep legacy behavior separate. Explicit selection avoids DDGS's unrestricted
+    # provider fallback; Bing is disabled in the evaluated DDGS release.
+    backend = "bing,duckduckgo" if focus is None else "yahoo"
+    if focus is not None and backend not in ENGINES["text"]:
+        # DDGS otherwise silently switches an unavailable backend to "auto".
+        raise ValueError("Configured public search backend is unavailable")
+    results = DDGS(timeout=12).text(query, max_results=8, backend=backend)
     candidates = []
     for item in results:
         try:
