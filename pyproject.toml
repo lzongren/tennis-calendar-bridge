@@ -32,6 +32,7 @@ dependencies = [
   "pydantic-ai-slim[openai]==2.64.0",
   "openai==3.42.1",
   "httpx2==2.16.0",
+  "pypdf==6.21.4",
 ]
 
 [project.optional-dependencies]
@@ -79,7 +80,14 @@ check_untyped_defs = true
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["tennis_overview.course_evidence", "tennis_overview.discovery_agent", "tennis_overview.private_model"]
+module = [
+  "tennis_overview.course_evidence",
+  "tennis_overview.discovery_agent",
+  "tennis_overview.private_model",
+  "tennis_overview.public_documents",
+  "tennis_overview.public_document_worker",
+  "tennis_overview.public_pdf",
+]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 disallow_untyped_calls = true
