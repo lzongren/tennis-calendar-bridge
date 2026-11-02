@@ -29,7 +29,7 @@ def test_private_alias_receives_complete_nested_schema_without_refs():
             course = schema["properties"]["courses"]["items"]
             assert course["additionalProperties"] is False
             assert set(course["required"]) >= {
-                "title",
+                "title_line",
                 "evidence_start_line",
                 "evidence_end_line",
                 "year_text",

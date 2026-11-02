@@ -230,8 +230,9 @@ class ResearchState:
                 self.audit.append(ToolAudit(tool="search_courses", outcome="retry"))
                 if attempt:
                     raise AgentDiscoveryError(
-                        "Public search timed out; previous results retained."
+                        "Public search unavailable after retry; previous results retained."
                     ) from None
+                await asyncio.sleep(1)
         raise AssertionError("Unreachable retry state")
 
     async def read_source(self, source_id: str) -> dict[str, object]:

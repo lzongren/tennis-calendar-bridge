@@ -20,6 +20,7 @@ from .discovery_agent import (
     SourceDocument,
     SourceRef,
     SourceUnavailable,
+    TransientSourceError,
 )
 from .public_documents import read_public_document, search_public_courses
 from .public_web import Page, PageLink, public_url
@@ -92,6 +93,8 @@ class PublicSourceBackend:
             candidates += await self.searcher(
                 city, request.level, request.start.year, request.search_focus
             )
+        except TransientSourceError:
+            raise
         except SourceUnavailable:
             self.search_failed = True
             if not candidates:

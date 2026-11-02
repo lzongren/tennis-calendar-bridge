@@ -48,6 +48,8 @@ def main() -> int:
 
 
 def search() -> int:
+    from ddgs.exceptions import DDGSException
+
     from .public_web import search_courses
 
     request = json.loads(sys.stdin.buffer.read(4097))
@@ -64,7 +66,13 @@ def search() -> int:
         or focus not in {"overview", "registration", "schedule"}
     ):
         return 1
-    sys.stdout.write(json.dumps(search_courses(city, level, year, focus), ensure_ascii=True))
+    try:
+        results = search_courses(city, level, year, focus)
+    except DDGSException:
+        # A provider failure or ambiguous no-results response is not an empty catalog.
+        # EX_TEMPFAIL lets the parent use its bounded retry without exposing diagnostics.
+        return 75
+    sys.stdout.write(json.dumps(results, ensure_ascii=True))
     return 0
 
 

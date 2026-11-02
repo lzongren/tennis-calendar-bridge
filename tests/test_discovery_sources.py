@@ -30,6 +30,7 @@ from tennis_overview.discovery_agent import (
     DiscoveryRequest,
     ResearchState,
     SourceUnavailable,
+    TransientSourceError,
     run_discovery_agent,
 )
 from tennis_overview.discovery_sources import PublicSourceBackend, identity, related_links
@@ -72,7 +73,7 @@ def generic_page():
 
 def quoted_course():
     return dict(
-        title="Adult Coach Clinic",
+        title_line=0,
         level="NTRP 2.5 - 3.0",
         price="$54",
         evidence_start_line=0,
@@ -105,6 +106,38 @@ def planning_model():
 
 async def no_search(*args):
     return []
+
+
+@pytest.mark.parametrize("recovers", [True, False])
+def test_public_search_failure_retries_once_without_empty_success(monkeypatch, recovers):
+    sleep = AsyncMock()
+    monkeypatch.setattr("tennis_overview.discovery_agent.asyncio.sleep", sleep)
+
+    async def scenario():
+        backend = PublicSourceBackend(CourseExtractor(planning_model(), RunUsage(), 4))
+        backend.searcher = AsyncMock(
+            side_effect=[
+                TransientSourceError("Public search temporarily unavailable"),
+                [{"url": URL, "title": "Adult courses"}]
+                if recovers
+                else TransientSourceError("Public search temporarily unavailable"),
+            ]
+        )
+        state = ResearchState(REQUEST, backend, DiscoveryLimits())
+        if recovers:
+            result = await state.search_courses(REQUEST.city)
+            assert result.sources[0].id == identity(URL)
+            assert not backend.search_failed
+            assert [event.outcome for event in state.audit] == ["retry", "ok"]
+        else:
+            with pytest.raises(AgentDiscoveryError, match="unavailable after retry"):
+                await state.search_courses(REQUEST.city)
+            assert state.searches == {}
+            assert backend.sources == {}
+        assert backend.searcher.await_count == 2
+        sleep.assert_awaited_once_with(1)
+
+    asyncio.run(scenario())
 
 
 @pytest.mark.benchmark
@@ -172,6 +205,7 @@ def test_generic_dates_and_price_grounded_but_no_registration_authority():
         run = await run_discovery_agent(REQUEST, backend, model, usage=usage)
         assert run.model_requests == usage.requests == 4
         session = run.sessions[0]
+        assert session.title == "Adult Coach Clinic"
         assert session.starts_at.isoformat() == "2026-11-02T18:30:00-08:00"
         assert session.ends_at.isoformat() == "2026-11-02T19:50:00-08:00"
         assert str(session.price_usd) == "54"
@@ -228,6 +262,51 @@ def test_missing_evidence_from_real_model_failure_is_retried_not_silently_droppe
 def test_missing_courses_is_not_an_empty_result():
     with pytest.raises(ValidationError):
         ExtractionReport.model_validate({})
+
+
+def test_clock_time_in_end_date_from_live_failure_is_corrected_before_expansion():
+    calls = 0
+
+    async def respond(messages, info):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            feedback = [
+                part.content
+                for message in messages
+                for part in message.parts
+                if isinstance(part, (RetryPromptPart, ToolReturnPart))
+            ]
+            assert "date_end_text" in feedback[-1]
+            assert "calendar date" in feedback[-1]
+        fields = {**quoted_course(), "date_end_text": "7:50 PM" if calls == 1 else ""}
+        return ModelResponse([ToolCallPart("extract_courses", {"courses": [fields]})])
+
+    async def scenario():
+        usage = RunUsage()
+        result = await CourseExtractor(FunctionModel(respond), usage, 4).extract(
+            generic_page(), REQUEST
+        )
+        assert result[0].title == "Adult Coach Clinic"
+        assert result[0].sessions[0].ends_at.isoformat() == "2026-11-02T19:50:00-08:00"
+        assert usage.requests == 2
+
+    asyncio.run(scenario())
+
+
+def test_persistent_clock_time_in_end_date_fails_instead_of_publishing_empty_calendar():
+    async def respond(messages, info):
+        fields = {**quoted_course(), "date_end_text": "7:50 PM"}
+        return ModelResponse([ToolCallPart("extract_courses", {"courses": [fields]})])
+
+    async def scenario():
+        usage = RunUsage()
+        extractor = CourseExtractor(FunctionModel(respond), usage, 4)
+        with pytest.raises(UnexpectedModelBehavior):
+            await extractor.extract(generic_page(), REQUEST)
+        assert usage.requests == 2
+
+    asyncio.run(scenario())
 
 
 def test_all_evidence_errors_returned_in_one_bounded_correction():
@@ -360,7 +439,8 @@ def test_unsupported_extraction_fails_refresh_instead_of_publishing_empty_succes
     [
         {"evidence_start_line": 3, "evidence_end_line": 0},
         {"evidence_start_line": 1},
-        {"title": "Invented Clinic"},
+        {"title_line": 999},
+        {"title_line": 10**30},
         {"evidence_end_line": 999},
         {"evidence_end_line": 10**30},
     ],
@@ -377,6 +457,7 @@ def test_unowned_or_invalid_evidence_span_rejected(updates):
         ("source_id", "other"),
         ("kind", "registration"),
         ("signup_url", "https://other.example.org/"),
+        ("title", "Invented Clinic"),
     ],
 )
 def test_model_schema_cannot_self_assign_authority(field, value):

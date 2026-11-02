@@ -126,6 +126,9 @@ async def evaluate(
                         for session in course["sessions"]
                     )
                     checks["quoted_price"] = any(course["price"] == "$54.00" for course in matching)
+                    checks["quoted_title"] = any(
+                        course["title"] == "Adult Coach Clinic" for course in matching
+                    )
                 observation = {
                     "repetition": repetition + 1,
                     "checks": checks,

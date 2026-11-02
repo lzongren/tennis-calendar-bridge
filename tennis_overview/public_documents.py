@@ -10,7 +10,7 @@ import tempfile
 
 from pydantic import TypeAdapter
 
-from .discovery_agent import SourceUnavailable
+from .discovery_agent import SourceUnavailable, TransientSourceError
 from .public_web import Page, public_url
 
 MAX_OUTPUT = 1_000_000
@@ -86,10 +86,16 @@ async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> byt
             await process.stdin.drain()
             process.stdin.close()
             output = await _read_output(process)
+        if mode == "search" and process.returncode == 75:
+            raise TransientSourceError("Public search temporarily unavailable")
         if process.returncode != 0:
             raise SourceUnavailable("Public document could not be read")
         return output
-    except (TimeoutError, ValueError, OSError):
+    except TimeoutError:
+        if mode == "search":
+            raise TransientSourceError("Public search temporarily unavailable") from None
+        raise SourceUnavailable("Public document could not be read") from None
+    except (ValueError, OSError):
         raise SourceUnavailable("Public document could not be read") from None
     finally:
         if process.returncode is None:

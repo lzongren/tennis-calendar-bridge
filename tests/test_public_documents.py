@@ -19,8 +19,13 @@ from pypdf.generic import (
     TextStringObject,
 )
 
-from tennis_overview.discovery_agent import SourceUnavailable
-from tennis_overview.public_documents import MAX_OUTPUT, read_public_document, search_public_courses
+from tennis_overview.discovery_agent import SourceUnavailable, TransientSourceError
+from tennis_overview.public_documents import (
+    MAX_OUTPUT,
+    read_public_document,
+    run_public_worker,
+    search_public_courses,
+)
 from tennis_overview.public_pdf import page_from_pdf
 from tennis_overview.public_web import Page, search_courses
 
@@ -294,3 +299,42 @@ def test_search_result_private_destination_is_rejected(monkeypatch):
     )
     with pytest.raises(SourceUnavailable, match="search failed"):
         asyncio.run(search_public_courses("Example City", "3.0", 2026))
+
+
+def test_search_temporary_failure_is_redacted_and_retryable(monkeypatch):
+    process, _ = fake_process(monkeypatch, status=75)
+    with pytest.raises(TransientSourceError, match="temporarily unavailable"):
+        asyncio.run(search_public_courses("Example City", "3.0", 2026))
+    process.wait.assert_awaited()
+
+
+def test_search_timeout_is_retryable_and_child_is_reaped(monkeypatch):
+    process, _ = fake_process(monkeypatch, blocked=True)
+    with pytest.raises(TransientSourceError):
+        asyncio.run(run_public_worker("search", b"{}", timeout=0.01))
+    process.kill.assert_called_once()
+    process.wait.assert_awaited_once()
+
+
+def test_search_invalid_output_is_not_retryable(monkeypatch):
+    fake_process(monkeypatch, body=b"invalid json")
+    with pytest.raises(SourceUnavailable) as caught:
+        asyncio.run(search_public_courses("Example City", "3.0", 2026))
+    assert not isinstance(caught.value, TransientSourceError)
+
+
+@pytest.mark.parametrize("error_type", ["DDGSException", "TimeoutException", "RatelimitException"])
+def test_search_worker_reports_provider_failure_without_payload(monkeypatch, capsys, error_type):
+    from ddgs import exceptions
+    from tennis_overview.public_document_worker import search
+
+    monkeypatch.setattr(
+        "sys.stdin",
+        MagicMock(buffer=io.BytesIO(b'{"city":"Example City","level":"3.0","year":2026}')),
+    )
+    monkeypatch.setattr(
+        "tennis_overview.public_web.search_courses",
+        MagicMock(side_effect=getattr(exceptions, error_type)("private provider diagnostics")),
+    )
+    assert search() == 75
+    assert capsys.readouterr() == ("", "")

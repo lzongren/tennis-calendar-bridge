@@ -140,3 +140,49 @@ source but failed typed extraction before accepting it. The exact cause still
 requires message-level inspection on the sanitized fixture; the earlier 2/2
 extraction result must not be presented as the final candidate's result. This is
 an additional open merge gate, separate from the now-passing original-oracle replay.
+
+## Extraction And Search Follow-up: 2026-11-02
+
+Message inspection on the sanitized quoted page exposed two independent failures.
+First, the model invented a title rather than quoting the source. It now selects a
+bounded title-line reference; Python copies the source line. Second, it put the
+quoted ending clock time in `date_end_text`. That passed quote membership but made
+date expansion silently return no sessions. Date fields now require a calendar-date
+reference, and the schema describes the distinction explicitly. A bounded correction
+can repair it; persistent failure aborts instead of publishing an empty calendar.
+The benchmark also now asserts the exact source title. Date/price expectations and
+the original registration oracle remain unchanged.
+
+The final candidate's private-model quoted-page check passed **2/2** (9.97s and
+4.80s, four requests each), with the correct title, date, start/end times, $54 price,
+complete source evidence, no denied calls and non-partial completion. The original
+four scenarios repeated twice passed **8/8** again, including the model-only
+network/process audit. Timings were 7.07/3.01s (baseline), 4.01/3.01s (injection),
+4.49/3.64s (date conflict), and 3.02/3.01s (transient read).
+
+A live city-search run before the search retry change passed **1/2**: the first run
+returned the expected timetable and four candidates in 109.66s, with 19 requests,
+13 tools, six checked sources, no denied calls, and partial coverage. The second
+failed on the initial search, before extraction. A separate isolated search probe
+returned `DDGSException` with the provider's ambiguous no-results response. This
+does not establish that there are no local courses or identify the provider's
+underlying cause. The worker now sends a redacted temporary-failure exit status for
+provider exceptions. Search timeouts use the same existing two-attempt limit, with
+a one-second delay. Invalid output is not retried; repeated failures still retain
+the old snapshot rather than publish an empty catalog.
+
+Local verification on this candidate: **365 pytest tests**, including desktop/mobile
+acceptance, **21 benchmark tests**, Ruff lint/format, mypy and wheel/Twine checks pass.
+Tests cover successful and exhausted retries, redacted provider errors, invalid
+output, timeout process cleanup, title bounds, and both corrected and persistent
+date-field errors. These checks are not proof of live web coverage or production
+readiness; the repeated city-search and remaining release gates still apply.
+
+The repeated live city-search check after that change failed **0/2** (4.54s and
+3.04s, one model request each, no registered/read sources). A follow-up isolated
+HTTP-status probe observed DuckDuckGo returning 202; DDGS 9.16.1 in the evaluation
+environment has Bing disabled, so the configured `bing,duckduckgo` list did not
+provide two working backends. A separate one-shot Brave probe returned 429 and
+was not retried. Neither probe establishes a usable replacement. No alternate
+provider or permissive automatic fallback has been added. The PR remains draft:
+source-search reliability is an open gate, not a successful empty-city result.
