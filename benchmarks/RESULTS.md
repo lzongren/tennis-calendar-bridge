@@ -42,3 +42,30 @@ extraction, dynamic/PDF source coverage, integration with the saved-location
 worker/UI, live-web acceptance for the reported courses, container validation and
 private deployment/rollback. Client cancellation does not establish GPU cancellation;
 the Python audit hook is not an OS sandbox and starts after module imports.
+# Public Document Retrieval: 2026-11-01
+
+This is a retrieval-layer follow-up, not a new model accuracy result. The historical
+clinic case led to an actual source-discovery defect: the operator's large global
+menu exhausted the 150-link limit before its main-content PDF and booking links.
+Removing navigation before collecting links fixes that defect without increasing
+the link budget. Sanitized structural regression tests do not contain personal data.
+
+Live read-only checks used the new reader on macOS and from an isolated evaluation
+environment on the Linux deployment host, with the built wheel installed outside
+the production service:
+
+| Check | Observed result |
+| --- | --- |
+| [Operator location page](https://www.lifetimeactivities.com/santa-clara/) | 32 content links; fall clinic PDF and public registration portal retained |
+| [Fall clinic PDF](https://www.lifetimeactivities.com/wp-content/uploads/SC-FALL-2026-CSCs.pdf) | 2,811 characters of layout text; Monday clinic row and public registration reference read |
+| PDF visual cross-check | Rendered page agrees with the extracted Monday 18:30-19:50 row and $52 seasonal fee |
+| Public booking portal | Plain HTML contains only an application shell; dynamic retrieval is still needed |
+| Offline acceptance | 18 benchmark cases pass, including the previous 16; full suite 314 passes |
+| Packaging/type/lint | Wheel/sdist build and Twine checks, mypy, Ruff and format checks pass locally |
+
+The PDF's seasonal fee differs from the user's dated registration screenshot ($54).
+The reader does not resolve this conflict, infer occupancy, or turn a yearless row
+into a booked session. No live registration status was obtained in this check.
+The full city-search-to-registration benchmark, agent backend integration, dynamic
+page access and production UI acceptance remain open. Production was not restarted
+or reconfigured; no routing, inference credentials or portal sessions were accessed.

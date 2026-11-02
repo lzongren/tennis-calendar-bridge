@@ -24,7 +24,7 @@ Tailnet hostnames belong in fixtures or PR artifacts.
 | --- | --- | --- |
 | Evidence reconciliation | Exact time, price, status, no invented queue position, complete provenance; conflicts fail closed | `pytest -m benchmark`; real-case transcription plus synthetic counterexamples |
 | Agent orchestration | Expand neighboring cities, read linked registration sources, recover transient reads, enforce request/tool/time budgets | Pydantic AI loop and replay harness implemented; see `benchmarks/README.md`; production source integration pending |
-| Real-source retrieval | Find the clinic from a city request; read dynamic/PDF detail when needed; retain retrieval evidence | Pending; fixture search is not this gate |
+| Real-source retrieval | Find the clinic from a city request; read dynamic/PDF detail when needed; retain retrieval evidence | Public HTML/PDF reader implemented and live-tested; dynamic registration, search/backend integration and factual extraction remain pending |
 | Existing calendar regressions | Ongoing clinics, term dates, DST, exclusions, source-to-card ownership, mobile rendering | Existing discovery tests remain mandatory |
 | Runtime/security | Private model only, credential redaction, no arbitrary URL/file/payment tools, outage preservation, cancellation | Pending integrated worker and private endpoint checks |
 | Release | Green CI and code review, live-model benchmark, container/API/UI acceptance, rollback | Pending; a component pass does not satisfy the deployment gate |
@@ -74,3 +74,24 @@ Live model results must identify dependency/model configuration, repeat count,
 latency, individual failures and retrieval audit. Keep credentials and unredacted
 runtime transcripts outside Git; public CI uses no Tailnet credentials. A future
 live harness must distinguish prerecorded source replay from actual web retrieval.
+
+## Public Documents
+
+`read_public_document` runs the public fetch and PDF parser in a fixed-purpose child
+process. It does not inherit inference keys, proxy settings, Python path overrides,
+portal sessions or cookies. Each HTTP redirect is validated and its resolved public
+IP pinned. HTML navigation is removed before the link budget, preserving body
+schedule and cross-site registration references that large menus previously hid.
+
+PDF extraction uses pinned `pypdf`, retaining layout text and page boundaries, plus
+public URI references. It does not execute embedded actions or infer class dates.
+Downloads are limited to 4 MB, PDFs to 12 pages/24,000 characters, and child output
+to 1 MB. The parent kills and reaps on cancellation or its 20-second deadline;
+the child also limits CPU to 10 seconds and, on Linux, address space to 512 MB.
+macOS does not receive the address-space limit. This is resource containment,
+not an OS sandbox. Encrypted, scanned-only and over-limit documents fail closed.
+
+The original synchronous worker remains HTML-only until the new source backend is
+integrated. Reading a seasonal PDF does not establish registration availability.
+The real November case still requires dynamic detail retrieval and reconciliation
+against the dated registration, not substituting a seasonal price.

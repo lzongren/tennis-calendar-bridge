@@ -109,6 +109,12 @@ def schedule_blocks(soup: BeautifulSoup, url: str) -> tuple[ScheduleBlock, ...]:
 
 
 @dataclass(frozen=True)
+class PageLink:
+    url: str
+    title: str
+
+
+@dataclass(frozen=True)
 class Page:
     url: str
     title: str
@@ -116,9 +122,17 @@ class Page:
     links: tuple[str, ...]
     heading: str = ""
     schedules: tuple[ScheduleBlock, ...] = ()
+    link_details: tuple[PageLink, ...] = ()
+    content_type: str = "text/html"
 
 
 def fetch_page(url: str) -> Page:
+    url, _, body = fetch_resource(url, ("text/html", "text/plain"))
+    return page_from_html(url, body)
+
+
+def fetch_resource(url: str, accepted: tuple[str, ...]) -> tuple[str, str, bytes]:
+    """Read one bounded public resource, validating and pinning every redirect hop."""
     for _ in range(4):
         url = public_url(url)
         parsed = urlsplit(url)
@@ -140,7 +154,7 @@ def fetch_page(url: str) -> Page:
                 headers={
                     "Host": parsed.netloc,
                     "User-Agent": "TennisCalendarBridge/0.2 (+public-course-discovery)",
-                    "Accept": "text/html,text/plain",
+                    "Accept": ",".join(accepted),
                     "Accept-Encoding": "identity",
                 },
             )
@@ -150,37 +164,46 @@ def fetch_page(url: str) -> Page:
                 continue
             if response.status != 200:
                 raise ValueError("Source page unavailable")
-            if not any(
-                t in response.getheader("Content-Type", "") for t in ("text/html", "text/plain")
-            ):
-                raise ValueError("Source is not an HTML or text page")
+            content_type = response.getheader("Content-Type", "").split(";", 1)[0].strip().lower()
+            if content_type not in accepted:
+                raise ValueError("Unsupported source content type")
             body = response.read(MAX_BYTES + 1)
             if len(body) > MAX_BYTES:
                 raise ValueError("Source page too large")
         finally:
             conn.close()
             sock.close()
-        return page_from_html(url, body)
+        return url, content_type, body
     raise ValueError("Too many source redirects")
 
 
 def page_from_html(url: str, body: bytes) -> Page:
     soup = BeautifulSoup(body, "html.parser")
     schedules = schedule_blocks(soup, url)
-    links = []
+    title = soup.title.get_text(" ", strip=True) if soup.title else urlsplit(url).hostname or ""
+    heading = soup.h1.get_text(" ", strip=True) if soup.h1 else ""
+    # Navigation can contain hundreds of links before the actual course content.
+    # Apply the link budget after removing chrome, just as we do for source text.
+    for node in soup.select("script, style, nav, footer, header, noscript, svg, [role=navigation]"):
+        node.decompose()
+    links: dict[str, PageLink] = {}
     for anchor in soup.find_all("a", href=True):
         try:
             link = public_url(urljoin(url, str(anchor["href"])))
             if link not in links:
-                links.append(link)
+                links[link] = PageLink(link, anchor.get_text(" ", strip=True)[:240])
         except ValueError:
             pass
-    title = soup.title.get_text(" ", strip=True) if soup.title else urlsplit(url).hostname or ""
-    heading = soup.h1.get_text(" ", strip=True) if soup.h1 else ""
-    for node in soup(["script", "style", "nav", "footer", "header", "noscript", "svg"]):
-        node.decompose()
     text = "\n".join(line.strip() for line in soup.get_text("\n").splitlines() if line.strip())
-    return Page(url, title[:240], text[:24000], tuple(links[:150]), heading[:240], schedules)
+    return Page(
+        url,
+        title[:240],
+        text[:24000],
+        tuple(links)[:150],
+        heading[:240],
+        schedules,
+        tuple(links.values())[:150],
+    )
 
 
 def search_courses(location: str, level: str, year: int) -> list[dict[str, str]]:
