@@ -84,6 +84,7 @@ def load_config(path: str | None = None) -> Config:
         calendar_token=os.getenv("TENNIS_CALENDAR_TOKEN"),
         headless=_bool_from_env("TENNIS_HEADLESS", True),
         discovery_enabled=_bool_from_env("TENNIS_DISCOVERY_ENABLED", False),
+        discovery_agent_enabled=_bool_from_env("TENNIS_DISCOVERY_AGENT_ENABLED", False),
         discovery_api_url=os.getenv("TENNIS_DISCOVERY_API_URL", ""),
         discovery_model=os.getenv("TENNIS_DISCOVERY_MODEL", "tennis-discovery"),
         discovery_api_key=os.getenv("TENNIS_DISCOVERY_API_KEY", ""),

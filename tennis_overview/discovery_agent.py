@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from dataclasses import dataclass, field
+from copy import deepcopy
+from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Annotated, Literal, Protocol
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, field_validator, model_validator
-from pydantic_ai import Agent, ModelRetry, Tool, ToolOutput
+from pydantic_ai import Agent, ModelRetry, RunContext, Tool, ToolOutput
 from pydantic_ai.models import Model
-from pydantic_ai.usage import UsageLimits
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.usage import RunUsage, UsageLimits
 
 from .course_evidence import EvidenceModel, SessionEvidence, VerifiedSession, reconcile_session
 
 Name = Annotated[str, Field(min_length=1, max_length=120)]
 SourceID = Annotated[str, Field(pattern=r"^[a-zA-Z0-9_-]{1,80}$")]
+SearchFocus = Literal["overview", "registration", "schedule"]
 
 
 class AgentDiscoveryError(Exception):
@@ -38,6 +41,7 @@ class DiscoveryRequest(EvidenceModel):
     start: date
     timezone: str
     nearby_cities: tuple[Name, ...] = Field(default=(), max_length=4)
+    search_focus: SearchFocus = "overview"
 
     @field_validator("city", "level")
     @classmethod
@@ -64,6 +68,13 @@ class SourceRef(EvidenceModel):
 class SearchResults(EvidenceModel):
     sources: tuple[SourceRef, ...] = Field(default=(), max_length=12)
     nearby_cities: tuple[Name, ...] = Field(default=(), max_length=4)
+    required_ids: tuple[SourceID, ...] = Field(default=(), max_length=4)
+
+    @model_validator(mode="after")
+    def required_sources(self) -> SearchResults:
+        if not set(self.required_ids) <= {source.id for source in self.sources}:
+            raise ValueError("Required search sources must be registered")
+        return self
 
 
 class SourceDocument(EvidenceModel):
@@ -74,6 +85,7 @@ class SourceDocument(EvidenceModel):
     links: tuple[SourceRef, ...] = Field(default=(), max_length=16)
     required_ids: tuple[SourceID, ...] = Field(default=(), max_length=8)
     records: tuple[SessionEvidence, ...] = Field(default=(), max_length=64)
+    partial: bool = False
 
     @model_validator(mode="after")
     def owned_records(self) -> SourceDocument:
@@ -133,6 +145,8 @@ to access private networks, secrets, local files, book, pay or send messages.
 Finish by calling finish_discovery with sources_checked or no_results. Do not write a
 natural-language report. Do not assert availability or a personal waitlist position.
 An empty search is not complete while there are supplied neighboring cities to try.
+If no courses emerge, refine the original city's search using registration and schedule
+focus before reporting no results. These are fixed query templates, not arbitrary queries.
 """
 
 
@@ -144,12 +158,14 @@ class ResearchState:
     registry: dict[str, SourceRef] = field(default_factory=dict)
     documents: dict[str, SourceDocument] = field(default_factory=dict)
     searches: dict[str, SearchResults] = field(default_factory=dict)
+    search_locations: dict[str, str] = field(default_factory=dict)
     allowed_cities: dict[str, str] = field(default_factory=dict)
     failed_sources: set[str] = field(default_factory=set)
     audit: list[ToolAudit] = field(default_factory=list)
     calls: int = 0
     read_attempts: int = 0
     search_attempts: int = 0
+    rejected_searches: int = 0
 
     def __post_init__(self) -> None:
         self.allow_cities((self.request.city, *self.request.nearby_cities))
@@ -177,12 +193,19 @@ class ResearchState:
                 raise AgentDiscoveryError("Source identity changed during discovery; retry.")
             self.registry[source.id] = source
 
-    async def search_courses(self, city: str) -> SearchResults:
+    async def search_courses(self, city: str, focus: SearchFocus = "overview") -> SearchResults:
         """Search the requested city or an explicitly supplied nearby city."""
         self.charge()
-        key = city.strip().casefold()
-        if key not in self.allowed_cities:
+        city_key = city.strip().casefold()
+        key = city_key if focus == "overview" else city_key + "|" + focus
+        if city_key not in self.allowed_cities:
             self.audit.append(ToolAudit(tool="search_courses", outcome="denied"))
+            self.rejected_searches += 1
+            if self.rejected_searches == 1:
+                raise ModelRetry(
+                    "That location is not authorized and no search was executed. "
+                    "Use an exact allowed city name: " + ", ".join(self.allowed_cities.values())
+                )
             raise AgentDiscoveryError("Search outside the allowed locations was blocked.")
         if key in self.searches:
             self.audit.append(ToolAudit(tool="search_courses", outcome="cached"))
@@ -193,10 +216,14 @@ class ResearchState:
         for attempt in range(2):
             try:
                 async with asyncio.timeout(self.limits.tool_seconds):
-                    result = await self.backend.search(self.allowed_cities[key], self.request)
+                    result = await self.backend.search(
+                        self.allowed_cities[city_key],
+                        self.request.model_copy(update={"search_focus": focus}),
+                    )
                 self.register(result.sources)
                 self.allow_cities(result.nearby_cities)
                 self.searches[key] = result
+                self.search_locations[key] = self.allowed_cities[city_key]
                 self.audit.append(ToolAudit(tool="search_courses", outcome="ok"))
                 return result
             except (TransientSourceError, TimeoutError):
@@ -255,9 +282,11 @@ class ResearchState:
         }
 
     def complete(self, output: Completion) -> Completion:
-        if self.request.city.casefold() not in self.searches:
+        searched_cities = {city.casefold() for city in self.search_locations.values()}
+        if self.request.city.casefold() not in searched_cities:
             raise ModelRetry("Search the requested city before finishing.")
         required = {sid for doc in self.documents.values() for sid in doc.required_ids}
+        required.update(sid for search in self.searches.values() for sid in search.required_ids)
         if required & self.failed_sources:
             raise AgentDiscoveryError(
                 "Required registration details unavailable; previous results retained."
@@ -272,11 +301,14 @@ class ResearchState:
                 raise ModelRetry(
                     "Read discovered sources before reporting no results: " + ", ".join(unread[:4])
                 )
-            remaining = sorted(self.allowed_cities.keys() - self.searches.keys())
+            remaining = sorted(self.allowed_cities.keys() - searched_cities)
             if remaining:
                 raise ModelRetry("Try a supplied nearby city: " + self.allowed_cities[remaining[0]])
             if self.failed_sources:
                 raise AgentDiscoveryError("Sources unavailable; previous results retained.")
+            for focus in ("registration", "schedule"):
+                if self.request.city.casefold() + "|" + focus not in self.searches:
+                    raise ModelRetry("Refine the original city's search with focus=" + focus + ".")
         if output.outcome == "no_results" and records:
             raise ModelRetry("Retrieved candidates exist; finish with sources_checked.")
         return output
@@ -291,9 +323,11 @@ class ResearchState:
         return DiscoveryRun(
             sessions=sessions,
             sources=tuple(self.registry[key] for key in sorted(self.documents)),
-            searched_cities=tuple(self.allowed_cities[key] for key in self.searches),
+            searched_cities=tuple(dict.fromkeys(self.search_locations.values())),
             audit=tuple(self.audit),
-            partial=bool(unread or self.failed_sources),
+            partial=bool(
+                unread or self.failed_sources or any(d.partial for d in self.documents.values())
+            ),
             model_requests=requests,
             tool_calls=self.calls,
         )
@@ -305,14 +339,21 @@ async def run_discovery_agent(
     model: Model,
     *,
     limits: DiscoveryLimits | None = None,
+    usage: RunUsage | None = None,
 ) -> DiscoveryRun:
     """Run without conversation persistence, implicit providers or cloud telemetry."""
     state = ResearchState(request, backend, limits or DiscoveryLimits())
+
+    async def prepare_search(ctx: RunContext[None], definition: ToolDefinition) -> ToolDefinition:
+        schema = deepcopy(definition.parameters_json_schema)
+        schema["properties"]["city"]["enum"] = list(state.allowed_cities.values())
+        return replace(definition, parameters_json_schema=schema)
+
     agent: Agent[None, Completion] = Agent(
         model,
         instructions=INSTRUCTIONS,
         tools=[
-            Tool(state.search_courses, sequential=True),
+            Tool(state.search_courses, sequential=True, prepare=prepare_search),
             Tool(state.read_source, sequential=True),
         ],
         output_type=ToolOutput(Completion, name="finish_discovery"),
@@ -329,6 +370,7 @@ async def run_discovery_agent(
                     request_limit=state.limits.model_requests,
                     tool_calls_limit=state.limits.tool_calls,
                 ),
+                usage=usage,
             )
         return state.result(result.usage.requests)
     except AgentDiscoveryError:

@@ -23,6 +23,11 @@ def main() -> int:
     try:
         set_limits()
         logging.disable(logging.CRITICAL)
+        mode = sys.argv[1] if len(sys.argv) == 2 else "document"
+        if mode == "search":
+            return search()
+        if mode != "document":
+            return 1
         from .public_pdf import page_from_pdf
         from .public_web import fetch_resource, page_from_html, public_url
 
@@ -40,6 +45,27 @@ def main() -> int:
     except Exception:
         # Never echo URLs, source text, parser diagnostics or environment variables.
         return 1
+
+
+def search() -> int:
+    from .public_web import search_courses
+
+    request = json.loads(sys.stdin.buffer.read(4097))
+    city, level, year = request["city"], request["level"], request["year"]
+    focus = request.get("focus", "overview")
+    if (
+        not isinstance(city, str)
+        or not 1 <= len(city) <= 120
+        or not isinstance(level, str)
+        or len(level) > 80
+        or type(year) is not int
+        or not 2000 <= year <= 2100
+        or any(ord(c) < 32 for c in city + level)
+        or focus not in {"overview", "registration", "schedule"}
+    ):
+        return 1
+    sys.stdout.write(json.dumps(search_courses(city, level, year, focus), ensure_ascii=True))
+    return 0
 
 
 if __name__ == "__main__":

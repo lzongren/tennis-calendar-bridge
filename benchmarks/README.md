@@ -48,3 +48,36 @@ receives only public page text, discovered opaque source IDs and candidate keys.
 It cannot submit prices, authority, identities or personal booking status. Source
 adapters still need real-page fixtures and live retrieval acceptance before the
 worker can switch to this loop. These fixtures cannot prove that boundary correct.
+
+## Source Backend Acceptance
+
+`source_discovery.py` exercises the same private client, agent, extraction adapters
+and source backend used by the opt-in worker. It has distinct replay and live-web
+modes, which must not be combined into a single accuracy score:
+
+```sh
+python -m benchmarks.source_discovery --case ongoing --repeats 2 --output /tmp/source-ongoing.json
+python -m benchmarks.source_discovery --case quoted --repeats 2 --output /tmp/source-quoted.json
+python -m benchmarks.source_discovery --live-web --repeats 2 --output /tmp/source-live.json
+```
+
+Replay uses a sanitized ongoing timetable or a minimal dated course transcription.
+The latter checks generic extraction of the November 2 time and $54 price, but
+deliberately has no availability assertion: it is not a replacement for the anchor
+registration contract in `agent_discovery.py`. Both replay modes use the model-only
+audit guard. The live mode performs real public search from a city request with no
+seed URL, then checks the operator's Wednesday/Thursday timetable and provenance.
+Live public retrieval requires subprocesses and public connections, so this mode
+does **not** apply or claim the model-only network guard. It is not a full-city
+recall test or a verification of current seats.
+
+All modes use a fixed November 1, 2026 Pacific anchor. A changed source should be
+investigated against the published schedule, not silently accommodated by relaxing
+the expected result. Public document workers import the installed package under
+Python isolated mode; install the candidate wheel in the evaluation environment
+so parent and worker code match. No production service restart is needed to run
+these checks. Keep failures and subsequent reruns separate in the results report.
+
+Offline browser acceptance now runs both legacy and agent paths through the actual
+worker, persistence, API and desktop/mobile calendar with controlled sources and a
+`FunctionModel`. This tests application integration, not live model reliability.

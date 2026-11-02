@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 import tempfile
@@ -33,6 +34,36 @@ async def read_public_document(url: str, *, timeout: float = 20) -> Page:
     It performs public GETs only with validated DNS and no inherited API credentials.
     """
     url = public_url(url)
+    output = await run_public_worker("document", url.encode("utf-8"), timeout=timeout)
+    try:
+        page = TypeAdapter(Page).validate_json(output)
+        public_url(page.url)
+        return page
+    except ValueError:
+        raise SourceUnavailable("Public document could not be read") from None
+
+
+async def search_public_courses(
+    city: str, level: str, year: int, focus: str = "overview"
+) -> list[dict[str, str]]:
+    """Anonymous public search, without inheriting model or portal credentials."""
+    output = await run_public_worker(
+        "search",
+        json.dumps({"city": city, "level": level, "year": year, "focus": focus}).encode("utf-8"),
+        timeout=20,
+    )
+    try:
+        results = TypeAdapter(list[dict[str, str]]).validate_json(output)
+        if len(results) > 8:
+            raise ValueError("Search result limit exceeded")
+        return [{"url": public_url(row["url"]), "title": row["title"][:240]} for row in results]
+    except (ValueError, KeyError):
+        raise SourceUnavailable("Public search failed") from None
+
+
+async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> bytes:
+    if mode not in {"document", "search"} or len(payload) > 4096:
+        raise ValueError("Invalid public worker request")
     if not 0 < timeout <= 60:
         raise ValueError("Document timeout must be between zero and 60 seconds")
     process = await asyncio.create_subprocess_exec(
@@ -41,6 +72,7 @@ async def read_public_document(url: str, *, timeout: float = 20) -> Page:
         "-B",
         "-m",
         "tennis_overview.public_document_worker",
+        mode,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
@@ -50,15 +82,13 @@ async def read_public_document(url: str, *, timeout: float = 20) -> Page:
     try:
         async with asyncio.timeout(timeout):
             assert process.stdin is not None
-            process.stdin.write(url.encode("utf-8"))
+            process.stdin.write(payload)
             await process.stdin.drain()
             process.stdin.close()
             output = await _read_output(process)
         if process.returncode != 0:
             raise SourceUnavailable("Public document could not be read")
-        page = TypeAdapter(Page).validate_json(output)
-        public_url(page.url)
-        return page
+        return output
     except (TimeoutError, ValueError, OSError):
         raise SourceUnavailable("Public document could not be read") from None
     finally:

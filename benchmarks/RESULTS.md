@@ -69,3 +69,67 @@ into a booked session. No live registration status was obtained in this check.
 The full city-search-to-registration benchmark, agent backend integration, dynamic
 page access and production UI acceptance remain open. Production was not restarted
 or reconfigured; no routing, inference credentials or portal sessions were accessed.
+
+# Source Backend Integration: Development Gate
+
+The opt-in worker now uses actual public search/document workers and typed generic
+extraction, rather than requiring a replay backend. The production flag remains off.
+This is a development record, not a production-readiness declaration.
+
+The live private-model checks found defects that the earlier scripted-model tests
+did not expose. The first generic dated transcription run silently lost required
+evidence/time fields and returned no candidates (0/2). Making fields mandatory
+changed that into an explicit failure (0/2), but did not itself fix extraction.
+Wire inspection showed nested `$defs/$ref` schemas under the private model alias.
+Using Pydantic AI's built-in definition inliner then passed the same dated case
+twice (7.63s and 4.91s, four requests each) without changing its time/price oracle.
+Those measurements preceded the subsequent evidence-span and metadata refinements;
+they do not replace a final-candidate replay run.
+
+Real city-search runs exposed two additional issues. The model selected disconnected
+evidence lines, and copied an operator name and the requested skill level from
+outside the course's evidence. Inclusive line spans now retain intervening text;
+core factual errors are returned together in one bounded correction. Unsupported
+optional club/venue/level labels are omitted deterministically, not displayed as
+facts or used to label a course as matching the requested level. A live read of
+the affected public drop-in page subsequently retained its sourced course/price
+without the unsupported labels. Dates and registration status remained unknown.
+
+Some later runs stopped before public retrieval because the model changed the
+requested city. This was initially suspected to be a search-provider failure;
+planner-call inspection disproved that hypothesis. The location allowlist had
+correctly blocked the call. One bounded correction is now permitted without
+executing that search; a repeated invalid city still aborts, and the denial remains
+in the audit. The original orchestration scorer still requires zero denied calls
+for a clean pass. Recovery is not relabeled as a clean security run.
+
+Offline verification for this candidate: 353 tests, including the actual opt-in
+worker/API/calendar path at desktop and mobile sizes; 21 case-level benchmarks;
+Ruff lint/format and mypy pass. New checks cover nested wire schemas, required
+fields, bounded evidence spans, intervening cancellations, cross-course metadata,
+shared planning/extraction budgets, safe error diagnostics, shutdown cancellation,
+snapshot preservation and unchanged legacy search queries. Live-source coverage,
+the original dynamic registration case and private deployment gates remain open.
+
+The last repeated live city-search check before the dynamic city-schema correction
+passed **1/2**. The successful run took 69.28s with 13 model requests, nine tool calls
+and four checked sources. It returned the expected Wednesday/Thursday timetable
+and four candidates, but remained partial and recorded one denied city-search
+attempt before correction. The failed run stopped after 98.40s, 15 model requests,
+24 registered sources and five checked sources; the sanitized report does not
+establish its final failure cause. A preceding diagnostic run passed the same
+timetable checks in 103.76s, also partial. These runs are not pooled to improve the
+acceptance score.
+
+A subsequent original-oracle replay failed 0/8: the model repeatedly expanded the
+authorized city name with a state suffix, and exact-match enforcement rejected it.
+The checks and original fixture were not changed. The tool now exposes the current
+user/adapter-authorized names as a dynamic schema enum while retaining runtime
+checks; a unit test verifies that a neighboring city appears only after the backend
+supplies it. The fresh original-oracle replay then passed **8/8**, including exact
+facts, complete evidence, neighbor-city retrieval, no denied tool calls and
+non-partial completion. Case timings were 7.05/2.98s (baseline), 4.02/3.00s
+(injection), 4.44/3.61s (date conflict), and 2.98/2.98s (transient read). The
+model-only network/process audit also passed. This repairs the orchestration
+regression; it does not establish live city-search or dynamic registration recall.
+Do not merge or enable the integrated worker based on replay and offline tests alone.

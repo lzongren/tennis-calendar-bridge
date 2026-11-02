@@ -20,11 +20,23 @@ from pypdf.generic import (
 )
 
 from tennis_overview.discovery_agent import SourceUnavailable
-from tennis_overview.public_documents import MAX_OUTPUT, read_public_document
+from tennis_overview.public_documents import MAX_OUTPUT, read_public_document, search_public_courses
 from tennis_overview.public_pdf import page_from_pdf
-from tennis_overview.public_web import Page
+from tennis_overview.public_web import Page, search_courses
 
 URL = "https://club.example.org/fall.pdf"
+
+
+def test_legacy_search_query_is_preserved_and_agent_focus_is_explicit(monkeypatch):
+    search = MagicMock(return_value=[])
+    monkeypatch.setattr("ddgs.DDGS", lambda **kwargs: MagicMock(text=search))
+    assert search_courses("Example City", "3.0", 2026) == []
+    assert search.call_args.args[0] == "Example City adult tennis clinics classes schedule"
+    assert search_courses("Example City", "3.0", 2026, "overview") == []
+    assert search.call_args.args[0] == "adult tennis group clinics near Example City"
+    with pytest.raises(ValueError, match="Invalid search focus"):
+        search_courses("Example City", "3.0", 2026, "arbitrary query")
+    assert search.call_count == 2
 
 
 def pdf_bytes(text="Adult Clinic", links=(), *, pages=1, password=None):
@@ -147,6 +159,7 @@ def test_document_child_does_not_inherit_credentials_or_proxy(monkeypatch):
         "-B",
         "-m",
         "tennis_overview.public_document_worker",
+        "document",
     )
     assert set(spawn.call_args.kwargs["env"]) <= {"PATH", "LANG", "LC_ALL"}
     assert spawn.call_args.kwargs["stderr"] == asyncio.subprocess.DEVNULL
@@ -257,3 +270,27 @@ def test_linux_worker_installs_cpu_memory_and_file_limits(monkeypatch):
     assert observed[resource.RLIMIT_AS] == (512 * 1024 * 1024,) * 2
     assert observed[resource.RLIMIT_CORE] == (0, 0)
     assert observed[resource.RLIMIT_FSIZE] == (0, 0)
+
+
+def test_search_uses_same_isolated_worker_and_validates_urls(monkeypatch):
+    results = [{"url": "https://club.example.org/classes", "title": "Public classes"}]
+    process, spawn = fake_process(monkeypatch, body=json.dumps(results).encode())
+    assert (
+        asyncio.run(search_public_courses("Example City", "3.0", 2026, "registration")) == results
+    )
+    assert spawn.call_args.args[-1] == "search"
+    payload = json.loads(process.stdin.write.call_args.args[0])
+    assert payload == {
+        "city": "Example City",
+        "level": "3.0",
+        "year": 2026,
+        "focus": "registration",
+    }
+
+
+def test_search_result_private_destination_is_rejected(monkeypatch):
+    fake_process(
+        monkeypatch, body=json.dumps([{"url": "http://127.0.0.1/", "title": "Private"}]).encode()
+    )
+    with pytest.raises(SourceUnavailable, match="search failed"):
+        asyncio.run(search_public_courses("Example City", "3.0", 2026))

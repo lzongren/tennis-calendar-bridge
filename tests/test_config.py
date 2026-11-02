@@ -28,3 +28,6 @@ enabled = false
     config = load_config(str(config_path))
 
     assert config.app.base_path == "/tennis"
+    assert not config.app.discovery_agent_enabled
+    monkeypatch.setenv("TENNIS_DISCOVERY_AGENT_ENABLED", "true")
+    assert load_config(str(config_path)).app.discovery_agent_enabled

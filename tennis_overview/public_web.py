@@ -206,10 +206,20 @@ def page_from_html(url: str, body: bytes) -> Page:
     )
 
 
-def search_courses(location: str, level: str, year: int) -> list[dict[str, str]]:
+def search_courses(
+    location: str, level: str, year: int, focus: str | None = None
+) -> list[dict[str, str]]:
     from ddgs import DDGS
 
-    query = f"{location} adult tennis clinics classes schedule"
+    queries = {
+        None: f"{location} adult tennis clinics classes schedule",
+        "overview": f"adult tennis group clinics near {location}",
+        "registration": f"{location} adult tennis clinics registration {level} {year}",
+        "schedule": f"{location} adult tennis clinic schedule {year} filetype:pdf",
+    }
+    if focus not in queries:
+        raise ValueError("Invalid search focus")
+    query = queries[focus]
     results = DDGS(timeout=12).text(query, max_results=8, backend="bing,duckduckgo")
     candidates = []
     for item in results:
