@@ -112,3 +112,47 @@ omitted rather than borrowed from other courses or the requested level.
 A valid JSON object is not a sufficient gate:
 live replay and live-web extraction must pass separately. A fixed minimal transcription
 cannot establish dynamic registration recall, occupancy or geographic completeness.
+
+## Browser Evidence
+
+Course discovery should not require a dedicated search API. The next retrieval
+layer will use general search and read-only browser navigation, with authentication
+kept in a local browser. This does not mean giving the model unrestricted control
+over a personal browser or copying its profile to the VPS.
+
+`BrowserDocument` is the transport-neutral input boundary for a trusted reader.
+It contains the observed URL, a bounded rendered course region and its capture
+timestamp. It is not a model output schema or an HTTP ingestion endpoint. The
+source backend accepts it through the existing injected reader, requires the
+observed URL to match the registered source, and passes it to a deterministic
+adapter before exposing any text to the model.
+
+The first adapter handles CourtReserve event-detail summaries. A live, read-only
+browser inspection on November 2, 2026 found the original clinic and the same
+time, price and full/waitlist facts as the screenshot benchmark. The checked-in
+fixture is a **structural transcription** with generalized title and synthetic
+IDs, not a full authenticated page capture. Account navigation, personal action
+buttons, cookies and credentials are excluded. No account state was changed.
+
+The adapter copies only course-owned title, category, date, time, price and slot
+fields. It rejects missing/duplicate fields, unsupported routes, unexpected query
+parameters, captures older than 15 minutes and inconsistent weekdays. Short
+meridiems such as `6:30p` are supported. A yearless current-year label uses the
+fresh browser capture's local year, never the search year or a copyright footer.
+Explicit years remain authoritative; ambiguous DST times are rejected. A
+`Register` button is not proof of availability, and personal `Waitlisted` state
+is not a queue position or count.
+
+Only the selected occurrence is parsed in this increment. An expanded series
+marks the result partial; its other dates do not inherit the first occurrence's
+price or capacity. Unknown status remains unknown. The adapter does not silently
+fall back to model-generated registration facts.
+
+The production worker still uses the public document reader. There is **no
+autonomous browser transport enabled yet**: interactive browser inspection and
+an injected-reader replay do not establish production search recall. A future
+transport must provide a dedicated authenticated browser context, allowlisted
+read operations, origin/navigation checks, cancellation and resource budgets.
+It must never expose arbitrary CDP access, scripts, files, booking or payment
+actions to the model. Local cookies stay local; the VPS receives sanitized course
+facts only. Existing private listeners and centrally managed ingress stay unchanged.

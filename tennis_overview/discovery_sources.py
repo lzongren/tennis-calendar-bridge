@@ -11,8 +11,10 @@ from decimal import Decimal
 from typing import Any
 from urllib.parse import urlsplit
 
+from .browser_documents import BrowserDocument
 from .course_evidence import SessionEvidence
 from .course_extraction import CourseCandidate, CourseExtractor
+from .courtreserve_discovery import courtreserve_observation
 from .discovery_agent import (
     DiscoveryRequest,
     DiscoveryRun,
@@ -24,7 +26,7 @@ from .discovery_agent import (
 from .public_documents import read_public_document, search_public_courses
 from .public_web import Page, PageLink, public_url
 
-Reader = Callable[[str], Awaitable[Page]]
+Reader = Callable[[str], Awaitable[Page | BrowserDocument]]
 Searcher = Callable[[str, str, int, str], Awaitable[list[dict[str, str]]]]
 
 
@@ -71,6 +73,7 @@ class PublicSourceBackend:
     details: dict[str, CourseCandidate] = field(default_factory=dict)
     search_failed: bool = False
     truncated: bool = False
+    clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
 
     def register(self, url: str, title: str, depth: int) -> SourceRef | None:
         url = public_url(url)
@@ -117,14 +120,28 @@ class PublicSourceBackend:
             raise SourceUnavailable("Undiscovered source")
         source = self.sources[source_id]
         try:
-            page = await self.reader(source.url)
-            # An empty JS/login shell is not evidence that the operator offers no courses.
-            if not page.links and len(page.text.split()) < 5:
-                raise SourceUnavailable("Source needs dynamic or authenticated access")
+            document = await self.reader(source.url)
+            registration = None
+            if isinstance(document, BrowserDocument):
+                try:
+                    observed_url = public_url(document.url)
+                except ValueError:
+                    raise SourceUnavailable("Unsafe browser course URL") from None
+                if observed_url != source.url:
+                    raise SourceUnavailable("Browser observation does not match requested source")
+                registration = courtreserve_observation(document, request, now=self.clock())
+                page = registration.page
+                courses: tuple[CourseCandidate, ...] = (
+                    (registration.course,) if registration.course else ()
+                )
+            else:
+                page = document
+                if not page.links and len(page.text.split()) < 5:
+                    raise SourceUnavailable("Source needs dynamic or authenticated access")
+                courses = await self.extractor.extract(page, request)
             source.page = page
-            courses = await self.extractor.extract(page, request)
             records: dict[str, SessionEvidence] = {}
-            partial = len(courses) >= 8
+            partial = len(courses) >= 8 or bool(registration and registration.partial)
             for course in courses[:8]:
                 occurrences = course.sessions or (None,)
                 for occurrence in occurrences:
@@ -141,11 +158,13 @@ class PublicSourceBackend:
                     record = SessionEvidence(
                         source_id=source_id,
                         session_key=key,
-                        kind="seasonal",
+                        kind="registration" if registration else "seasonal",
                         title=course.title,
                         starts_at=occurrence.starts_at if occurrence else None,
                         ends_at=occurrence.ends_at if occurrence else None,
                         price_usd=usd_price(course.price),
+                        availability=registration.availability if registration else "unknown",
+                        waitlist_count=registration.waitlist_count if registration else None,
                     )
                     if key in records and records[key] != record:
                         raise SourceUnavailable("Ambiguous source occurrence")

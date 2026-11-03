@@ -7,7 +7,7 @@ import asyncio
 import json
 import os
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 from pydantic import SecretStr
 from pydantic_ai.usage import RunUsage
 
+from tennis_overview.browser_documents import BrowserDocument
 from tennis_overview.course_extraction import CourseExtractor
 from tennis_overview.discovery_agent import DiscoveryLimits, DiscoveryRequest, run_discovery_agent
 from tennis_overview.discovery_sources import PublicSourceBackend
@@ -25,6 +26,8 @@ from .network_guard import install_model_only_guard
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 REPLAY_URL = "https://club.example.org/adults"
+BROWSER_URL = "https://app.courtreserve.com/Online/Events/Details/12345/EXAMPLE?resId=123&tab=dates"
+CAPTURE_TIME = datetime(2026, 11, 2, 18, tzinfo=timezone.utc)
 
 
 def error_types(error: BaseException) -> list[str]:
@@ -67,7 +70,8 @@ async def evaluate(
             )
             backend = PublicSourceBackend(CourseExtractor(model, usage, limits.model_requests))
             if not live:
-                page = page_from_html(
+                replay_url = BROWSER_URL if case == "browser" else REPLAY_URL
+                page: Page | BrowserDocument = page_from_html(
                     REPLAY_URL, (FIXTURES / "discovery_ongoing.html").read_bytes()
                 )
                 if case == "quoted":
@@ -84,21 +88,31 @@ async def evaluate(
                         ),
                         (),
                     )
+                elif case == "browser":
+                    page = BrowserDocument(
+                        BROWSER_URL,
+                        "Synthetic browser title",
+                        (FIXTURES / "discovery_benchmark" / "courtreserve_detail.html").read_text(),
+                        CAPTURE_TIME,
+                    )
+                    backend.clock = lambda: CAPTURE_TIME
 
-                async def replay_read(url: str) -> Page:
-                    if url != REPLAY_URL:
+                async def replay_read(url: str) -> Page | BrowserDocument:
+                    if url != replay_url:
                         raise ValueError("Replay source outside fixture")
                     return page
 
                 backend.reader = replay_read
                 backend.searcher = empty_search
-                backend.initial_urls = (REPLAY_URL,)
+                backend.initial_urls = (replay_url,)
             started = time.monotonic()
             try:
                 run = await run_discovery_agent(request, backend, model, usage=usage, limits=limits)
                 result = backend.result(run, request)
                 courses = result["courses"]
                 target = "www.sjsrc.com" if live else "club.example.org"
+                if case == "browser":
+                    target = "app.courtreserve.com"
                 matching = [
                     course
                     for course in courses
@@ -129,6 +143,24 @@ async def evaluate(
                     checks["quoted_title"] = any(
                         course["title"] == "Adult Coach Clinic" for course in matching
                     )
+                elif case == "browser":
+                    expected = json.loads(
+                        (FIXTURES / "discovery_benchmark" / "nov2_registration.json").read_text()
+                    )["expected"]
+                    checks = {
+                        "original_registration_facts": len(matching) == 1
+                        and matching[0]["sessions"]
+                        == [{"starts_at": expected["starts_at"], "ends_at": expected["ends_at"]}]
+                        and matching[0]["price"] == "$" + expected["price_usd"]
+                        and matching[0]["availability"] == expected["availability"]
+                        and matching[0]["waitlist_count"] == expected["waitlist_count"],
+                        "no_personal_queue_inference": bool(matching)
+                        and all(c["user_waitlist_position"] is None for c in matching),
+                        "source_evidence": bool(matching)
+                        and all(c["evidence_ids"] for c in matching),
+                        "series_incomplete": result["partial"],
+                        "request_budget": usage.requests <= limits.model_requests,
+                    }
                 observation = {
                     "repetition": repetition + 1,
                     "checks": checks,
@@ -161,12 +193,12 @@ async def evaluate(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live-web", action="store_true")
-    parser.add_argument("--case", choices=("ongoing", "quoted"), default="ongoing")
+    parser.add_argument("--case", choices=("ongoing", "quoted", "browser"), default="ongoing")
     parser.add_argument("--repeats", type=int, default=2, choices=range(1, 4))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.live_web and args.case != "ongoing":
-        parser.error("The quoted transcription is a replay case, not a live public page")
+        parser.error("Transcriptions are replay cases, not live public pages")
     config = PrivateModelConfig(
         base_url=os.environ["TENNIS_DISCOVERY_API_URL"],
         model=os.environ["TENNIS_DISCOVERY_MODEL"],
