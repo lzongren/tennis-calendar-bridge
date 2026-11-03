@@ -57,10 +57,12 @@ def test_live_benchmark_distinguishes_supplied_url_from_search(monkeypatch, case
         assert request.city == "San Jose, CA"
         assert backend.reader == client.read
         if case == "clinic-search":
+            assert request.search_mode == "area"
             assert backend.initial_urls == ()
             assert backend.searcher == client.search
             assert source_discovery.BROWSER_URL not in request.model_dump_json()
         else:
+            assert request.search_mode == "source_check"
             assert backend.initial_urls == (source_discovery.BROWSER_URL,)
             assert backend.searcher == source_discovery.empty_search
         raise SourceUnavailable("Synthetic stopped run")

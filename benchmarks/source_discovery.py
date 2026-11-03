@@ -83,12 +83,15 @@ async def evaluate(
                 level="NTRP 3.0",
                 timezone="America/Los_Angeles",
                 start=date(2026, 11, 1),
+                search_mode="area" if live and case != "anonymous" else "source_check",
             )
             usage = RunUsage()
             limits = DiscoveryLimits(
-                model_requests=24, tool_calls=30, tool_seconds=60, total_seconds=300
+                model_requests=24, tool_calls=30, sources=48, tool_seconds=60, total_seconds=300
             )
-            backend = PublicSourceBackend(CourseExtractor(model, usage, limits.model_requests))
+            backend = PublicSourceBackend(
+                CourseExtractor(model, usage, limits.model_requests), source_limit=limits.sources
+            )
             if live and case in {"anonymous", "clinic-search"}:
                 client = BrowserClient(
                     os.environ["TENNIS_DISCOVERY_BROWSER_URL"],

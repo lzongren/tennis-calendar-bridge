@@ -30,7 +30,9 @@ async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, 
         timezone=location["timezone"],
         start=datetime.now(ZoneInfo(location["timezone"])).date(),
     )
-    limits = DiscoveryLimits(model_requests=24, tool_calls=30, tool_seconds=60, total_seconds=300)
+    limits = DiscoveryLimits(
+        model_requests=24, tool_calls=30, sources=48, tool_seconds=60, total_seconds=300
+    )
     usage = RunUsage()
     config = PrivateModelConfig(
         base_url=app.discovery_api_url,
@@ -39,7 +41,9 @@ async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, 
     )
     async with private_model(config) as model:
         extractor = CourseExtractor(model, usage, limits.model_requests)
-        backend = PublicSourceBackend(extractor, tuple(location["sources"]))
+        backend = PublicSourceBackend(
+            extractor, tuple(location["sources"]), source_limit=limits.sources
+        )
         if app.discovery_browser_url or app.discovery_browser_key:
             from .browser_client import BrowserClient
 

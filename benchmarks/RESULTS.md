@@ -338,3 +338,40 @@ failure isolation and makes discovery recall measurable; it does **not** pass th
 gate. The agent can still finish after one search focus once it has some
 candidates, leaving relevant operators undiscovered. Search coverage, registration
 navigation and production acceptance remain open. No production service was changed.
+
+## Area Coverage And Search Layouts: 2026-11-02
+
+Area discovery now requires overview, registration and schedule searches before
+page reads, and an attempted read from each newly introduced source group before
+completion. The application and recall harness use the same 48-reference ceiling;
+model, read, tool and time budgets are unchanged. Supplied-source and evidence
+replays explicitly use `source_check`, retaining their factual oracles without
+claiming area coverage. The unseeded anchor case remains in `area` mode.
+
+A live search failure was not actually an empty result set. Yahoo returned HTTP
+200 and course links in `section.algo`, while DDGS recognized only `div.relsrch`.
+The adapter now handles both observed shapes, uses heading-owned result links,
+and retains the existing transport and redirect decoding. The new fixture is a
+structural transcription with synthetic links, not a captured search session.
+DDGS is pinned to the evaluated 9.16.1 version. An unrecognized result-less layout
+was also observed and still fails closed; it has not been classified as a genuine
+zero-result response. These observations do not establish search reliability.
+
+| Live area attempt | Time | Sources read | Outcome |
+| --- | --- | --- | --- |
+| Coverage gate before layout fix | 8.42s | 0 | Second search unavailable |
+| Layout compatibility candidate | 56.40s | 5 | All three searches completed; later run failed |
+| Same candidate rerun | 4.93s | 0 | Second search unavailable |
+| Same candidate with stage diagnostics | 38.03s | 1 | All three searches completed; a browser read failed |
+
+None passed the original clinic-recall gate. The final worker's separate remote
+search checks returned 8, 8 and 7 HTTPS links for the three focuses. Its live
+known-source check passed **2/2** (8.95s / 6.99s), with the original time, price,
+full status and unknown anonymous waitlist count. These component passes do not
+replace the failed area runs.
+
+Local validation: **527 tests**, **32 benchmark cases**, typing across **48 modules**,
+lint/format and wheel metadata checks. Only the isolated Mac browser test worker
+was updated. Production discovery and centrally managed ingress are unchanged.
+The remaining acceptance work includes search-state classification, reliable
+source navigation, geographic recall and the complete production calendar flow.
