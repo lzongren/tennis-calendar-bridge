@@ -126,6 +126,12 @@ async def private_model(
                     openai_client=client,
                     # Local aliases need not encode a vendor. Inline nested tool
                     # schemas without changing their local validation contract.
-                    profile=ModelProfile(json_schema_transformer=InlineDefsJsonSchemaTransformer),
+                    # Tool forcing is not a reliable decoder constraint on the
+                    # evaluated local runtime. Let Pydantic AI validate/retry
+                    # typed outputs instead of requiring server-side enforcement.
+                    profile=ModelProfile(
+                        json_schema_transformer=InlineDefsJsonSchemaTransformer,
+                        supports_forced_tool_choice=False,
+                    ),
                 ),
             )

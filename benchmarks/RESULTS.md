@@ -473,3 +473,55 @@ rerunning with the same Chrome configuration as the full suite passed all 42.
 The candidate remains experimental. No production deployment, authentication
 expansion or ingress change was made. Date-window-aware catalog enumeration and
 successful autonomous navigation to the original occurrence remain open gates.
+
+## Search Capacity And Query Phases: 2026-11-03
+
+A public operator-page probe confirmed that its body contains a registration portal
+and current-season clinic PDFs. They were not removed by HTML cleanup. The source
+registry was instead shared with search results: six disjoint eight-result queries
+could occupy all 48 references before the operator's linked pages were registered.
+
+The regression now replays a sanitized operator link structure, a synthetic catalog
+and the existing anonymous clinic transcription. With eight results admitted per
+query, it fails when the portal cannot be registered. With four, the actual Pydantic
+AI loop follows operator, catalog and detail, preserving the original time, price,
+full status and unknown waitlist. Model choices and search results are scripted in
+this regression; it is a capacity/ownership test, not autonomous recall proof.
+
+The capacity-only live candidate exposed a second failure: optional neighboring-city
+refinements used all six queries before the original city's schedule query. It
+stopped after **61.91s**, **10 model requests**, **18 references**, and no reads.
+Dynamic tool schemas now expose mandatory query phases first, with matching
+server-side checks before spending a search attempt. Reads are hidden until that
+coverage is complete; searches are hidden at the limit.
+
+With both changes, the next live run completed the five mandatory queries with
+**16 references** and began reading. It then failed after **66.44s / 10 requests**
+on an extraction HTTP **422**. Safe diagnostics recorded a 7,060-byte request,
+four messages, and tool/prompt error flags. The raw error was not retained or
+published. Installed runtime code confirms that forced-tool text-only generations
+can produce 422, but two isolated extraction probes returned 200; they did not
+reproduce the exact rejection. This is not evidence of a context-length limit.
+
+The private profile now declares no reliable forced-tool-choice support. Tests
+verify `auto` on the wire while Pydantic AI still rejects plain-text final output,
+permits one bounded recovery for extraction, and fails after repeated invalid
+output. Other HTTP errors, including unrelated 422 responses, remain fatal and
+are not retried by the transport.
+
+The final candidate's known-source anonymous benchmark passed **2/2**, at
+**13.43s / 14.46s**, using **3 / 6 requests**. The original facts and provenance
+passed unchanged. Its unseeded city run failed at the second public search after
+**11.94s / 3 requests**, before reading; this cannot evaluate the navigation fix.
+
+Local gates: **604 tests**, **46 benchmark cases**, typing across **49 modules**,
+Ruff/format, wheel and metadata checks passed. Public search failure classification,
+date-aware catalog navigation and full original-occurrence recall remain open.
+Only isolated test files were updated remotely; production and ingress are unchanged.
+
+A fresh anonymous portal probe returned the fixed `membership_required` code.
+The public seasonal PDF was readable and contained the original instructor/time,
+but linked only to that portal and quoted a different price from the dated detail.
+It cannot establish current price or availability. This confirms a separate catalog
+access boundary, not a need to authenticate every detail read. No authenticated
+fallback was enabled by these changes.

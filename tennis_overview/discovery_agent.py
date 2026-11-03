@@ -234,6 +234,15 @@ class ResearchState:
         if key in self.searches:
             self.audit.append(ToolAudit(tool="search_courses", outcome="cached"))
             return self.searches[key]
+        if required := self.required_search_options():
+            cities, focuses = required
+            if city_key not in {name.casefold() for name in cities} or focus not in focuses:
+                raise ModelRetry(
+                    "Complete mandatory search coverage before optional refinements. Cities: "
+                    + "; ".join(cities)
+                    + ". Focuses: "
+                    + ", ".join(focuses)
+                )
         if self.search_attempts >= self.limits.searches:
             raise AgentDiscoveryError("Discovery search budget exceeded; narrow the search.")
         self.search_attempts += 1
@@ -379,6 +388,13 @@ class ResearchState:
             if (city if focus == "overview" else city + "|" + focus) not in self.searches
         )
 
+    def required_search_options(self) -> tuple[tuple[str, ...], tuple[SearchFocus, ...]] | None:
+        if focuses := self.unsearched_focuses():
+            return (self.request.city,), focuses
+        if cities := self.unsearched_nearby_cities():
+            return cities, ("overview",)
+        return None
+
     def unsearched_nearby_cities(self) -> tuple[str, ...]:
         if self.request.search_mode != "area":
             return ()
@@ -422,17 +438,34 @@ async def run_discovery_agent(
     """Run without conversation persistence, implicit providers or cloud telemetry."""
     state = ResearchState(request, backend, limits or DiscoveryLimits())
 
-    async def prepare_search(ctx: RunContext[None], definition: ToolDefinition) -> ToolDefinition:
+    async def prepare_search(
+        ctx: RunContext[None], definition: ToolDefinition
+    ) -> ToolDefinition | None:
+        if state.search_attempts >= state.limits.searches:
+            return None
         schema = deepcopy(definition.parameters_json_schema)
-        schema["properties"]["city"]["enum"] = list(state.allowed_cities.values())
+        required = state.required_search_options()
+        cities, focuses = required or (
+            tuple(state.allowed_cities.values()),
+            ("overview", "registration", "schedule"),
+        )
+        schema["properties"]["city"]["enum"] = list(cities)
+        schema["properties"]["focus"]["enum"] = list(focuses)
+        schema["properties"]["focus"].pop("default", None)
+        schema["required"] = ["city", "focus"]
         return replace(definition, parameters_json_schema=schema)
+
+    async def prepare_read(
+        ctx: RunContext[None], definition: ToolDefinition
+    ) -> ToolDefinition | None:
+        return None if state.required_search_options() else definition
 
     agent: Agent[None, Completion] = Agent(
         model,
         instructions=INSTRUCTIONS,
         tools=[
             Tool(state.search_courses, sequential=True, prepare=prepare_search),
-            Tool(state.read_source, sequential=True),
+            Tool(state.read_source, sequential=True, prepare=prepare_read),
         ],
         output_type=ToolOutput(Completion, name="finish_discovery"),
         retries=2,

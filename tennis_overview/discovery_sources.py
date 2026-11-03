@@ -32,6 +32,10 @@ from .public_web import Page, PageLink, public_url
 Reader = Callable[[str], Awaitable[Page | BrowserDocument]]
 Searcher = Callable[[str, str, int, str], Awaitable[list[dict[str, str]]]]
 
+# Six live queries admit at most 24 results, leaving room in the 48-source
+# registry for operator-linked schedules and registration details.
+AREA_RESULTS_PER_QUERY = 4
+
 
 def identity(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()[:24]
@@ -91,37 +95,53 @@ class PublicSourceBackend:
         return self.sources[key].ref
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults:
-        candidates = (
-            [{"url": url, "title": "Added course source"} for url in self.initial_urls]
-            if city.casefold() == request.city.casefold()
-            else []
-        )
+        initial_urls = self.initial_urls if city.casefold() == request.city.casefold() else ()
         try:
-            candidates += await self.searcher(
+            candidates = await self.searcher(
                 city, request.level, request.start.year, request.search_focus
             )
         except SourceUnavailable:
-            if not candidates:
+            if not initial_urls:
                 raise
             self.search_failed = True
+            candidates = []
         refs: dict[str, SourceRef] = {}
+        required = []
+        for url in initial_urls:
+            try:
+                ref = self.register(url, "Added course source", 0)
+            except ValueError:
+                continue
+            if ref:
+                refs[ref.id] = ref
+                required.append(ref.id)
+        query_limit = (
+            AREA_RESULTS_PER_QUERY if request.search_mode == "area" else max(0, 12 - len(refs))
+        )
+        admitted = 0
         for candidate in candidates:
             try:
-                ref = self.register(candidate["url"], candidate["title"], 0)
+                url = public_url(candidate["url"])
+                title = candidate["title"]
+                if identity(url) in refs:
+                    continue
+                if admitted >= query_limit:
+                    self.truncated = True
+                    continue
+                ref = self.register(url, title, 0)
             except (KeyError, ValueError):
                 continue
             if ref:
                 refs[ref.id] = ref
+                admitted += 1
         returned = tuple(refs.values())[:12]
         return SearchResults(
             sources=returned,
             nearby_cities=nearby_cities(request.city, request.timezone)
             if request.search_mode == "area" and city.casefold() == request.city.casefold()
             else (),
-            partial=request.search_mode == "area",
-            required_ids=tuple(
-                ref.id for ref in returned if self.sources[ref.id].url in self.initial_urls
-            )[:4],
+            partial=request.search_mode == "area" or self.truncated,
+            required_ids=tuple(dict.fromkeys(required))[:4],
         )
 
     async def read(self, source_id: str, request: DiscoveryRequest) -> SourceDocument:

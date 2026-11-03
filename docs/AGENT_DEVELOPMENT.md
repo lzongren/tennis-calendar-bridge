@@ -70,12 +70,20 @@ marketing. This does not grant URL-based tool access: reads still require a
 registered opaque ID, and changing a registered reference is rejected. Private,
 credential-bearing and personal subscription URLs cannot become these hints.
 
-Area discovery is the default. It performs overview, registration and schedule
-searches before reading pages, then requires an attempted read from the new sources
+Area discovery is the default. Dynamic Pydantic AI tool schemas expose the original
+city's outstanding overview, registration and schedule queries first, then nearby
+overview queries. Reads become available only after that coverage. The same rule
+is checked before executing a search, so a model cannot spend the search budget on
+optional refinements while mandatory queries remain. The search tool disappears at
+the query limit. Completion still requires an attempted read from the new sources
 introduced by each nonempty search. Existing candidates cannot bypass these gates.
-The application and live recall harness share a 48-reference registry limit while
-retaining the existing model, read, tool and time budgets. This reserves discovery
-work before linked pages consume the registry; it does not promise exhaustive coverage.
+
+Each area query admits at most four distinct valid results. Six live queries can
+therefore use at most 24 of the 48 source references; up to four user-provided
+sources are preserved separately. Remaining capacity is available for operator
+schedules and registration links. Results beyond the cap are not registered and
+truncation remains explicit. This exchanges search breadth for navigable depth;
+it does not promise exhaustive coverage or increase model, read, tool or time limits.
 `source_check` is the explicit focused mode for supplied-source and evidence replay
 benchmarks, not the production city-discovery path. It retains the same required
 detail, grounding and failure rules but makes no area-recall claim.
@@ -91,6 +99,14 @@ The private client uses an explicit model and key, Tailscale HTTPS or loopback H
 no environment proxy, no redirects, bounded decoded responses and no SDK transport
 retries. Agent instrumentation is explicitly disabled. A `.ts.net` hostname alone
 does not prove that Serve/Funnel and Tailnet grants are correctly configured.
+
+The private model profile declares `supports_forced_tool_choice=False`. The
+evaluated runtime can reject a plain-text generation with HTTP 422 when the
+request requires a tool call; it does not guarantee decoder-level tool forcing.
+Using `auto` leaves typed output enforcement and bounded validation retries with
+Pydantic AI. Plain text is not accepted as a course report or completion. Transport
+errors and unrelated HTTP 422 responses still fail closed; no error body is treated
+as course evidence and no cloud fallback is introduced.
 
 Live model results must identify dependency/model configuration, repeat count,
 latency, individual failures and retrieval audit. Keep credentials and unredacted
