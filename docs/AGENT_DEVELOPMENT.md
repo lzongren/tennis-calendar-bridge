@@ -78,6 +78,15 @@ optional refinements while mandatory queries remain. The search tool disappears 
 the query limit. Completion still requires an attempted read from the new sources
 introduced by each nonempty search. Existing candidates cannot bypass these gates.
 
+Each model turn also receives state-owned progress instructions: outstanding query
+phases, required detail IDs, unattempted source groups and remaining read capacity.
+Source text, titles and URLs are not promoted into these instructions. Completion
+validation reports all outstanding detail/group reads together, rather than spending
+one output retry per missing group. The progress display and validator share the
+same grouping logic; failed optional sources count as attempted, while required
+failures still abort. This preserves the existing coverage and retry limits and is
+not evidence that a live model will follow the plan or find the target course.
+
 Each area query admits at most four distinct valid results. Six live queries can
 therefore use at most 24 of the 48 source references; up to four user-provided
 sources are preserved separately. Remaining capacity is available for operator

@@ -561,3 +561,40 @@ browser worker and isolated VPS test client were updated together; worker health
 was verified from the VPS. Production application, ingress and browser login
 permissions were not changed. This component can advance independently; the
 parent discovery feature still requires full recall and deployment acceptance.
+
+## Completion Guidance: 2026-11-03
+
+A fresh unseeded run isolated a planner failure previously reported only as
+`UnexpectedModelBehavior`: the model attempted completion before nearby search
+coverage, then twice before inspecting new sources from all search groups. Each
+validation response identified only the first omission. The run exhausted its
+output retries after **117.74s**, **16 model requests** and **3 completed reads**.
+The operator portal also returned `membership_required`; this was a separate
+source-access limitation, not the completion-validation failure.
+
+The experimental planner now receives bounded, state-owned progress instructions
+on each turn. Required detail reads and all outstanding source groups are reported
+together on premature completion. The progress instructions and completion gate
+share the same source-group calculation. Page text and source titles never enter
+these instructions; read permissions, failure handling and retry budgets are
+unchanged. Three regression tests failed before the change and passed afterward.
+An additional test preserves overlapping-group and optional-source failure semantics.
+
+The next unseeded live run **completed with partial results**, rather than exhausting
+completion retries: **267.96s**, **23 model requests**, **12 tool calls**,
+**5 completed reads**, **1 course**, and **0 denied tool attempts**. However, it
+still **failed the original-course recall oracle**. It selected other sources and
+did not retrieve the target registration. One general directory also exhausted
+its extraction validation. This is evidence of a completed bounded workflow, not
+proof of a causal recall improvement or production readiness; live search results
+and model choices varied between the two runs.
+
+Local checks passed: **634 tests**, including **49 benchmark cases**, typing across
+**49 modules**, Ruff/format, wheel build and Twine. Only the isolated experimental
+VPS planner was updated. Production and authentication permissions are unchanged.
+
+The updated planner's separate live anonymous known-source check passed **2/2**
+with the unchanged factual oracle: **12.85s / 10.41s**, **3 / 5 model requests**,
+one read source each and no denied tool attempts. Identity, date, time, price,
+full status and unknown personal waitlist were preserved. This supplied-link
+check is still not an autonomous-discovery success.
