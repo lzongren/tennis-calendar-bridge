@@ -381,6 +381,7 @@ def test_invalid_optional_source_does_not_abort_independent_verified_sources(req
                 for event in run.audit
             )
         assert backend.sources[identity(bad_url)].status == "unavailable"
+        assert backend.sources[identity(bad_url)].failure_reason == "evidence_invalid"
         assert usage.requests == len(calls) + 2  # One bounded correction, no hidden retry loop.
 
     asyncio.run(scenario())

@@ -52,8 +52,9 @@ def client_with_error(code, status=503):
 @pytest.mark.parametrize("code", sorted(SOURCE_ERRORS))
 def test_only_read_failures_are_source_scoped(code):
     client = client_with_error(code)
-    with pytest.raises(SourceUnavailable, match=code):
+    with pytest.raises(SourceUnavailable, match=code) as caught:
         asyncio.run(client.read(URL))
+    assert caught.value.reason == code
     with pytest.raises(AgentDiscoveryError):
         asyncio.run(client.search("Example City", "3.0", 2026, "overview"))
 
@@ -201,7 +202,9 @@ def test_anonymous_real_case_survives_only_optional_page_failure(failure, scope)
     async def scenario():
         state = ResearchState(REQUEST, backend, DiscoveryLimits())
         await state.search_courses(REQUEST.city)
-        await state.read_source(identity(BAD))
+        failed = await state.read_source(identity(BAD))
+        assert failed["reason"] == failure
+        assert await state.read_source(identity(BAD)) == failed
         await state.read_source(identity(URL))
         assert identity(BAD) in state.failed_sources
         if scope != "optional":
@@ -217,6 +220,9 @@ def test_anonymous_real_case_survives_only_optional_page_failure(failure, scope)
         assert session.price_usd == 54 and session.availability == "full"
         assert session.waitlist_count is None
         assert backend.sources[identity(BAD)].status == "unavailable"
+        sources = {source["id"]: source for source in backend.result(run, REQUEST)["sources"]}
+        assert sources[identity(BAD)]["failure_reason"] == failure
+        assert sources[identity(URL)]["failure_reason"] is None
         extractor.extract.assert_not_called()
 
     asyncio.run(scenario())
