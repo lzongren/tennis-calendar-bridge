@@ -109,7 +109,9 @@ def test_real_case_progress_guides_coverage_without_spending_completion_retries(
             info.instructions.split("Current research obligations", 1)[1].split("\n", 1)[1]
         )
         tools = {tool.name: tool for tool in info.function_tools}
+        finish_visible = any(tool.name == "finish_discovery" for tool in info.output_tools)
         if progress["primary_focuses"]:
+            assert not finish_visible
             schema = tools["search_courses"].parameters_json_schema
             return ModelResponse(
                 [
@@ -125,8 +127,10 @@ def test_real_case_progress_guides_coverage_without_spending_completion_retries(
         ids = progress["required_detail_ids"]
         groups = progress["unattempted_search_groups"]
         if ids or groups:
+            assert not finish_visible
             source_id = ids[0] if ids else groups[0][0]
             return ModelResponse([ToolCallPart("read_source", {"source_id": source_id})])
+        assert finish_visible
         finishes += 1
         return ModelResponse([ToolCallPart("finish_discovery", {"outcome": "sources_checked"})])
 

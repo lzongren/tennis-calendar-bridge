@@ -789,3 +789,56 @@ The original anonymous known-link check passed **2/2**, **11.65s / 7.38s**, thre
 model requests and two tool calls each, with all original factual checks intact.
 Production app, ingress and saved login state were not changed. Autonomous recall
 remains an unmet release gate; this component is not a production enablement.
+
+## Planner Observations and Completion: 2026-11-03
+
+The planner now receives source/navigation metadata and a bounded title/date
+summary instead of each full page body. Full text still reaches extraction, and
+the application retains all source-owned records for reconciliation. Summaries
+include at most eight distinct title/date tuples, 240 characters per title and an
+explicit truncation flag. Internal session keys remain unavailable to the planner.
+
+Completion-tool preparation reuses the existing side-effect-free validator. The
+tool is not advertised while retrieval obligations remain; terminal source failures
+still reach validation and abort. This does not force model compliance or replace
+runtime validation, and it adds no requests, retries or authentication privileges.
+
+Intermediate live trials remain failures, not latency improvements. Removing page
+bodies with title-only summaries still produced premature completion attempts
+(**74.41s**, **13 model requests**, **1 successful read**). Adding completion gating
+reached **6 successful reads** but ended in `UnexpectedModelBehavior` after **196.15s**
+and **23 requests**. The model attempted the hidden completion tool and later returned
+prose. The target operator's portal was registered but not followed. These runs took
+different paths from the preceding baseline; their durations are not comparable as
+an isolated speed measurement.
+
+The title-only variant also increased requests in the known-link case to **7 / 6**
+with redundant searches, despite passing the factual oracle. It was not accepted as
+the final candidate. Adding bounded dates removed those redundant searches in the
+next two observations: **14.59s / 26.97s**, **3 / 4 model requests**, two tool calls
+each, all original anonymous facts and evidence checks passed. The second repetition
+still needed one output retry. There is no claim of stable latency improvement.
+
+The final candidate passed all four replay scenarios with the actual private model:
+baseline, prompt injection, date conflict and transient read. Durations were **20.62s,
+20.92s, 19.66s and 17.36s**; requests were **9, 11, 10 and 9** respectively. Every
+original facts, provenance, retrieval, neighbor-search, safe-tools and completion
+check passed. The process-local model-only audit recorded no blocked connections,
+DNS or process attempts; it is not an OS isolation or live-web security claim.
+
+Local gates passed: **685 tests**, **63 benchmark cases**, typing across **50 modules**,
+Ruff/format, isolated wheel build and Twine. Added regressions cover bounded
+observations, full-text extraction, cache behavior, large bodies and an eager
+finisher across the four unchanged real-case oracles. Only isolated evaluation code
+changed on the VPS. Production, the experimental browser worker, saved login state
+and ingress were not modified.
+
+The final candidate's fresh unseeded run **failed** after **264.68s**, **24 model
+requests**, **37 registered sources** and **5 successful reads**. The expected URL
+was supplied only to the scorer, not to the agent. Extraction of the target
+operator's page exhausted structured-output retries before registering its portal;
+the planner subsequently attempted the hidden completion tool and returned prose
+while one search group remained unread. It ended in `UnexpectedModelBehavior`.
+No original-course recall or end-to-end performance gain is established. This
+component remains on the experimental stack; production enablement is still blocked
+by the unmet recall and runtime gates, not deferred authentication alone.
