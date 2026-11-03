@@ -113,6 +113,12 @@ A valid JSON object is not a sufficient gate:
 live replay and live-web extraction must pass separately. A fixed minimal transcription
 cannot establish dynamic registration recall, occupancy or geographic completeness.
 
+When extraction exhausts its evidence-validation retry, that source is unavailable,
+not an empty successful page. The agent may continue with independent sources and
+must mark the result partial. Failed required details and all-failed searches still
+retain the previous snapshot. Model HTTP failures and the shared model-request
+budget remain fatal; this isolation does not introduce extra retries.
+
 ## Browser Evidence
 
 Course discovery should not require a dedicated search API. The next retrieval

@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 import socket
 import sys
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, Mock
 
 import pytest
+from pydantic import SecretStr
 
+from benchmarks import source_discovery
 from benchmarks.network_guard import install_model_only_guard
+from tennis_overview.discovery_agent import SourceUnavailable
+from tennis_overview.private_model import PrivateModelConfig
 
 
 def test_benchmark_network_audit_blocks_non_model_network_and_processes(monkeypatch):
@@ -32,3 +39,71 @@ def test_benchmark_network_audit_blocks_non_model_network_and_processes(monkeypa
         "blocked_connections": 2,
         "blocked_processes": 1,
     }
+
+
+@pytest.mark.parametrize("case", ["anonymous", "clinic-search"])
+def test_live_benchmark_distinguishes_supplied_url_from_search(monkeypatch, case):
+    client = Mock(read=AsyncMock(), search=AsyncMock())
+    monkeypatch.setenv("TENNIS_DISCOVERY_BROWSER_URL", "https://browser.example.ts.net")
+    monkeypatch.setenv("TENNIS_DISCOVERY_BROWSER_KEY", "synthetic-browser-key-for-tests-only")
+    monkeypatch.setattr(source_discovery, "BrowserClient", lambda *args: client)
+    monkeypatch.setattr(source_discovery, "CourseExtractor", lambda *args: Mock())
+
+    @asynccontextmanager
+    async def model_context(config):
+        yield Mock()
+
+    async def inspect_backend(request, backend, model, **kwargs):
+        assert request.city == "San Jose, CA"
+        assert backend.reader == client.read
+        if case == "clinic-search":
+            assert backend.initial_urls == ()
+            assert backend.searcher == client.search
+            assert source_discovery.BROWSER_URL not in request.model_dump_json()
+        else:
+            assert backend.initial_urls == (source_discovery.BROWSER_URL,)
+            assert backend.searcher == source_discovery.empty_search
+        raise SourceUnavailable("Synthetic stopped run")
+
+    monkeypatch.setattr(source_discovery, "private_model", model_context)
+    monkeypatch.setattr(source_discovery, "run_discovery_agent", inspect_backend)
+    config = PrivateModelConfig(
+        base_url="https://model.example.ts.net/v1",
+        model="synthetic-model",
+        api_key=SecretStr("synthetic-model-key-for-tests-only"),
+    )
+    rows = asyncio.run(
+        source_discovery.evaluate(
+            config,
+            live=True,
+            repeats=1,
+            case=case,
+            source_url=source_discovery.BROWSER_URL if case == "anonymous" else "",
+            expected_url=source_discovery.BROWSER_URL if case == "clinic-search" else "",
+        )
+    )
+    assert rows[0]["error"] == "SourceUnavailable"
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [[], ["--live-web"], ["--live-web", "--source-url", source_discovery.BROWSER_URL]],
+)
+def test_search_benchmark_rejects_replay_and_preseeded_sources(monkeypatch, tmp_path, flags):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["benchmark", "--case", "clinic-search", "--output", str(tmp_path / "out.json"), *flags],
+    )
+    with pytest.raises(SystemExit) as error:
+        source_discovery.main()
+    assert error.value.code == 2
+    assert not (tmp_path / "out.json").exists()
+
+
+def test_search_score_requires_same_club_event_and_occurrence():
+    anchor = source_discovery.BROWSER_URL
+    assert source_discovery.same_occurrence(anchor.replace("&tab=dates", ""), anchor)
+    assert not source_discovery.same_occurrence(anchor.replace("resId=123", "resId=456"), anchor)
+    assert not source_discovery.same_occurrence(anchor.replace("/12345/", "/54321/"), anchor)
+    assert not source_discovery.same_occurrence(anchor.replace("/EXAMPLE?", "/OTHER?"), anchor)

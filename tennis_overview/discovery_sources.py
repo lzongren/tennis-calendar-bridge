@@ -11,6 +11,8 @@ from decimal import Decimal
 from typing import Any
 from urllib.parse import urlsplit
 
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+
 from .browser_documents import BrowserDocument
 from .course_evidence import SessionEvidence
 from .course_extraction import CourseCandidate, CourseExtractor
@@ -138,7 +140,14 @@ class PublicSourceBackend:
                 page = document
                 if not page.links and len(page.text.split()) < 5:
                     raise SourceUnavailable("Source needs dynamic or authenticated access")
-                courses = () if page.required_links else await self.extractor.extract(page, request)
+                try:
+                    courses = (
+                        () if page.required_links else await self.extractor.extract(page, request)
+                    )
+                except UnexpectedModelBehavior:
+                    # Exhausted evidence validation invalidates this source, not
+                    # independent sources. Transport/budget failures still abort.
+                    raise SourceUnavailable("Course evidence could not be validated") from None
             source.page = page
             records: dict[str, SessionEvidence] = {}
             partial = (

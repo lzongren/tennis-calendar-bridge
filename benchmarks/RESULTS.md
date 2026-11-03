@@ -305,3 +305,36 @@ catalog access therefore need separate policies. Membership-aware discovery,
 city-wide recall and production calendar/UI acceptance remain open. Only the
 isolated Mac browser worker was updated; the production tennis service and agent
 enable flag were not changed.
+
+## Unseeded Discovery: 2026-11-02
+
+The new `clinic-search` case starts from San Jose, NTRP 3.0 and the fixed date
+window. Its expected registration URL is scorer-only, never a seed, tool result
+or model input. The scorer matches the club/event/occurrence before checking the
+original facts. Replay and supplied source URLs are rejected for this case.
+
+The first three exploratory attempts failed: 3.19s before any source was registered,
+then 86.72s and 88.85s after six and five source reads. A separate direct worker
+search returned seven public sources. That does not explain or erase the initial
+failure. Instrumented retrieval then isolated a repeatable application failure:
+exhausted evidence validation on a social-media page aborted the entire run.
+
+| Candidate | Time | Model requests | Read sources | Outcome |
+| --- | --- | --- | --- | --- |
+| Before source isolation, exact-occurrence scorer | 63.72s | 14 | 5 | Extraction retries exhausted; run aborted |
+| After source isolation | 71.56s | 15 | 6 | Four partial candidates; original clinic absent; benchmark failed |
+
+The post-change live run returned an empty extraction for the problematic page,
+so its completion alone does not prove that exception isolation caused the
+improvement. Deterministic agent tests exercise that branch explicitly: an
+invalid optional source cannot discard independent valid evidence; a failed
+required source or an all-failed run still retains previous results. Model HTTP
+failures and total request-budget exhaustion are not swallowed.
+
+Local verification: **520 tests**, including **29 benchmark cases**, with typing
+and lint checks. A separate post-change known-source live check passed **2/2**
+(8.55s / 25.39s), retaining the original exact facts. This increment improves
+failure isolation and makes discovery recall measurable; it does **not** pass the original city-to-clinic acceptance
+gate. The agent can still finish after one search focus once it has some
+candidates, leaving relevant operators undiscovered. Search coverage, registration
+navigation and production acceptance remain open. No production service was changed.

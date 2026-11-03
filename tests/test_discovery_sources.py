@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 from pydantic import ValidationError
 from pydantic_ai.messages import ModelResponse, ToolCallPart, RetryPromptPart, ToolReturnPart
-from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RunUsage
 
@@ -305,6 +305,77 @@ def test_persistent_clock_time_in_end_date_fails_instead_of_publishing_empty_cal
         with pytest.raises(UnexpectedModelBehavior):
             await extractor.extract(generic_page(), REQUEST)
         assert usage.requests == 2
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.benchmark
+@pytest.mark.parametrize("required,good_source", [(False, True), (True, True), (False, False)])
+def test_invalid_optional_source_does_not_abort_independent_verified_sources(required, good_source):
+    bad_url = "https://unreadable.example.org/courses"
+    calls = [
+        ToolCallPart("search_courses", {"city": REQUEST.city}),
+        ToolCallPart("read_source", {"source_id": identity(bad_url)}),
+    ]
+    if good_source:
+        calls.append(ToolCallPart("read_source", {"source_id": identity(URL)}))
+    calls.append(ToolCallPart("finish_discovery", {"outcome": "sources_checked"}))
+    plan = iter(calls)
+
+    async def respond(messages, info):
+        if any(tool.name == "extract_courses" for tool in info.output_tools):
+            invalid = {**quoted_course(), "date_end_text": "7:50 PM"}
+            return ModelResponse([ToolCallPart("extract_courses", {"courses": [invalid]})])
+        return ModelResponse([next(plan)])
+
+    async def read(url):
+        if url == bad_url:
+            return Page(bad_url, "Unvalidated source", generic_page().text, ())
+        return source_fixture("discovery_ongoing.html")
+
+    async def scenario():
+        model, usage = FunctionModel(respond), RunUsage()
+        candidates = [{"url": bad_url, "title": "Unvalidated course page"}]
+        if good_source:
+            candidates.append({"url": URL, "title": "Published timetable"})
+        backend = PublicSourceBackend(
+            CourseExtractor(model, usage, 12),
+            (bad_url,) if required else (),
+            reader=read,
+            searcher=AsyncMock(return_value=candidates),
+        )
+        if required or not good_source:
+            with pytest.raises(AgentDiscoveryError, match="previous results retained"):
+                await run_discovery_agent(REQUEST, backend, model, usage=usage)
+        else:
+            run = await run_discovery_agent(REQUEST, backend, model, usage=usage)
+            result = backend.result(run, REQUEST)
+            assert len(result["courses"]) == 2
+            assert all(course["source_url"] == URL for course in result["courses"])
+            assert run.partial and result["partial"]
+            assert any(
+                event.source_id == identity(bad_url) and event.outcome == "unavailable"
+                for event in run.audit
+            )
+        assert backend.sources[identity(bad_url)].status == "unavailable"
+        assert usage.requests == len(calls) + 2  # One bounded correction, no hidden retry loop.
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [ModelHTTPError(503, "test-model"), UsageLimitExceeded("Synthetic budget limit")],
+)
+def test_source_isolation_does_not_hide_model_outages_or_budget_exhaustion(failure):
+    async def scenario():
+        extractor = CourseExtractor(planning_model(), RunUsage(), 12)
+        extractor.extract = AsyncMock(side_effect=failure)
+        backend = PublicSourceBackend(extractor, reader=AsyncMock(return_value=generic_page()))
+        ref = backend.register(URL, "Course page", 0)
+        with pytest.raises(type(failure)):
+            await backend.read(ref.id, REQUEST)
+        assert backend.sources[ref.id].status != "checked"
 
     asyncio.run(scenario())
 
