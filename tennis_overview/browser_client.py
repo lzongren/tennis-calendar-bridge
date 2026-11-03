@@ -19,7 +19,12 @@ from .browser_protocol import (
     BrowserRequest,
     read_url,
 )
-from .discovery_agent import AgentDiscoveryError, SourceUnavailable, TransientSourceError
+from .discovery_agent import (
+    AgentDiscoveryError,
+    SourceFailureReason,
+    SourceUnavailable,
+    TransientSourceError,
+)
 from .private_model import PrivateModelConfig
 from .public_web import Page, PageLink
 from .public_documents import read_public_document
@@ -76,7 +81,10 @@ class BrowserClient:
                         ):
                             # A known page failure is scoped to this source. Unknown
                             # and legacy worker failures still abort the whole run.
-                            raise SourceUnavailable("Browser source unavailable: " + error)
+                            raise SourceUnavailable(
+                                "Browser source unavailable: " + error,
+                                reason=SourceFailureReason(error),
+                            )
                         if error == "browser_attention_required":
                             raise AgentDiscoveryError(
                                 "Private browser requires manual website verification; previous results retained"

@@ -8,6 +8,7 @@ from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date
+from enum import StrEnum
 from typing import Annotated, Literal, Protocol
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -29,8 +30,28 @@ class AgentDiscoveryError(Exception):
     """Safe to display; do not interpolate model, provider or source error text."""
 
 
+class SourceFailureReason(StrEnum):
+    PAGE_UNAVAILABLE = "page_unavailable"
+    LOGIN_REQUIRED = "login_required"
+    MEMBERSHIP_REQUIRED = "membership_required"
+    BROWSER_ATTENTION_REQUIRED = "browser_attention_required"
+    EVIDENCE_INVALID = "evidence_invalid"
+
+
 class SourceUnavailable(Exception):
     """A source could not be read; details stay inside the adapter."""
+
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        reason: SourceFailureReason = SourceFailureReason.PAGE_UNAVAILABLE,
+    ) -> None:
+        super().__init__(message)
+        try:
+            self.reason = SourceFailureReason(reason)
+        except (TypeError, ValueError):
+            self.reason = SourceFailureReason.PAGE_UNAVAILABLE
 
 
 class TransientSourceError(SourceUnavailable):
@@ -186,6 +207,7 @@ class ResearchState:
     search_locations: dict[str, str] = field(default_factory=dict)
     allowed_cities: dict[str, str] = field(default_factory=dict)
     failed_sources: set[str] = field(default_factory=set)
+    failed_source_reasons: dict[str, SourceFailureReason] = field(default_factory=dict)
     audit: list[ToolAudit] = field(default_factory=list)
     calls: int = 0
     read_attempts: int = 0
@@ -289,10 +311,11 @@ class ResearchState:
             self.audit.append(ToolAudit(tool="read_source", source_id=source_id, outcome="cached"))
             return self.model_document(self.documents[source_id])
         if source_id in self.failed_sources:
-            return {"error": "Source unavailable; do not retry", "source_id": source_id}
+            return self.source_failure(source_id)
         if self.read_attempts >= self.limits.reads:
             raise AgentDiscoveryError("Discovery read budget exceeded; narrow the search.")
         self.read_attempts += 1
+        reason = SourceFailureReason.PAGE_UNAVAILABLE
         for attempt in range(2):
             try:
                 async with asyncio.timeout(self.limits.tool_seconds):
@@ -309,12 +332,22 @@ class ResearchState:
                 )
                 if not attempt:
                     continue
-            except SourceUnavailable:
-                pass
+            except SourceUnavailable as error:
+                reason = error.reason
             break
         self.failed_sources.add(source_id)
+        self.failed_source_reasons[source_id] = reason
         self.audit.append(ToolAudit(tool="read_source", source_id=source_id, outcome="unavailable"))
-        return {"error": "Source unavailable; do not retry", "source_id": source_id}
+        return self.source_failure(source_id)
+
+    def source_failure(self, source_id: str) -> dict[str, object]:
+        return {
+            "error": "Source unavailable; do not retry",
+            "source_id": source_id,
+            "reason": self.failed_source_reasons.get(
+                source_id, SourceFailureReason.PAGE_UNAVAILABLE
+            ).value,
+        }
 
     @staticmethod
     def model_document(document: SourceDocument) -> dict[str, object]:

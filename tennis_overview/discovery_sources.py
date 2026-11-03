@@ -24,6 +24,7 @@ from .discovery_agent import (
     SearchResults,
     SourceDocument,
     SourceRef,
+    SourceFailureReason,
     SourceUnavailable,
 )
 from .public_documents import read_public_document, search_public_courses
@@ -67,6 +68,7 @@ class PublicSource:
     depth: int
     status: str = "not_read"
     page: Page | None = None
+    failure_reason: SourceFailureReason | None = None
 
 
 @dataclass
@@ -174,7 +176,10 @@ class PublicSourceBackend:
                 except UnexpectedModelBehavior:
                     # Exhausted evidence validation invalidates this source, not
                     # independent sources. Transport/budget failures still abort.
-                    raise SourceUnavailable("Course evidence could not be validated") from None
+                    raise SourceUnavailable(
+                        "Course evidence could not be validated",
+                        reason=SourceFailureReason.EVIDENCE_INVALID,
+                    ) from None
             source.page = page
             records: dict[str, SessionEvidence] = {}
             partial = (
@@ -236,6 +241,7 @@ class PublicSourceBackend:
                         linked[ref.id] = ref
                         required.append(ref.id)
             source.status = "checked"
+            source.failure_reason = None
             return SourceDocument(
                 source=source.ref,
                 text=page.text,
@@ -244,11 +250,27 @@ class PublicSourceBackend:
                 required_ids=tuple(dict.fromkeys(required)),
                 partial=partial,
             )
-        except SourceUnavailable:
+        except SourceUnavailable as error:
             source.status = "unavailable"
+            source.failure_reason = error.reason
             raise
 
     def result(self, run: DiscoveryRun, request: DiscoveryRequest) -> dict[str, Any]:
+        # Tool deadlines cancel adapter coroutines before they can record a failure.
+        unavailable = {event.source_id for event in run.audit if event.outcome == "unavailable"}
+        sources = []
+        for source in self.sources.values():
+            status = "unavailable" if source.ref.id in unavailable else source.status
+            reason = source.failure_reason or SourceFailureReason.PAGE_UNAVAILABLE
+            sources.append(
+                {
+                    "id": source.ref.id,
+                    "url": source.page.url if source.page else source.url,
+                    "title": source.page.title if source.page else source.ref.title,
+                    "status": status,
+                    "failure_reason": reason.value if status == "unavailable" else None,
+                }
+            )
         courses: dict[str, dict[str, Any]] = {}
         for session in run.sessions:
             detail = self.details[session.session_key]
@@ -283,15 +305,7 @@ class PublicSourceBackend:
                 )
         return {
             "courses": list(courses.values()),
-            "sources": [
-                {
-                    "id": source.ref.id,
-                    "url": source.page.url if source.page else source.url,
-                    "title": source.page.title if source.page else source.ref.title,
-                    "status": source.status,
-                }
-                for source in self.sources.values()
-            ],
+            "sources": sources,
             "window_start": request.start.isoformat(),
             "window_end": (request.start + timedelta(days=27)).isoformat(),
             "partial": run.partial or self.search_failed or self.truncated,

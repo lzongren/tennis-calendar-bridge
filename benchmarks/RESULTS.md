@@ -598,3 +598,40 @@ with the unchanged factual oracle: **12.85s / 10.41s**, **3 / 5 model requests**
 one read source each and no denied tool attempts. Identity, date, time, price,
 full status and unknown personal waitlist were preserved. This supplied-link
 check is still not an autonomous-discovery success.
+
+## Source Access Diagnostics: 2026-11-03
+
+The operator's public homepage exposed a single program-registration link to the
+member-style event list. Fresh anonymous reads reached the homepage but its
+browser-generated catalog request returned the fixed `membership_required`
+response. A separate fresh native Chrome run received a website protection page,
+so it did not provide a comparable catalog response. No challenge bypass was tried.
+
+The anonymous page supplied an opaque authorization header. A temporary isolated
+same-origin, read-only forwarding probe still received the same membership denial;
+the missing-header hypothesis was not supported. No credential values were logged,
+and no authorization-forwarding or login-fallback change was retained. CourtReserve
+documents a separate opt-in [public booking flow](https://help.courtreserve.com/en/articles/11787240-public-booking-setup-guide-and-overview);
+this does not prove that the observed operator publishes such a link.
+
+The application previously collapsed these recognized reasons into a generic
+unavailable result, and displayed uninspected references as failed reads. It now
+preserves fixed reason codes for the planner and source list. Unknown diagnostics
+remain generic; internal exception messages are never used as UI text. A separate
+regression reproduced exhausted tool deadlines leaving sources marked `not_read`;
+source reporting now consults the retrieval audit for those failures.
+
+Fourteen targeted diagnostic assertions failed before the implementation; the
+deadline test failed separately. Desktop/mobile browser checks and the original
+anonymous-course failure matrix now pass, including required-source aborts,
+optional-source partial results, cached failures and unchanged time/price/status.
+
+A live **known-source, no-model** check through the private worker and updated
+client/backend passed all checks in **23.07s**: the catalog restriction reached
+both planner-facing and UI-facing data, while the public detail retained the
+original 18:30-19:50 Pacific occurrence, $54 price, full status and unknown waitlist.
+This validates diagnostics and anonymous extraction, not autonomous recall.
+
+Local gates passed: **639 tests**, **49 benchmark cases**, typing across **49
+modules**, Ruff/format, wheel build and Twine. Production and login permissions
+are unchanged. Original-course discovery remains an unmet release gate.

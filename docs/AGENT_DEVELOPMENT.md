@@ -243,6 +243,16 @@ or all-source failures still abort and preserve the previous snapshot. These
 responses never trigger login or a challenge bypass.
 Public HTTP error documents are source failures, not successful empty pages.
 
+Recognized failures retain a fixed `SourceFailureReason` through the browser client,
+research loop and source report. Only that allowlisted reason reaches the model or
+UI; exception messages and response bodies do not. The UI distinguishes sources
+not inspected in this refresh from unreadable pages, membership/login restrictions,
+manual website verification and invalid course evidence. Exhausted tool deadlines
+use the research audit so a cancelled adapter cannot leave an attempted source
+marked `not_read`. A successful retry clears the previous source diagnostic.
+Older snapshots without `failure_reason` retain a generic unavailable label.
+None of these reasons authorize authentication, repeated reads or extra tools.
+
 Expected search-provider failures have a separate `search_unavailable` response.
 Only HTTP 503 with that code on a search request becomes `TransientSourceError`.
 The existing research loop may repeat the same query once within its time budget;
