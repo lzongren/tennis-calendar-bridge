@@ -118,6 +118,7 @@ class SourceDocument(EvidenceModel):
     required_ids: tuple[SourceID, ...] = Field(default=(), max_length=8)
     records: tuple[SessionEvidence, ...] = Field(default=(), max_length=64)
     partial: bool = False
+    evidence_unavailable: bool = False
 
     @model_validator(mode="after")
     def owned_records(self) -> SourceDocument:
@@ -125,6 +126,8 @@ class SourceDocument(EvidenceModel):
             raise ValueError("A record must belong to the retrieved source")
         if not set(self.required_ids) <= {link.id for link in self.links}:
             raise ValueError("Required sources must be discovered links")
+        if self.evidence_unavailable and (self.records or not self.partial or not self.links):
+            raise ValueError("Unavailable evidence may retain only partial navigation, not facts")
         return self
 
 
@@ -328,7 +331,16 @@ class ResearchState:
                     raise AgentDiscoveryError("Retrieved source identity did not match.")
                 self.register(document.links)
                 self.documents[source_id] = document
-                self.audit.append(ToolAudit(tool="read_source", source_id=source_id, outcome="ok"))
+                if document.evidence_unavailable:
+                    self.failed_sources.add(source_id)
+                    self.failed_source_reasons[source_id] = SourceFailureReason.EVIDENCE_INVALID
+                self.audit.append(
+                    ToolAudit(
+                        tool="read_source",
+                        source_id=source_id,
+                        outcome="unavailable" if document.evidence_unavailable else "ok",
+                    )
+                )
                 return self.model_document(document)
             except (TransientSourceError, TimeoutError):
                 # The tool budget includes extraction, not just network I/O.
@@ -360,6 +372,15 @@ class ResearchState:
     @staticmethod
     def model_document(document: SourceDocument) -> dict[str, object]:
         # The planner navigates sources; full text and facts stay with the adapters.
+        if document.evidence_unavailable:
+            return {
+                "source_id": document.source.id,
+                "error": "Course evidence unavailable; read relevant linked sources instead. "
+                "Do not retry this source.",
+                "reason": SourceFailureReason.EVIDENCE_INVALID.value,
+                "links": [link.model_dump() for link in document.links],
+                "required_ids": document.required_ids,
+            }
         candidates = list(
             dict.fromkeys(
                 (record.title, record.starts_at, record.ends_at) for record in document.records

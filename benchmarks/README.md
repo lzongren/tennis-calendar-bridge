@@ -31,11 +31,17 @@ neighboring-city tool use and required detail closure, not area-search coverage.
 The unseeded live `clinic-search` case uses the default `area` mode and must pass
 the overview, registration and schedule search gates before reading pages.
 
-Each of four scenarios is repeated serially. The scorer checks exact facts,
+Each of five scenarios is repeated serially. The scorer checks exact facts,
 complete source IDs, retrieval, neighboring-city expansion, denied tool attempts
 and partial-result state. Facts are constructed by the same deterministic Python
 reconciler used by the agent, not restated by the model. The expected results are
 separate from that implementation.
+
+`navigation_failure` adds an optional operator page whose course extraction failed
+but whose observed schedule link remains usable. The original registration facts
+and evidence oracle are unchanged. This case must retain an unavailable-source
+audit and partial coverage; it cannot pass by relabeling the failed page as checked.
+It is a synthetic failure around the real-course transcription, not a live search.
 
 An audit hook limits DNS/connections to the configured model destination and
 blocks subprocesses during the CLI run. It is installed after imports and

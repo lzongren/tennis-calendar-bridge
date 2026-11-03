@@ -296,6 +296,22 @@ marked `not_read`. A successful retry clears the previous source diagnostic.
 Older snapshots without `failure_reason` retain a generic unavailable label.
 None of these reasons authorize authentication, repeated reads or extra tools.
 
+A public page whose model-based course extraction exhausts validation retries may
+still provide navigation. The backend retains only independently observed links
+that pass the existing URL, depth and registry limits. Its document is marked
+`evidence_unavailable`, must contain no course records and must remain partial.
+The planner sees `evidence_invalid` plus those links, not the exception message,
+page body or a misleading zero-candidate success. Cached reads do not repeat the
+failed extraction. Linked sources require separate reads and establish their own
+facts; the original page stays unavailable in the source report.
+
+This recovery applies only to exhausted evidence validation on a public page with
+admissible navigation. Required-source failures still abort even if linked details
+succeed; no valid facts across all attempted sources cannot publish an empty success.
+Model transport failures, request budgets, cancellation, invalid browser observations
+and URL-policy violations do not become navigation-only success. No new retry,
+authentication permission or source/read budget is introduced.
+
 Expected search-provider failures have a separate `search_unavailable` response.
 Only HTTP 503 with that code on a search request becomes `TransientSourceError`.
 The existing research loop may repeat the same query once within its time budget;
