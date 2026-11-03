@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from .browser_protocol import MAX_RESPONSE, BrowserLink, BrowserReply, BrowserRequest
+from .browser_protocol import MAX_RESPONSE, SOURCE_ERRORS, BrowserLink, BrowserReply, BrowserRequest
 
 ROOT = Path.home() / ".config" / "tennis-browser"
 ACTIVE: set[subprocess.Popen[bytes]] = set()
@@ -105,19 +105,38 @@ def execute(request: BrowserRequest, root: Path) -> dict[str, Any]:
         output.seek(0)
         raw = output.read(MAX_RESPONSE + 1)
     if process.returncode or len(raw) > MAX_RESPONSE:
-        return {"error": "source_unavailable"}
+        return {"error": "worker_unavailable"}
     try:
         value = json.loads(raw)
-        if value.get("error") in {
-            "login_required",
-            "membership_required",
-            "browser_attention_required",
-            "source_unavailable",
+        if isinstance(value.get("error"), str) and value["error"] in SOURCE_ERRORS | {
+            "worker_unavailable"
         }:
             return {"error": value["error"]}
         return BrowserReply.model_validate(value).model_dump(mode="json")
     except (ValueError, AttributeError):
-        return {"error": "source_unavailable"}
+        return {"error": "worker_unavailable"}
+
+
+def child_reply(request: BrowserRequest, root: Path, scratch: Path | None) -> dict[str, Any]:
+    """Keep page failures distinct from worker faults without leaking exception text."""
+    from .browser_runtime import BrowserReadError, read_browser
+    from .public_web import search_courses
+
+    try:
+        if request.operation == "search":
+            assert request.year is not None
+            links = search_courses(request.city, request.level, request.year, request.focus)
+            reply = BrowserReply(
+                kind="search", links=tuple(BrowserLink.model_validate(link) for link in links)
+            )
+        else:
+            reply = asyncio.run(read_browser(request, root / "profile", scratch=scratch))
+        return reply.model_dump(mode="json")
+    except BrowserReadError as error:
+        code = str(error)
+        return {"error": code if code in SOURCE_ERRORS else "worker_unavailable"}
+    except Exception:
+        return {"error": "worker_unavailable"}
 
 
 def handler_class(
@@ -207,7 +226,7 @@ def handler_class(
                 payload = execute(request, root)
                 self.reply(503 if "error" in payload else 200, payload)
             except (OSError, subprocess.SubprocessError):
-                self.reply(503, {"error": "source_unavailable"})
+                self.reply(503, {"error": "worker_unavailable"})
             finally:
                 lock.release()
 
@@ -223,40 +242,12 @@ def main() -> None:
     parser.add_argument("--allowed-peer", action="append", default=[])
     args = parser.parse_args()
     if args.action == "child":
-        from .browser_runtime import BrowserReadError, read_browser
-        from .public_web import search_courses
-
         try:
             request = BrowserRequest.model_validate_json(sys.stdin.buffer.read(4097))
-            if request.operation == "search":
-                assert request.year is not None
-                links = search_courses(request.city, request.level, request.year, request.focus)
-                reply = BrowserReply(
-                    kind="search", links=tuple(BrowserLink.model_validate(link) for link in links)
-                )
-            else:
-                reply = asyncio.run(
-                    read_browser(request, args.root / "profile", scratch=args.scratch)
-                )
-            print(reply.model_dump_json())
-        except BrowserReadError as error:
-            print(
-                json.dumps(
-                    {
-                        "error": str(error)
-                        if str(error)
-                        in {
-                            "login_required",
-                            "membership_required",
-                            "browser_attention_required",
-                            "source_unavailable",
-                        }
-                        else "source_unavailable"
-                    }
-                )
-            )
-        except Exception:
-            print('{"error":"source_unavailable"}')
+            payload = child_reply(request, args.root, args.scratch)
+        except ValueError:
+            payload = {"error": "worker_unavailable"}
+        print(json.dumps(payload))
         return
     key_file = args.root / "api-key"
     if not args.allowed_peer:

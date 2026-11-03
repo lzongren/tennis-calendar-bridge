@@ -375,3 +375,31 @@ lint/format and wheel metadata checks. Only the isolated Mac browser test worker
 was updated. Production discovery and centrally managed ingress are unchanged.
 The remaining acceptance work includes search-state classification, reliable
 source navigation, geographic recall and the complete production calendar flow.
+
+## Browser Failure Scope: 2026-11-02
+
+A fresh unseeded baseline completed all three searches, then aborted at a browser
+read: **35.95s**, 8 model requests, 30 registered sources and one completed source.
+The old worker protocol conflated unreadable pages with process/runtime failures;
+the client treated both as a run-level outage.
+
+The worker now emits distinct, fixed codes. Only recognized read-page failures
+are source-scoped. Optional failures produce partial coverage; required/all-source
+failures, worker faults, authentication errors and unknown legacy replies remain
+fatal. No additional login, permissions, retries or budget increases are involved.
+Six new benchmark variants combine the real anonymous course transcription with
+synthetic page/membership failures in optional, required and all-source positions.
+The optional cases retain the exact original facts; the other cases reject completion.
+
+The candidate's full city search still **failed at the 300.03s deadline**: 18 model
+requests, 26 registered sources, two completed sources. Page extraction retries
+and unsuitable source selection consumed time. That run did not reproduce the
+browser failure, so it is not causal live proof of the isolation fix and does not
+pass the recall gate. The final worker's known-source anonymous benchmark passed
+**2/2**, at **15.37s / 10.54s** (7 / 5 model requests), preserving the original
+time, price, full status, provenance and unknown waitlist count.
+
+Local validation: **560 tests**, **38 benchmark cases**, typing across **48 modules**,
+Ruff, format, wheel build and metadata checks. The isolated browser test worker was
+updated; the production application and ingress were not. Geographic recall,
+source selection and the full production calendar path remain acceptance gates.
