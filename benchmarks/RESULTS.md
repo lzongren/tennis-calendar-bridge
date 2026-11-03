@@ -399,7 +399,15 @@ pass the recall gate. The final worker's known-source anonymous benchmark passed
 **2/2**, at **15.37s / 10.54s** (7 / 5 model requests), preserving the original
 time, price, full status, provenance and unknown waitlist count.
 
-Local validation: **560 tests**, **38 benchmark cases**, typing across **48 modules**,
+Local validation: **565 tests**, **38 benchmark cases**, typing across **48 modules**,
 Ruff, format, wheel build and metadata checks. The isolated browser test worker was
 updated; the production application and ingress were not. Geographic recall,
 source selection and the full production calendar path remain acceptance gates.
+Browser regressions also reject HTTP 404/410/429/500/503 documents rather than
+treating their error-page text as a successful source.
+
+A separate candidate-list probe found no target operator in any of the three
+focuses. The PDF-only query returned multiple out-of-area operators. Three broader
+generic queries produced more local results but still did not find the target.
+These observations motivate geographic expansion and source-selection work, not
+seeding the benchmark with the expected registration URL.

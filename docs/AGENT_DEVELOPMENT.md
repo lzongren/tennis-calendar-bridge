@@ -188,6 +188,7 @@ Only a recognized HTTP 503 read response (`page_unavailable`, `login_required`,
 unavailable. Optional failures leave an explicit partial result; required-detail
 or all-source failures still abort and preserve the previous snapshot. These
 responses never trigger login or a challenge bypass. Search failures remain fatal.
+Public HTTP error documents are source failures, not successful empty pages.
 
 Process exit, malformed/oversized output, browser disconnection, unknown exceptions,
 service authentication, transport failure and the legacy ambiguous

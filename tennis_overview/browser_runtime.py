@@ -81,6 +81,7 @@ class ReadNetwork:
         self.bytes = 0
         self.login_required = False
         self.attention_required = False
+        self.page_unavailable = False
         self.membership_required = False
         self.denied = False
         self.redirects: dict[str, str] = {}
@@ -128,6 +129,8 @@ class ReadNetwork:
                     self.membership_required = True
             if request.is_navigation_request() and resource.status in {401, 403}:
                 self.attention_required = True
+            if request.is_navigation_request() and resource.status >= 400:
+                self.page_unavailable = True
             if resource.status in {301, 302, 303, 307, 308}:
                 target = urljoin(request.url, resource.headers.get("location", ""))
                 if "/account/" in urlsplit(target).path.lower():
@@ -157,6 +160,8 @@ async def navigate(page: Page, url: str, network: ReadNetwork) -> None:
         await page.goto(read_url(url), wait_until="domcontentloaded", timeout=25000)
         if network.attention_required:
             raise BrowserReadError("browser_attention_required")
+        if network.page_unavailable:
+            raise BrowserReadError("page_unavailable")
         target = network.redirects.pop(url, None)
         if target is None:
             return

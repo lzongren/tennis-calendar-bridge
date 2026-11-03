@@ -14,6 +14,7 @@ from playwright.async_api import Error as PlaywrightError
 from pydantic import SecretStr
 
 from tennis_overview.browser_client import BrowserClient
+from tennis_overview.browser_network import Resource
 from tennis_overview.browser_protocol import SOURCE_ERRORS, BrowserReply, BrowserRequest
 from tennis_overview.browser_runtime import BrowserReadError, read_browser
 from tennis_overview.browser_worker import child_reply, execute
@@ -146,6 +147,26 @@ def test_disconnected_browser_is_fatal_even_after_page_denial(tmp_path, monkeypa
         asyncio.run(
             read_browser(
                 BrowserRequest(operation="read", url=URL),
+                tmp_path / "unused",
+                channel=os.getenv("PLAYWRIGHT_CHANNEL") or "chromium",
+            )
+        )
+
+
+@pytest.mark.parametrize("status", [404, 410, 429, 500, 503])
+def test_public_http_failure_is_not_a_successful_empty_page(tmp_path, monkeypatch, status):
+    monkeypatch.setattr(
+        "tennis_overview.browser_runtime.get_resource",
+        lambda *args, **kwargs: Resource(
+            status,
+            {"content-type": "text/html"},
+            b"<h1>This page is unavailable, please try again later</h1>",
+        ),
+    )
+    with pytest.raises(BrowserReadError, match="^page_unavailable$"):
+        asyncio.run(
+            read_browser(
+                BrowserRequest(operation="read", url="https://club.example.org/classes"),
                 tmp_path / "unused",
                 channel=os.getenv("PLAYWRIGHT_CHANNEL") or "chromium",
             )
