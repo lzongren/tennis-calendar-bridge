@@ -86,9 +86,10 @@ def test_area_preflight_reserves_coverage_and_hides_exhausted_search_tool():
         tools = {tool.name: tool for tool in info.function_tools}
         assert backend.search_calls == [city + "|" + focus for city, focus in searches]
         assert "search_courses" not in tools
-        assert "read_source" in tools
         if source := next(reads, None):
+            assert "read_source" in tools
             return ModelResponse([ToolCallPart("read_source", {"source_id": source})])
+        assert "read_source" not in tools
         return ModelResponse([ToolCallPart("finish_discovery", {"outcome": "sources_checked"})])
 
     run = asyncio.run(
@@ -220,7 +221,9 @@ def test_model_cannot_read_an_arbitrary_source(source):
     with pytest.raises(AgentDiscoveryError, match="blocked"):
         asyncio.run(
             run_discovery_agent(
-                request(), backend, scripted([ToolCallPart("read_source", {"source_id": source})])
+                request(),
+                backend,
+                scripted([*plan()[:2], ToolCallPart("read_source", {"source_id": source})]),
             )
         )
     assert backend.read_calls == []
@@ -290,7 +293,9 @@ def test_repeated_read_is_cached_but_charged():
         await state.search_courses("San Jose")
         await state.search_courses("Santa Clara")
         first = await state.read_source("seasonal-schedule")
-        assert await state.read_source("seasonal-schedule") == first
+        second = await state.read_source("seasonal-schedule")
+        assert first["candidate_session_count"] == 1
+        assert second["cached"] and second["next_source_ids"] == ("dated-registration",)
         assert backend.read_calls == ["seasonal-schedule"]
         assert state.calls == 4
         assert state.audit[-1].outcome == "cached"
@@ -442,7 +447,9 @@ def test_transient_failure_is_retried_at_most_once():
         await state.search_courses("Santa Clara")
         response = await state.read_source("seasonal-schedule")
         assert "provider diagnostic" not in str(response)
-        assert await state.read_source("seasonal-schedule") == response
+        cached = await state.read_source("seasonal-schedule")
+        assert all(cached[key] == value for key, value in response.items())
+        assert cached["cached"] and cached["next_source_ids"] == ()
         assert backend.read_calls == ["seasonal-schedule", "seasonal-schedule"]
 
     asyncio.run(check())

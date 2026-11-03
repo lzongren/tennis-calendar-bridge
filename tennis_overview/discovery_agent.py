@@ -336,11 +336,9 @@ class ResearchState:
             raise ModelRetry(
                 "Before reading, search nearby cities with overview focus: " + "; ".join(cities)
             )
-        if source_id in self.documents:
+        if source_id in self.documents or source_id in self.failed_sources:
             self.audit.append(ToolAudit(tool="read_source", source_id=source_id, outcome="cached"))
-            return self.model_document(self.documents[source_id])
-        if source_id in self.failed_sources:
-            return self.source_failure(source_id)
+            return self.cached_source(source_id)
         if coverage := self.coverage_read_ids():
             if source_id not in coverage:
                 raise ModelRetry(
@@ -397,6 +395,19 @@ class ResearchState:
                 source_id, SourceFailureReason.PAGE_UNAVAILABLE
             ).value,
         }
+
+    def cached_source(self, source_id: str) -> dict[str, object]:
+        """Repeated reads carry state-owned progress, not another copy of untrusted text."""
+        response: dict[str, object] = {
+            "source_id": source_id,
+            "cached": True,
+            "message": "Already processed; do not read this source again. "
+            "Choose an unread source ID or use the outstanding search/completion tools.",
+            "next_source_ids": self.available_read_ids(),
+        }
+        if source_id in self.failed_sources:
+            response.update(self.source_failure(source_id))
+        return response
 
     @staticmethod
     def model_document(document: SourceDocument) -> dict[str, object]:
@@ -520,6 +531,11 @@ class ResearchState:
         pending_details = self.required_source_ids() - self.documents.keys() - self.failed_sources
         return tuple(sorted({sid for group in groups for sid in group} | pending_details))
 
+    def available_read_ids(self) -> tuple[str, ...]:
+        return self.coverage_read_ids() or tuple(
+            sorted(self.registry.keys() - self.documents.keys() - self.failed_sources)
+        )
+
     def progress_instructions(self) -> str:
         # Only bounded application state enters instructions, never page text or titles.
         progress = {
@@ -631,11 +647,12 @@ async def run_discovery_agent(
     ) -> ToolDefinition | None:
         if state.required_search_options():
             return None
-        if coverage := state.coverage_read_ids():
-            schema = deepcopy(definition.parameters_json_schema)
-            schema["properties"]["source_id"]["enum"] = list(coverage)
-            return replace(definition, parameters_json_schema=schema)
-        return definition
+        available = state.available_read_ids()
+        if not available:
+            return None
+        schema = deepcopy(definition.parameters_json_schema)
+        schema["properties"]["source_id"]["enum"] = list(available)
+        return replace(definition, parameters_json_schema=schema)
 
     async def prepare_completion(
         ctx: RunContext[None], definitions: list[ToolDefinition]

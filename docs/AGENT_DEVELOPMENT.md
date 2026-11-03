@@ -77,6 +77,18 @@ body stays with the extractor; full source-owned records stay with reconciliatio
 This projection changes neither extracted facts nor the final evidence set. Dates
 are included because a title-only live trial caused redundant follow-up searches.
 
+Repeated reads return a small state-owned cache acknowledgement and the currently
+available unread source IDs, not another copy of page titles, links or candidate
+summaries. Failure reasons remain explicit; cached failures do not become successful
+reads. Every cache hit still consumes a tool operation and is audited. Full documents
+and source-owned records remain in research state for reconciliation.
+
+The read tool advertises only currently available unread IDs, including after the
+search-group coverage phase; it is hidden when none remain. Its schema and cache
+guidance use the same ID calculation. These hints do not replace execution guards:
+unknown sources remain blocked, coverage rules still apply, and repeated calls can
+still exhaust the unchanged run budget.
+
 Pydantic AI exposes the completion tool only when the existing completion validator
 finds no outstanding work. Tool preparation calls that same side-effect-free
 validator; it does not maintain a second coverage policy. Terminal source failures
@@ -127,7 +139,8 @@ are inspected. After that breadth pass, all outstanding navigation attempts rema
 mandatory. Budgets and required-detail failure handling are unchanged.
 
 Each model turn also receives state-owned progress instructions: outstanding query
-phases, required detail IDs, registration navigation, unattempted source groups and remaining read capacity.
+phases, required detail IDs, registration navigation, unattempted source groups and
+remaining read capacity.
 Source text, titles and URLs are not promoted into these instructions. Completion
 validation reports all outstanding detail/group reads together, rather than spending
 one output retry per missing group. The progress display and validator share the
@@ -335,9 +348,10 @@ still provide navigation. The backend retains only independently observed links
 that pass the existing URL, depth and registry limits. Its document is marked
 `evidence_unavailable`, must contain no course records and must remain partial.
 The planner sees `evidence_invalid` plus those links, not the exception message,
-page body or a misleading zero-candidate success. Cached reads do not repeat the
-failed extraction. Linked sources require separate reads and establish their own
-facts; the original page stays unavailable in the source report.
+page body or a misleading zero-candidate success. Cached reads repeat neither the
+failed extraction nor the untrusted navigation text. Linked sources require separate
+reads and establish their own facts; the original page stays unavailable in the source
+report.
 
 This recovery applies only to exhausted evidence validation on a public page with
 admissible navigation. Required-source failures still abort even if linked details

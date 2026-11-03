@@ -1040,3 +1040,68 @@ The component remains draft and unmerged. A new unseeded live run and final
 known-link/evidence replay are deferred until the controlled completion failure is
 resolved. The earlier anonymous live run and prior component's passing known-link
 checks are not presented as acceptance of this final candidate.
+
+## Cached-Read Progress: 2026-11-03
+
+The prior diagnostic showed repeated cached reads while a coverage group remained
+unattempted. Cache responses now acknowledge the earlier attempt and provide the
+currently readable source IDs without repeating untrusted titles, navigation text
+or candidate summaries. Failed sources retain their reason and remain unavailable.
+Each repeated call still consumes a tool operation and is audited; no network read,
+extraction, budget increase or factual reconciliation change is introduced.
+
+The read tool now advertises only available unread IDs after the coverage phase as
+well, and disappears when none remain. Its schema and cache guidance use one ID
+calculation. Unknown sources still fail at the execution boundary, and coverage,
+required-detail verification and anonymous-access limits remain enforced.
+
+Six new regression cases cover repeated hostile navigation text, all three real-case
+navigation variants, cached membership denial and calls to an unavailable read tool.
+Existing cache tests now assert the changed response contract while preserving
+no-repeat-read, deadline, redaction, source-failure and original-course fact checks.
+Local gates passed: **738 tests**, **80 benchmark cases**, typing across **50 modules**,
+Ruff/format, wheel build and Twine.
+
+The first three-repetition private-model run lost its SSH observation connection.
+A fresh process check found no evaluator running, and its report was empty. It is
+an incomplete observation, not a pass or an attributed model failure. Only after
+those checks was a fresh run launched, with diagnostics written directly to an
+owner-only file so transport loss would not discard the evidence. Evaluator module
+and fixture hashes matched the local candidate before testing. Production and the
+browser worker remain unchanged.
+
+The completed fresh navigation run passed **9/9** over three repetitions. Readable
+navigation used **7/7/7** model requests; membership denial **8/6/7**; hostile titles
+**7/7/8**. The denial cases retained other courses without inventing the target
+clinic, and successful reads preserved the original facts and evidence. The trace
+included a stale cached read followed by progress to the outstanding catalog; no
+extra network fetch occurred for the cache hit. All runs stayed within the existing
+limits. The model-only audit recorded zero blocked connection, DNS or process
+attempts. These nine observations support the correction, not a production
+reliability or latency guarantee; the earlier failures remain part of the record.
+
+The original five-scenario `source_check` private-model replay also passed **5/5**
+on the candidate: **12.15s, 6.18s, 8.04s, 3.50s and 9.30s**, with **5/5/6/5/6**
+model requests. Date-conflict handling, original-course evidence, transient retry
+and retained navigation after extraction failure were unchanged. Its model-only
+network audit also recorded zero blocked attempts.
+
+Fresh known-link anonymous checks passed **2/2** in **20.70s / 7.39s**, each using
+three model requests and two tool calls. Original registration facts, source
+evidence, absence of personal queue inference and partial series coverage passed
+unchanged. These are real detail-page checks, not autonomous discovery of its URL.
+
+The final unseeded live search did **not** pass. It reached the original operator's
+registration portal without a supplied source URL, received `membership_required`,
+then hit the unchanged total deadline at **300.01s** after **20 model requests**.
+The report recorded 48 registered sources and five checked sources. The trace also
+showed extractor calls to an unavailable planner tool and exhausted structured
+extraction retries on public pages. These consumed budget; the evidence does not
+establish their underlying cause or prove that no anonymous discovery route exists.
+The expected course URL was supplied only to the scorer, not the planner.
+
+Controlled navigation completion improved, but original-course autonomous recall
+and live completion remain unsatisfied. The component remains draft and unmerged;
+the experimental agent is not deployed or declared production-ready. Anonymous-only
+access remains the explicit boundary: no saved profile, login fallback or expansion
+of permissions was introduced. Future authorized login is separate work.

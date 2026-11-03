@@ -54,7 +54,9 @@ def test_tool_deadline_is_not_a_transient_read_retry():
         assert backend.read_calls == [SLOW.id]
         assert backend.cancelled == 1
         assert [event.outcome for event in state.audit] == ["unavailable"]
-        assert await state.read_source(SLOW.id) == failure
+        cached = await state.read_source(SLOW.id)
+        assert cached["cached"] and cached["reason"] == failure["reason"]
+        assert cached["next_source_ids"] == ()
         assert backend.read_calls == [SLOW.id]
 
     asyncio.run(scenario())

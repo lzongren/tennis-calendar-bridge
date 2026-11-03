@@ -236,7 +236,9 @@ def test_failed_evidence_retains_only_navigation_and_is_cached_without_retry():
         await state.search_courses("San Jose")
         first = await state.read_source(identity(URL))
         second = await state.read_source(identity(URL))
-        assert first == second
+        assert second["cached"] and second["next_source_ids"] == (identity(BROWSER_URL),)
+        assert second["reason"] == first["reason"]
+        assert "links" not in second
         assert first["reason"] == "evidence_invalid"
         assert [link["id"] for link in first["links"]] == [identity(BROWSER_URL)]
         assert "candidate_session_count" not in first

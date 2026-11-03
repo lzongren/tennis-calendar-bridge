@@ -77,7 +77,9 @@ def test_cached_reads_keep_full_document_without_resending_body():
         await state.search_courses("Santa Clara")
         first = await state.read_source("seasonal-schedule")
         second = await state.read_source("seasonal-schedule")
-        assert first == second and "text" not in second
+        assert first["candidate_session_count"] == 1
+        assert second["cached"] and second["next_source_ids"] == ("dated-registration",)
+        assert "text" not in second and "candidate_sessions" not in second
         assert state.documents["seasonal-schedule"] == backend.documents["seasonal-schedule"]
         assert backend.read_calls == ["seasonal-schedule"]
 
