@@ -1105,3 +1105,81 @@ and live completion remain unsatisfied. The component remains draft and unmerged
 the experimental agent is not deployed or declared production-ready. Anonymous-only
 access remains the explicit boundary: no saved profile, login fallback or expansion
 of permissions was introduced. Future authorized login is separate work.
+
+## Schedule Link Admission: 2026-11-03
+
+Inspection of a fresh anonymous operator page explained one lost retrieval path.
+Its registration link was followed in DOM order by a rating guide and a general
+program page, with published adult and coach-clinic schedules later. The live
+registry had only two slots left when this page was read: the registration route
+and rating guide were admitted; the course schedules were not. This is independent
+of the catalog's membership restriction and model extraction reliability.
+
+Link ranking now keeps registration first, schedules and adult/clinic PDFs next,
+and general tennis information last. Twelve regression cases preserve source order
+within a tier, signup navigation, junior exclusion and bounded admission. Two
+benchmark-marked cases reproduce the nearly full registry without adding slots or
+converting a link into course evidence. Seven tests failed before the correction;
+the initial eight passed afterward, with four more checks for guidance PDFs. The
+fresh public-page capture now retains a schedule
+in the second slot and all four schedule links in its first six candidates.
+
+Local verification passed **750 tests**, **82 benchmark cases**, typing across
+**50 modules**, Ruff/format, wheel build and Twine. The unchanged original-course
+oracle remains the acceptance gate; better link admission alone is not recall.
+
+### Extraction Diagnostics
+
+Before changing ranking, a three-repetition quoted-course replay passed **3/3**
+in **14.27s / 5.11s / 5.28s**. Outbound request inspection confirmed that extraction
+requests advertised only `extract_courses`, contained no prior planner tool calls,
+and did not include planner tool names in system instructions. The model-only audit
+recorded no blocked connections, DNS or process attempts. This did not reproduce
+the longer live search's tool mismatch.
+
+A separate exploratory probe captured two public pages anonymously, then installed
+the process-local model-only network audit guard for inference. The same
+source text, evidence validators and one-retry configuration were used with tool
+output and Pydantic AI prompted JSON output. A two-request ceiling isolated each
+case; these are diagnostic observations, not a replacement acceptance suite.
+
+| Input | Tool output | Prompted JSON output |
+| --- | --- | --- |
+| Operator program overview | Invalid structured result after two requests, 9.82s | Model timeout during retry, 67.47s |
+| Public facility directory | Unadvertised tool followed by text; request limit, 6.12s | Empty courses, one request, 2.86s |
+| Dated course transcription | One grounded course, one request, 2.94s | One grounded course, one request, 2.83s |
+
+The directory mismatch occurred despite an extraction-only request, with no
+planner history or planner names in system instructions. No undeclared tool was
+executed. This does not establish whether generation, serving or parsing caused
+the mismatch. The probe's model-only audit recorded zero blocked attempts.
+Prompted output has not shown a consistent improvement and is **not** adopted;
+production extraction settings and model-server configuration remain unchanged.
+Private captures, raw model responses and credentials are not committed.
+
+The linked public coach-clinic PDF was also fetched anonymously. It lists the
+matching Monday 18:30-19:50 clinic within the autumn term, but quotes **$52**, not
+the registration page's **$54**. It links back to the general portal, not the dated
+event. This supports using schedules for discovery, not treating them as current
+registration price, capacity or waitlist evidence. The original price and
+availability assertions are unchanged.
+
+The hash-verified candidate was installed only in the isolated evaluator. Its
+unseeded live run retained all four operator schedule links, but still failed:
+**299.10s**, **24 model requests**, 48 registered sources and four checked sources,
+with `UsageLimitExceeded`. The original portal again returned `membership_required`.
+The agent did not read the retained schedule PDFs before failure. Changed search
+order and model behavior mean this single run is not a causal latency comparison
+with the prior timeout. Original-course recall and bounded live completion remain
+unsatisfied; preserving a source link is not recovering its course.
+
+Direct inspection also found that the existing deterministic annual-table adapter
+does not recognize this coach-clinic PDF. It still needs either validated model
+extraction or a separately tested generic table improvement. Neither an output-mode
+switch nor a new PDF parser is included in this link-ranking correction. The
+experimental parent remains draft and production is unchanged.
+
+Final known-link anonymous checks passed **2/2** on this candidate in **15.08s /
+7.18s**, with three model requests and two tool calls each. Original registration
+facts, source evidence, no personal queue inference and incomplete-series reporting
+all passed. This confirms the existing supplied-detail path, not unseeded recall.

@@ -158,6 +158,16 @@ it does not promise exhaustive coverage or increase model, read, tool or time li
 benchmarks, not the production city-discovery path. It retains the same required
 detail, grounding and failure rules but makes no area-recall claim.
 
+Observed outbound links are ranked before applying the six-link and remaining
+registry limits. Registration routes come first, followed by schedules, timetables,
+calendars and adult/clinic PDFs, then general tennis information. Rating guides and
+rules PDFs do not get the adult-document preference. Ties retain source order.
+This prevents a rating guide encountered early in the DOM from displacing a later
+course schedule when capacity is tight. Ranking is a retrieval hint, not evidence
+of dates, availability or completeness; schedules still need separate validation,
+and missing links still mark coverage partial. No slot eviction or larger budget
+is introduced.
+
 The public search adapter retains the existing Yahoo transport and redirect decoder
 and accepts both observed desktop and alternate result layouts. It excludes account
 navigation and related-query promotions. Unknown or blocked pages are errors, never
