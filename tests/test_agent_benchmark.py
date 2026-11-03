@@ -54,6 +54,9 @@ def test_live_benchmark_distinguishes_supplied_url_from_search(monkeypatch, case
         yield Mock()
 
     async def inspect_backend(request, backend, model, **kwargs):
+        from tennis_overview.discovery_agent import LIVE_DISCOVERY_LIMITS
+
+        assert kwargs["limits"] is LIVE_DISCOVERY_LIMITS
         assert request.city == "San Jose, CA"
         assert backend.reader == client.read
         if case == "clinic-search":

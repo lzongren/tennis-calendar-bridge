@@ -136,6 +136,29 @@ must mark the result partial. Failed required details and all-failed searches st
 retain the previous snapshot. Model HTTP failures and the shared model-request
 budget remain fatal; this isolation does not introduce extra retries.
 
+## Geographic Coverage
+
+Area search resolves exact city names and aliases against the pinned offline
+GeoNames populated-place dataset. A state/country qualifier disambiguates names;
+the requested time zone can resolve remaining alias ambiguity. Unknown or still
+ambiguous locations are not guessed. No geocoding service or model-authored
+coordinates are used. The input city remains the original search argument.
+
+The backend offers the two nearest same-country populated places with centers
+between 1km and 25km away, using GeographicLib WGS84 distance. The dataset's
+15,000-person threshold excludes many small places and can include urban districts;
+this is neither driving distance nor complete metropolitan coverage. Searches are
+explicitly partial even when every returned source was read.
+
+The agent searches these bounded neighboring places before reading sources, even
+when the original city has candidates, and must inspect a newly introduced source
+from each nonempty query group before completion. Exact-source checks do not expand
+geography. Application and live benchmark share `LIVE_DISCOVERY_LIMITS`: six search
+queries, 24 model requests, 30 tools, 48 source references and 300 seconds. Only the
+search-query ceiling increased (from four); the other runtime limits are unchanged.
+General registration/schedule queries no longer require an NTRP label or PDF result;
+level/date validation remains in evidence extraction.
+
 ## Browser Evidence
 
 Course discovery should not require a dedicated search API. The next retrieval

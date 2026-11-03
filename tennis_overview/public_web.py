@@ -217,8 +217,8 @@ def search_courses(
     queries = {
         None: f"{location} adult tennis clinics classes schedule",
         "overview": f"adult tennis group clinics near {location}",
-        "registration": f"{location} adult tennis clinics registration {level} {year}",
-        "schedule": f"{location} adult tennis clinic schedule {year} filetype:pdf",
+        "registration": f"{location} adult tennis classes registration",
+        "schedule": f"{location} adult tennis class schedule {year}",
     }
     if focus not in queries:
         raise ValueError("Invalid search focus")

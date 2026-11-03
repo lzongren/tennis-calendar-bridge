@@ -17,6 +17,7 @@ from .browser_documents import BrowserDocument
 from .course_evidence import SessionEvidence
 from .course_extraction import CourseCandidate, CourseExtractor
 from .courtreserve_discovery import courtreserve_observation
+from .discovery_geography import nearby_cities
 from .discovery_agent import (
     DiscoveryRequest,
     DiscoveryRun,
@@ -112,6 +113,10 @@ class PublicSourceBackend:
         returned = tuple(refs.values())[:12]
         return SearchResults(
             sources=returned,
+            nearby_cities=nearby_cities(request.city, request.timezone)
+            if request.search_mode == "area" and city.casefold() == request.city.casefold()
+            else (),
+            partial=request.search_mode == "area",
             required_ids=tuple(
                 ref.id for ref in returned if self.sources[ref.id].url in self.initial_urls
             )[:4],

@@ -20,7 +20,11 @@ from tennis_overview.browser_documents import BrowserDocument
 from tennis_overview.browser_client import BrowserClient
 from tennis_overview.browser_protocol import read_url
 from tennis_overview.course_extraction import CourseExtractor
-from tennis_overview.discovery_agent import DiscoveryLimits, DiscoveryRequest, run_discovery_agent
+from tennis_overview.discovery_agent import (
+    LIVE_DISCOVERY_LIMITS,
+    DiscoveryRequest,
+    run_discovery_agent,
+)
 from tennis_overview.discovery_sources import PublicSourceBackend
 from tennis_overview.private_model import PrivateModelConfig, private_model
 from tennis_overview.public_web import Page, page_from_html
@@ -86,9 +90,7 @@ async def evaluate(
                 search_mode="area" if live and case != "anonymous" else "source_check",
             )
             usage = RunUsage()
-            limits = DiscoveryLimits(
-                model_requests=24, tool_calls=30, sources=48, tool_seconds=60, total_seconds=300
-            )
+            limits = LIVE_DISCOVERY_LIMITS
             backend = PublicSourceBackend(
                 CourseExtractor(model, usage, limits.model_requests), source_limit=limits.sources
             )
