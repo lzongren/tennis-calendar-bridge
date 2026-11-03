@@ -29,6 +29,7 @@ from tennis_overview.discovery_sources import PublicSourceBackend
 from tennis_overview.private_model import PrivateModelConfig, private_model
 from tennis_overview.public_web import Page, page_from_html
 
+from .discovery_metrics import DiscoveryMetrics, MeasuredModel
 from .network_guard import install_model_only_guard
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
@@ -70,6 +71,39 @@ def same_occurrence(actual: str, expected: str) -> bool:
     )
 
 
+def series_checks(courses: list[dict[str, Any]], source_url: str) -> dict[str, bool]:
+    """Frozen November 3 observation, not a promise of current availability."""
+    matched = [c for c in courses if same_occurrence(c["source_url"], source_url)]
+    rows = sorted(
+        (s["starts_at"], s["ends_at"], c["price"], c["availability"])
+        for c in matched
+        for s in c["sessions"]
+    )
+    expected = [
+        (
+            f"2026-11-{day:02d}T18:30:00-08:00",
+            f"2026-11-{day:02d}T19:50:00-08:00",
+            "$54.00",
+            "full" if day == 9 else "Not checked",
+        )
+        for day in (9, 16, 23, 30)
+    ]
+    return {
+        "row_owned_facts": rows == expected,
+        "clinic_identity": bool(matched)
+        and all(
+            re.search(r"Adult Coach.*Clinic.*NTRP 2\.5 - 3\.0.*MON 6:30PM - Fall 2", c["title"])
+            is not None
+            for c in matched
+        ),
+        "source_evidence": bool(matched) and all(c["evidence_ids"] for c in matched),
+        "no_queue_inference": bool(matched)
+        and all(
+            c["waitlist_count"] is None and c["user_waitlist_position"] is None for c in matched
+        ),
+    }
+
+
 async def evaluate(
     config: PrivateModelConfig,
     *,
@@ -82,31 +116,41 @@ async def evaluate(
     observations = []
     async with private_model(config) as model:
         for repetition in range(repeats):
+            metrics = DiscoveryMetrics()
+            planner = MeasuredModel(model, metrics, "planner_model")
+            extractor = MeasuredModel(model, metrics, "extractor_model")
             request = DiscoveryRequest(
                 city="San Jose, CA" if live else "Example City",
                 level="NTRP 3.0",
                 timezone="America/Los_Angeles",
-                start=date(2026, 11, 1),
-                search_mode="area" if live and case != "anonymous" else "source_check",
+                start=date(2026, 11, 3) if case == "anonymous-series" else date(2026, 11, 1),
+                search_mode="area"
+                if live and case not in {"anonymous", "anonymous-series"}
+                else "source_check",
             )
             usage = RunUsage()
             limits = LIVE_DISCOVERY_LIMITS
             backend = PublicSourceBackend(
-                CourseExtractor(model, usage, limits.model_requests), source_limit=limits.sources
+                CourseExtractor(extractor, usage, limits.model_requests),
+                source_limit=limits.sources,
             )
-            if live and case in {"anonymous", "clinic-search"}:
+            if live and case in {"anonymous", "anonymous-series", "clinic-search"}:
                 client = BrowserClient(
                     os.environ["TENNIS_DISCOVERY_BROWSER_URL"],
                     SecretStr(os.environ["TENNIS_DISCOVERY_BROWSER_KEY"]),
                 )
                 backend.reader = client.read
-                if case == "anonymous":
+                if case in {"anonymous", "anonymous-series"}:
                     backend.searcher = empty_search
                     backend.initial_urls = (read_url(source_url),)
                 else:
                     backend.searcher = client.search
             if not live:
-                replay_url = BROWSER_URL if case in {"browser", "anonymous"} else REPLAY_URL
+                replay_url = (
+                    BROWSER_URL
+                    if case in {"browser", "anonymous", "anonymous-series"}
+                    else REPLAY_URL
+                )
                 page: Page | BrowserDocument = page_from_html(
                     REPLAY_URL, (FIXTURES / "discovery_ongoing.html").read_bytes()
                 )
@@ -124,19 +168,26 @@ async def evaluate(
                         ),
                         (),
                     )
-                elif case in {"browser", "anonymous"}:
+                elif case in {"browser", "anonymous", "anonymous-series"}:
                     fixture = (
                         "courtreserve_anonymous_detail.html"
                         if case == "anonymous"
                         else "courtreserve_detail.html"
                     )
+                    if case == "anonymous-series":
+                        fixture = "courtreserve_anonymous_series.html"
+                    capture_time = (
+                        datetime(2026, 11, 3, 18, tzinfo=timezone.utc)
+                        if case == "anonymous-series"
+                        else CAPTURE_TIME
+                    )
                     page = BrowserDocument(
                         BROWSER_URL,
                         "Synthetic browser title",
                         (FIXTURES / "discovery_benchmark" / fixture).read_text(),
-                        CAPTURE_TIME,
+                        capture_time,
                     )
-                    backend.clock = lambda: CAPTURE_TIME
+                    backend.clock = lambda: capture_time
 
                 async def replay_read(url: str) -> Page | BrowserDocument:
                     if url != replay_url:
@@ -146,9 +197,25 @@ async def evaluate(
                 backend.reader = replay_read
                 backend.searcher = empty_search
                 backend.initial_urls = (replay_url,)
+            reader, searcher = backend.reader, backend.searcher
+
+            async def measured_read(url: str) -> Page | BrowserDocument:
+                with metrics.measure("source_read"):
+                    return await reader(url)
+
+            async def measured_search(
+                city: str, level: str, year: int, focus: str
+            ) -> list[dict[str, str]]:
+                with metrics.measure("search"):
+                    return await searcher(city, level, year, focus)
+
+            backend.reader = measured_read
+            backend.searcher = measured_search
             started = time.monotonic()
             try:
-                run = await run_discovery_agent(request, backend, model, usage=usage, limits=limits)
+                run = await run_discovery_agent(
+                    request, backend, planner, usage=usage, limits=limits
+                )
                 result = backend.result(run, request)
                 courses = result["courses"]
                 target = "www.sjsrc.com" if live else "club.example.org"
@@ -197,6 +264,16 @@ async def evaluate(
                             for course in matching
                             if same_occurrence(course["source_url"], expected_url)
                         ]
+                    # Additional row-owned dates are independent courses. Preserve
+                    # the original occurrence's exact factual oracle, not list order.
+                    matching = [
+                        course
+                        for course in matching
+                        if any(
+                            session["starts_at"] == expected["starts_at"]
+                            for session in course["sessions"]
+                        )
+                    ]
                     checks = {
                         "original_registration_facts": len(matching) == 1
                         and matching[0]["sessions"]
@@ -218,6 +295,12 @@ async def evaluate(
                                 matching[0]["title"],
                             )
                         )
+                if case == "anonymous-series":
+                    checks = {
+                        **series_checks(courses, source_url if live else BROWSER_URL),
+                        "series_incomplete": result["partial"],
+                        "request_budget": usage.requests <= limits.model_requests,
+                    }
                 observation = {
                     "repetition": repetition + 1,
                     "checks": checks,
@@ -242,6 +325,7 @@ async def evaluate(
                     "registered_sources": len(backend.sources),
                     "read_sources": sum(s.status == "checked" for s in backend.sources.values()),
                 }
+            observation["stage_metrics"] = metrics.report()
             observations.append(observation)
             print(json.dumps(observation), flush=True)
     return observations
@@ -252,7 +336,7 @@ def main() -> None:
     parser.add_argument("--live-web", action="store_true")
     parser.add_argument(
         "--case",
-        choices=("ongoing", "quoted", "browser", "anonymous", "clinic-search"),
+        choices=("ongoing", "quoted", "browser", "anonymous", "anonymous-series", "clinic-search"),
         default="ongoing",
     )
     parser.add_argument(
@@ -268,12 +352,17 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=2, choices=range(1, 4))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.live_web and args.case not in {"ongoing", "anonymous", "clinic-search"}:
+    if args.live_web and args.case not in {
+        "ongoing",
+        "anonymous",
+        "anonymous-series",
+        "clinic-search",
+    }:
         parser.error("Transcriptions are replay cases, not live public pages")
     if args.case == "clinic-search" and not args.live_web:
         parser.error("clinic-search requires --live-web; source replay cannot establish recall")
-    if bool(args.source_url) != (args.live_web and args.case == "anonymous"):
-        parser.error("--source-url is required only for --live-web --case anonymous")
+    if bool(args.source_url) != (args.live_web and args.case in {"anonymous", "anonymous-series"}):
+        parser.error("--source-url is required only for live anonymous detail/series cases")
     if bool(args.expected_source_url) != (args.case == "clinic-search"):
         parser.error("--expected-source-url is required only for clinic-search scoring")
     if args.source_url:

@@ -105,7 +105,8 @@ def test_unexpanded_series_is_still_partial():
         "</main>", '<div data-testid="events-details-tab-dates">Dates (6)</div></main>'
     )
     assert observation(html).partial
-    assert not observation(html.replace("Dates (6)", "Dates (1)")).partial
+    assert observation(html.replace("Dates (6)", "Dates (1)")).partial
+    assert not observation(html.replace("Dates (6)", "Dates (0)")).partial
     with pytest.raises(SourceUnavailable):
         observation(html.replace("Dates (6)", "Layout changed"))
 
@@ -211,7 +212,11 @@ def test_browser_reader_to_agent_preserves_facts_without_account_data_or_model_e
         result = backend.result(run, REQUEST)
         assert "synthetic-private" not in str(messages) + str(result)
         assert "Unsubscribe" not in str(messages) + str(result)
-        course = result["courses"][0]
+        course = next(
+            course
+            for course in result["courses"]
+            if course["sessions"][0]["starts_at"] == "2026-11-02T18:30:00-08:00"
+        )
         assert course["availability"] == "full"
         assert course["waitlist_count"] == 2
         assert course["user_waitlist_position"] is None

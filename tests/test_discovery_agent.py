@@ -68,6 +68,65 @@ class AreaBackend(ReplayBackend):
 
 
 @pytest.mark.benchmark
+def test_area_preflight_reserves_coverage_and_hides_exhausted_search_tool():
+    backend = AreaBackend()
+    query = request().model_copy(
+        update={"search_mode": "area", "nearby_cities": ("Santa Clara", "Cupertino")}
+    )
+    searches = [
+        ("San Jose", "overview"),
+        ("San Jose", "registration"),
+        ("San Jose", "schedule"),
+        ("Santa Clara", "overview"),
+        ("Cupertino", "overview"),
+    ]
+    reads = iter(("seasonal-schedule", "dated-registration", "schedule-index"))
+
+    def respond(messages, info):
+        tools = {tool.name: tool for tool in info.function_tools}
+        assert backend.search_calls == [city + "|" + focus for city, focus in searches]
+        assert "search_courses" not in tools
+        assert "read_source" in tools
+        if source := next(reads, None):
+            return ModelResponse([ToolCallPart("read_source", {"source_id": source})])
+        return ModelResponse([ToolCallPart("finish_discovery", {"outcome": "sources_checked"})])
+
+    run = asyncio.run(
+        run_discovery_agent(
+            query, backend, FunctionModel(respond), limits=DiscoveryLimits(searches=5)
+        )
+    )
+    assert run.searched_cities == ("San Jose", "Santa Clara", "Cupertino")
+    assert backend.search_calls == [city + "|" + focus for city, focus in searches]
+    assert run.model_requests == 4 and run.tool_calls == 8
+
+
+def test_required_search_gate_rejects_optional_query_without_spending_search_budget():
+    async def scenario():
+        backend = AreaBackend()
+        query = request().model_copy(
+            update={"search_mode": "area", "nearby_cities": ("Santa Clara", "Cupertino")}
+        )
+        state = ResearchState(query, backend, DiscoveryLimits(searches=6))
+        await state.search_courses(query.city)
+        with pytest.raises(ModelRetry, match="mandatory search coverage"):
+            await state.search_courses("Santa Clara", "registration")
+        assert state.search_attempts == len(backend.search_calls) == 1
+        await state.search_courses(query.city, "registration")
+        await state.search_courses(query.city, "schedule")
+        with pytest.raises(ModelRetry, match="mandatory search coverage"):
+            await state.search_courses("Santa Clara", "schedule")
+        assert state.search_attempts == len(backend.search_calls) == 3
+        await state.search_courses("Santa Clara")
+        await state.search_courses("Cupertino")
+        assert state.required_search_options() is None
+        await state.search_courses("Santa Clara", "registration")
+        assert state.search_attempts == len(backend.search_calls) == 6
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.benchmark
 def test_area_discovery_cannot_spend_reads_before_search_coverage_or_skip_new_sources():
     async def scenario():
         backend = AreaBackend()
@@ -312,6 +371,43 @@ def test_empty_search_can_finish_without_fabricated_sessions():
 def test_invalid_time_zone_has_validation_error():
     with pytest.raises(ValidationError):
         type(request()).model_validate({**request().model_dump(), "timezone": "Not/AZone"})
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1/",
+        "https://private.example.ts.net/",
+        "https://user:password@example.org/",
+        "https://example.org/Online/PublicIcal/secret",
+        "https://example.org/classes?token=secret",
+        "file:///tmp/private",
+    ],
+)
+def test_source_navigation_hints_reject_private_or_credential_urls(url):
+    with pytest.raises(ValidationError):
+        SourceRef(id="source", title="Course", url=url)
+
+
+def test_source_navigation_metadata_preserves_opaque_read_boundary():
+    async def scenario():
+        state = ResearchState(request(), ReplayBackend(), DiscoveryLimits())
+        ref = SourceRef(
+            id="operator", title="Adult classes", url="https://club.example.org/adults#courses"
+        )
+        state.register((ref,))
+        assert ref.url == "https://club.example.org/adults"
+        document = SourceDocument(source=ref, text="Public adult course catalog")
+        model_document = state.model_document(document)
+        assert model_document["source"] == ref.model_dump(mode="json")
+        assert model_document["source_id"] == ref.id
+        with pytest.raises(AgentDiscoveryError, match="undiscovered"):
+            await state.read_source(ref.url)
+        with pytest.raises(AgentDiscoveryError, match="identity changed"):
+            state.register((ref.model_copy(update={"url": "https://other.example.org/"}),))
+        assert state.read_attempts == 0
+
+    asyncio.run(scenario())
 
 
 def test_sources_cannot_claim_another_sources_evidence():

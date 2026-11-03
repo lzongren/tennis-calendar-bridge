@@ -26,16 +26,31 @@ keys, hostnames, raw model messages and provider error text are not included.
 The command exits nonzero if any case or network-audit check fails. Compare
 individual checks, not only a combined score. Never publish private replay inputs.
 
-The evidence replay request uses `source_check` mode. It verifies supplied records,
+The evidence replay request defaults to `source_check` mode. It verifies supplied records,
 neighboring-city tool use and required detail closure, not area-search coverage.
 The unseeded live `clinic-search` case uses the default `area` mode and must pass
 the overview, registration and schedule search gates before reading pages.
 
-Each of four scenarios is repeated serially. The scorer checks exact facts,
+Use `--search-mode area` with `benchmarks.agent_discovery` to exercise application
+search preflight against the same five replay scenarios. Compare before/after runs
+in that same mode; it is not live-web recall. The report records `search_mode`.
+Mandatory queries still count toward tool/search limits and audits, but the model
+starts from their structured results instead of choosing each fixed query in turn.
+
+Each of five scenarios is repeated serially. The scorer checks exact facts,
 complete source IDs, retrieval, neighboring-city expansion, denied tool attempts
 and partial-result state. Facts are constructed by the same deterministic Python
 reconciler used by the agent, not restated by the model. The expected results are
 separate from that implementation.
+
+`navigation_failure` adds an optional operator page whose course extraction failed
+but whose observed schedule link remains usable. The original registration facts
+and evidence oracle are unchanged. This case must retain an unavailable-source
+audit and partial coverage; it cannot pass by relabeling the failed page as checked.
+It is a synthetic failure around the real-course transcription, not a live search.
+The injection case also puts hostile text in the source title so it reaches the
+planner's actual metadata boundary, including area preflight input. The original
+course facts are unchanged; page-body text alone no longer reaches the planner.
 
 An audit hook limits DNS/connections to the configured model destination and
 blocks subprocesses during the CLI run. It is installed after imports and
@@ -49,7 +64,8 @@ SDK's platform cache to `Unknown`. This narrowly scoped compatibility shim is
 covered by a regression test and must be rechecked when upgrading the SDK.
 
 The `SourceBackend` boundary must produce source-owned, parsed records. The model
-receives only public page text, discovered opaque source IDs and candidate keys.
+receives discovered opaque source IDs, public navigation metadata and bounded
+candidate title/date summaries, not full page bodies or internal session keys.
 It cannot submit prices, authority, identities or personal booking status. Source
 adapters still need real-page fixtures and live retrieval acceptance before the
 worker can switch to this loop. These fixtures cannot prove that boundary correct.
@@ -76,12 +92,24 @@ Live public retrieval requires subprocesses and public connections, so this mode
 does **not** apply or claim the model-only network guard. It is not a full-city
 recall test or a verification of current seats.
 
-All modes use a fixed November 1, 2026 Pacific anchor. A changed source should be
+Modes use a fixed November 1, 2026 Pacific anchor, except `anonymous-series`, which
+starts November 3 to exercise a past selected occurrence. A changed source should be
 investigated against the published schedule, not silently accommodated by relaxing
 the expected result. Public document workers import the installed package under
 Python isolated mode; install the candidate wheel in the evaluation environment
 so parent and worker code match. No production service restart is needed to run
 these checks. Keep failures and subsequent reruns separate in the results report.
+
+Each repetition includes a bounded `stage_metrics` timeline, including failed runs.
+It separates planner-model calls, extractor-model calls, source reads and searches.
+Times use a monotonic clock; token counts are the SDK usage values on completed
+model responses, not an independent tokenizer measurement. Calls without a response
+(including cancelled requests) use `null`, not zero, for token counts. Stage
+intervals can overlap and must not be added to claim wall time. Only fixed labels,
+durations, outcomes and token counts are retained; no URLs, prompts, responses,
+credentials or exception messages enter these measurements. At most 128 intervals
+are retained and `dropped` reports overflow. This is local benchmark instrumentation,
+not cloud tracing, and it changes neither the factual oracle nor runtime budgets.
 
 Offline browser acceptance now runs both legacy and agent paths through the actual
 worker, persistence, API and desktop/mobile calendar with controlled sources and a
@@ -98,7 +126,9 @@ transcription in `discovery_benchmark/courtreserve_detail.html`. The backend,
 deterministic registration adapter, Pydantic AI loop and reconciler run normally.
 The November 2 screenshot oracle remains unchanged. Checks include exact start,
 end, price, full/waitlist facts, no inferred personal queue position, provenance
-and an explicit partial result for the unparsed series dates.
+and an explicit partial result for incomplete series enumeration. The original
+occurrence is selected by its date before scoring; additional row-owned dates do
+not replace or relax its exact factual assertions.
 
 The capture and validation clock are fixed for replay. No real browser, login or
 search is performed by this command. It uses the model-only network guard and
@@ -128,3 +158,20 @@ course name alone cannot pass the search case. A supplied-link pass does not
 compensate for a search failure, and successful search results alone do not prove
 that the registration detail was found. `clinic-search` rejects replay mode and
 preseeded source URLs. Keep baseline failures and reruns separate.
+
+## Anonymous Series
+
+```sh
+python -m benchmarks.source_discovery --case anonymous-series \
+  --repeats 2 --output /tmp/anonymous-series-replay.json
+python -m benchmarks.source_discovery --live-web --case anonymous-series \
+  --source-url "$PUBLIC_DETAIL_URL" --repeats 2 --output /tmp/anonymous-series-live.json
+```
+
+The November 3 observation supplies a selected November 2 course with visible
+later dates. Its 28-day window must contain November 9, 16, 23 and 30 at
+18:30-19:50 Pacific, each $54. Only the November 9 row establishes Full; the other
+rows leave availability unknown. December 7 is outside this window. Prices, times
+and status belong to each row; no queue count or personal position is inferred.
+The result remains partial because neither pagination nor year transitions are
+fully established. This is a known-source check and cannot satisfy `clinic-search`.

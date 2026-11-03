@@ -8,6 +8,7 @@ import httpx2 as httpx
 import pytest
 from pydantic import SecretStr, ValidationError
 from pydantic_ai import Agent, ToolOutput
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from tennis_overview.course_extraction import ExtractionReport
 
@@ -16,6 +17,67 @@ from tennis_overview.private_model import BoundedModelTransport, PrivateModelCon
 
 KEY = SecretStr("fake-key-only-for-test-fixtures")
 ENDPOINT = "https://model.example.ts.net/v1"
+
+
+@pytest.mark.benchmark
+@pytest.mark.parametrize("recovers", [True, False])
+def test_private_tool_output_is_locally_enforced_without_server_tool_forcing(recovers):
+    async def check():
+        calls = []
+
+        def handler(request):
+            payload = json.loads(request.content)
+            calls.append(payload)
+            assert payload["tool_choice"] == "auto"
+            assert payload["tools"][0]["function"]["name"] == "extract_courses"
+            message = {"role": "assistant", "content": "No matching courses on this page."}
+            if recovers and len(calls) == 2:
+                message = {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "fixture_call",
+                            "type": "function",
+                            "function": {
+                                "name": "extract_courses",
+                                "arguments": '{"courses": []}',
+                            },
+                        }
+                    ],
+                }
+            return httpx.Response(
+                200,
+                json={
+                    "id": "fixture",
+                    "created": 0,
+                    "model": "local-alias",
+                    "object": "chat.completion",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": "tool_calls" if "tool_calls" in message else "stop",
+                            "message": message,
+                        }
+                    ],
+                },
+            )
+
+        config = PrivateModelConfig(base_url=ENDPOINT, model="local-alias", api_key=KEY)
+        async with private_model(config, transport=httpx.MockTransport(handler)) as model:
+            agent = Agent(
+                model, output_type=ToolOutput(ExtractionReport, name="extract_courses"), retries=1
+            )
+            if recovers:
+                assert (
+                    await agent.run("Read this synthetic public course page.")
+                ).output.courses == ()
+            else:
+                with pytest.raises(UnexpectedModelBehavior):
+                    await agent.run("Read this synthetic public course page.")
+        assert len(calls) == 2
+
+    asyncio.run(check())
 
 
 def test_private_alias_receives_complete_nested_schema_without_refs():
@@ -148,7 +210,7 @@ def test_response_size_limit_including_compression(compressed):
     asyncio.run(check())
 
 
-@pytest.mark.parametrize("status", [307, 429, 503])
+@pytest.mark.parametrize("status", [307, 422, 429, 503])
 def test_client_does_not_follow_redirect_or_retry(monkeypatch, status):
     from pydantic_ai.messages import ModelRequest, UserPromptPart
     from pydantic_ai.models import ModelRequestParameters

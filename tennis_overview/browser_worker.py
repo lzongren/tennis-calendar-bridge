@@ -17,7 +17,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from .browser_protocol import MAX_RESPONSE, SOURCE_ERRORS, BrowserLink, BrowserReply, BrowserRequest
+from .browser_protocol import (
+    MAX_RESPONSE,
+    SEARCH_UNAVAILABLE,
+    SOURCE_ERRORS,
+    BrowserLink,
+    BrowserReply,
+    BrowserRequest,
+)
 
 ROOT = Path.home() / ".config" / "tennis-browser"
 ACTIVE: set[subprocess.Popen[bytes]] = set()
@@ -108,7 +115,8 @@ def execute(request: BrowserRequest, root: Path) -> dict[str, Any]:
         return {"error": "worker_unavailable"}
     try:
         value = json.loads(raw)
-        if isinstance(value.get("error"), str) and value["error"] in SOURCE_ERRORS | {
+        expected = SOURCE_ERRORS if request.operation == "read" else {SEARCH_UNAVAILABLE}
+        if isinstance(value.get("error"), str) and value["error"] in expected | {
             "worker_unavailable"
         }:
             return {"error": value["error"]}
@@ -119,6 +127,8 @@ def execute(request: BrowserRequest, root: Path) -> dict[str, Any]:
 
 def child_reply(request: BrowserRequest, root: Path, scratch: Path | None) -> dict[str, Any]:
     """Keep page failures distinct from worker faults without leaking exception text."""
+    from ddgs.exceptions import DDGSException
+
     from .browser_runtime import BrowserReadError, read_browser
     from .public_web import search_courses
 
@@ -134,7 +144,15 @@ def child_reply(request: BrowserRequest, root: Path, scratch: Path | None) -> di
         return reply.model_dump(mode="json")
     except BrowserReadError as error:
         code = str(error)
-        return {"error": code if code in SOURCE_ERRORS else "worker_unavailable"}
+        return {
+            "error": code
+            if request.operation == "read" and code in SOURCE_ERRORS
+            else "worker_unavailable"
+        }
+    except DDGSException:
+        return {
+            "error": SEARCH_UNAVAILABLE if request.operation == "search" else "worker_unavailable"
+        }
     except Exception:
         return {"error": "worker_unavailable"}
 
