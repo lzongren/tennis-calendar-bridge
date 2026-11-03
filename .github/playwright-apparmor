@@ -1,0 +1,9 @@
+abi <abi/4.0>,
+include <tunables/global>
+
+# GitHub-hosted Ubuntu 24.04 restricts user namespaces for downloaded Chromium.
+# This CI-only exception retains Chromium's own sandbox without a global sysctl.
+# https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md
+profile tennis-playwright-ci /home/runner/.cache/ms-playwright/chromium-*/chrome-linux*/chrome flags=(unconfined) {
+  userns,
+}

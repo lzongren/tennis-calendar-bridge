@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -45,6 +45,12 @@ jobs:
             fi
           done
           python -m playwright install --with-deps chromium
+
+      - name: Allow Chromium sandbox namespaces on the CI runner
+        run: |
+          # Keep Chromium's sandbox enabled; allow only the installed test browser.
+          sudo install -m 0644 .github/playwright-apparmor /etc/apparmor.d/tennis-playwright-ci
+          sudo apparmor_parser -r /etc/apparmor.d/tennis-playwright-ci
 
       - name: Run tests
         run: pytest
