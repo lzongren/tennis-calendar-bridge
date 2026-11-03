@@ -166,6 +166,14 @@ must mark the result partial. Failed required details and all-failed searches st
 retain the previous snapshot. Model HTTP failures and the shared model-request
 budget remain fatal; this isolation does not introduce extra retries.
 
+A read tool's deadline covers both retrieval and extraction. Once that deadline
+expires, the source is unavailable for this run and is not automatically read a
+second time. Adapter-reported transient errors or early transport timeouts retain
+the existing one-retry allowance; they are distinct from exhausting the enclosing
+tool budget. Required-source failures still abort, optional failures remain partial,
+and external cancellation propagates without caching a completed failure. The
+total run deadline and model-request limits are unchanged.
+
 ## Geographic Coverage
 
 Area search resolves exact city names and aliases against the pinned offline
