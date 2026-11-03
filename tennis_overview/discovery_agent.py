@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
@@ -337,27 +338,22 @@ class ResearchState:
             )
         if cities := self.unsearched_nearby_cities():
             raise ModelRetry("Search nearby cities with overview focus: " + "; ".join(cities))
-        required = {sid for doc in self.documents.values() for sid in doc.required_ids}
-        required.update(sid for search in self.searches.values() for sid in search.required_ids)
+        required = self.required_source_ids()
         if required & self.failed_sources:
             raise AgentDiscoveryError(
                 "Required registration details unavailable; previous results retained."
             )
         missing = sorted(required - self.documents.keys())
+        obligations = []
         if missing:
-            raise ModelRetry("Read required detail source IDs: " + ", ".join(missing))
-        if self.request.search_mode == "area":
-            seen: set[str] = set()
-            attempted = self.documents.keys() | self.failed_sources
-            for key, search in self.searches.items():
-                ids = {ref.id for ref in search.sources}
-                new_ids = ids - seen
-                seen.update(ids)
-                if new_ids and not new_ids & attempted:
-                    raise ModelRetry(
-                        "Inspect a relevant newly discovered source from this search before "
-                        "finishing: " + ", ".join(sorted(new_ids)[:8])
-                    )
+            obligations.append("Read required detail source IDs: " + ", ".join(missing))
+        if groups := self.unattempted_search_groups():
+            obligations.append(
+                "Inspect a relevant newly discovered source from EACH search group before "
+                "finishing (one source ID per group): " + json.dumps(groups)
+            )
+        if obligations:
+            raise ModelRetry("; ".join(obligations))
         records = [record for doc in self.documents.values() for record in doc.records]
         if not records:
             unread = sorted(self.registry.keys() - self.documents.keys() - self.failed_sources)
@@ -376,6 +372,47 @@ class ResearchState:
         if output.outcome == "no_results" and records:
             raise ModelRetry("Retrieved candidates exist; finish with sources_checked.")
         return output
+
+    def required_source_ids(self) -> set[str]:
+        return {sid for doc in self.documents.values() for sid in doc.required_ids} | {
+            sid for search in self.searches.values() for sid in search.required_ids
+        }
+
+    def unattempted_search_groups(self) -> tuple[tuple[str, ...], ...]:
+        if self.request.search_mode != "area":
+            return ()
+        seen: set[str] = set()
+        attempted = self.documents.keys() | self.failed_sources
+        groups = []
+        for search in self.searches.values():
+            ids = {ref.id for ref in search.sources}
+            new_ids = ids - seen
+            seen.update(ids)
+            if new_ids and not new_ids & attempted:
+                groups.append(tuple(sorted(new_ids)))
+        return tuple(groups)
+
+    def progress_instructions(self) -> str:
+        # Only bounded application state enters instructions, never page text or titles.
+        progress = {
+            "primary_focuses": self.unsearched_focuses(),
+            "nearby_searches_remaining": len(self.unsearched_nearby_cities()),
+            "required_detail_ids": sorted(self.required_source_ids() - self.documents.keys()),
+            "unattempted_search_groups": self.unattempted_search_groups(),
+            "unread_if_no_candidates": sorted(
+                self.registry.keys() - self.documents.keys() - self.failed_sources
+            )
+            if not any(doc.records for doc in self.documents.values())
+            else [],
+            "reads_remaining": max(0, self.limits.reads - self.read_attempts),
+        }
+        return (
+            "Current research obligations: complete mandatory searches using the current tool "
+            "schema, then read required details and at least one ID per unattempted search "
+            "group before finish_discovery. Failed sources must not be retried. "
+            "These are minimum coverage requirements, not proof of exhaustive discovery.\n"
+            + json.dumps(progress)
+        )
 
     def unsearched_focuses(self) -> tuple[SearchFocus, ...]:
         if self.request.search_mode != "area":
@@ -472,6 +509,7 @@ async def run_discovery_agent(
         model_settings={"temperature": 0, "max_tokens": 1024, "parallel_tool_calls": False},
     )
     agent.instrument = False
+    agent.instructions(state.progress_instructions)
     agent.output_validator(state.complete)
     try:
         async with asyncio.timeout(state.limits.total_seconds):
