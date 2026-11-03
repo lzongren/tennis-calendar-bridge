@@ -13,12 +13,13 @@ from .browser_documents import BrowserDocument
 from .browser_protocol import (
     AUTH_HOST,
     MAX_RESPONSE,
+    SEARCH_UNAVAILABLE,
     SOURCE_ERRORS,
     BrowserReply,
     BrowserRequest,
     read_url,
 )
-from .discovery_agent import AgentDiscoveryError, SourceUnavailable
+from .discovery_agent import AgentDiscoveryError, SourceUnavailable, TransientSourceError
 from .private_model import PrivateModelConfig
 from .public_web import Page, PageLink
 from .public_documents import read_public_document
@@ -60,6 +61,13 @@ class BrowserClient:
                             raise AgentDiscoveryError("Browser response exceeded size limit")
                     if response.status_code != 200:
                         error = json.loads(raw).get("error")
+                        if (
+                            response.status_code == 503
+                            and request.operation == "search"
+                            and error == SEARCH_UNAVAILABLE
+                        ):
+                            # The research loop owns the single bounded retry.
+                            raise TransientSourceError("Public search temporarily unavailable")
                         if (
                             response.status_code == 503
                             and request.operation == "read"

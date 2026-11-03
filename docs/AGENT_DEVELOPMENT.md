@@ -231,8 +231,17 @@ Only a recognized HTTP 503 read response (`page_unavailable`, `login_required`,
 `membership_required` or `browser_attention_required`) can mark one source
 unavailable. Optional failures leave an explicit partial result; required-detail
 or all-source failures still abort and preserve the previous snapshot. These
-responses never trigger login or a challenge bypass. Search failures remain fatal.
+responses never trigger login or a challenge bypass.
 Public HTTP error documents are source failures, not successful empty pages.
+
+Expected search-provider failures have a separate `search_unavailable` response.
+Only HTTP 503 with that code on a search request becomes `TransientSourceError`.
+The existing research loop may repeat the same query once within its time budget;
+the client adds no retries. Missing or unrecognized search results are errors, not
+empty catalogs. A second failure aborts discovery and preserves the previous
+snapshot. This behavior does not switch search providers or attempt to bypass
+verification. Read requests, authentication errors and unknown worker failures
+cannot acquire this retry behavior by returning a search error label.
 
 Process exit, malformed/oversized output, browser disconnection, unknown exceptions,
 service authentication, transport failure and the legacy ambiguous

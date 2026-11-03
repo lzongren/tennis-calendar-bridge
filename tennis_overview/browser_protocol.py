@@ -14,6 +14,7 @@ from .public_web import public_url
 Text = Annotated[str, Field(max_length=240)]
 AUTH_HOST = "app.courtreserve.com"
 MAX_RESPONSE = 192_000
+SEARCH_UNAVAILABLE = "search_unavailable"
 SOURCE_ERRORS = frozenset(
     {"page_unavailable", "login_required", "membership_required", "browser_attention_required"}
 )
