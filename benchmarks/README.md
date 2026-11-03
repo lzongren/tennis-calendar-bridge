@@ -76,7 +76,8 @@ Live public retrieval requires subprocesses and public connections, so this mode
 does **not** apply or claim the model-only network guard. It is not a full-city
 recall test or a verification of current seats.
 
-All modes use a fixed November 1, 2026 Pacific anchor. A changed source should be
+Modes use a fixed November 1, 2026 Pacific anchor, except `anonymous-series`, which
+starts November 3 to exercise a past selected occurrence. A changed source should be
 investigated against the published schedule, not silently accommodated by relaxing
 the expected result. Public document workers import the installed package under
 Python isolated mode; install the candidate wheel in the evaluation environment
@@ -98,7 +99,9 @@ transcription in `discovery_benchmark/courtreserve_detail.html`. The backend,
 deterministic registration adapter, Pydantic AI loop and reconciler run normally.
 The November 2 screenshot oracle remains unchanged. Checks include exact start,
 end, price, full/waitlist facts, no inferred personal queue position, provenance
-and an explicit partial result for the unparsed series dates.
+and an explicit partial result for incomplete series enumeration. The original
+occurrence is selected by its date before scoring; additional row-owned dates do
+not replace or relax its exact factual assertions.
 
 The capture and validation clock are fixed for replay. No real browser, login or
 search is performed by this command. It uses the model-only network guard and
@@ -128,3 +131,20 @@ course name alone cannot pass the search case. A supplied-link pass does not
 compensate for a search failure, and successful search results alone do not prove
 that the registration detail was found. `clinic-search` rejects replay mode and
 preseeded source URLs. Keep baseline failures and reruns separate.
+
+## Anonymous Series
+
+```sh
+python -m benchmarks.source_discovery --case anonymous-series \
+  --repeats 2 --output /tmp/anonymous-series-replay.json
+python -m benchmarks.source_discovery --live-web --case anonymous-series \
+  --source-url "$PUBLIC_DETAIL_URL" --repeats 2 --output /tmp/anonymous-series-live.json
+```
+
+The November 3 observation supplies a selected November 2 course with visible
+later dates. Its 28-day window must contain November 9, 16, 23 and 30 at
+18:30-19:50 Pacific, each $54. Only the November 9 row establishes Full; the other
+rows leave availability unknown. December 7 is outside this window. Prices, times
+and status belong to each row; no queue count or personal position is inferred.
+The result remains partial because neither pagination nor year transitions are
+fully established. This is a known-source check and cannot satisfy `clinic-search`.

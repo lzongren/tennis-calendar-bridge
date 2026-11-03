@@ -635,3 +635,48 @@ This validates diagnostics and anonymous extraction, not autonomous recall.
 Local gates passed: **639 tests**, **49 benchmark cases**, typing across **49
 modules**, Ruff/format, wheel build and Twine. Production and login permissions
 are unchanged. Original-course discovery remains an unmet release gate.
+
+## Anonymous Series Evidence: 2026-11-03
+
+Anonymous inspection of the original public detail showed later row-owned dates
+that the worker discarded. Following its back control returned to the previously
+observed portal, not an alternative public catalog. The user chose to keep discovery
+anonymous and defer authorized-login development. No stored login profile was used.
+
+A new structural transcription retains the visible November 9, 16, 23, 30 and
+December 7 rows without real titles, IDs or action controls. For a November 3
+28-day window, the first four must appear at 18:30-19:50 Pacific and $54 each.
+Only November 9 establishes Full; the others remain unknown. December 7 is outside
+the window. The baseline returned no occurrences because the selected November 2
+date was past. Eight new targeted assertions failed before the change.
+
+The worker now retains up to seven visible rows, and the adapter parses their
+fields independently. Missing fields never inherit the selected occurrence's
+price/status. Malformed rows preserve a partial result; conflicting duplicate
+occurrences reject the source. Main and row evidence use the same date/weekday,
+time-zone and request-window checks. No year transition or extra occurrence URL
+is invented. Original screenshot assertions now locate their occurrence by date,
+not result ordering; its expected price, time and waitlist facts are unchanged.
+
+Initial live series runs failed **2/2** after successful retrieval (**16.60s /
+9.78s**, three model requests each). A diagnostic preserving the tool signature
+confirmed that the model passed an internal session key to `read_source`, which
+correctly rejected it. One diagnostic that inadvertently changed the tool signature
+is excluded from acceptance evidence. The planner now sees a candidate count, not
+internal reconciliation IDs; unknown-source enforcement is unchanged.
+
+The subsequent real Qwen/private-browser runs passed **2/2**, **13.95s / 7.66s**,
+three model requests, two tool calls, four courses and zero denied attempts each.
+The original anonymous detail regression also passed **2/2**, **10.49s / 7.48s**,
+with the same request/tool counts and unchanged original facts. These are known-link
+tests, not autonomous search successes. Series coverage remains explicitly partial.
+
+Only the experimental browser worker and isolated VPS evaluation code were updated;
+the worker's previous installed package was copied for rollback. Production app,
+ingress and authentication permissions remain unchanged. Unseeded original-course
+recall is still an unmet release gate and was not rerun for this extraction change.
+
+Final local gates: **653 tests**, **51 benchmark cases**, typing across **49 modules**,
+Ruff/format, wheel build and Twine passed. The added tests cover row ownership,
+past-selected-date filtering, duplicate conflicts, normalized source URLs, hidden
+fields, browser sanitization and internal-ID separation from planner tool inputs.

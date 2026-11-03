@@ -16,7 +16,7 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 from .browser_documents import BrowserDocument
 from .course_evidence import SessionEvidence
 from .course_extraction import CourseCandidate, CourseExtractor
-from .courtreserve_discovery import courtreserve_observation
+from .courtreserve_discovery import RegistrationOccurrence, courtreserve_observation
 from .discovery_geography import nearby_cities
 from .discovery_agent import (
     DiscoveryRequest,
@@ -162,9 +162,37 @@ class PublicSourceBackend:
                     raise SourceUnavailable("Browser observation does not match requested source")
                 registration = courtreserve_observation(document, request, now=self.clock())
                 page = registration.page
-                courses: tuple[CourseCandidate, ...] = (
-                    (registration.course,) if registration.course else ()
+                observations = (
+                    RegistrationOccurrence(
+                        registration.course, registration.availability, registration.waitlist_count
+                    ),
+                    *registration.additional,
                 )
+                owned: dict[str, RegistrationOccurrence] = {}
+                for item in observations:
+                    if item.course is None:
+                        continue
+                    previous = owned.get(item.course.id)
+                    if (
+                        previous is not None
+                        and previous.course is not None
+                        and (
+                            previous.course.sessions != item.course.sessions
+                            or previous.course.price != item.course.price
+                            or previous.availability != item.availability
+                            or previous.waitlist_count != item.waitlist_count
+                        )
+                    ):
+                        raise SourceUnavailable("Conflicting registration occurrence")
+                    owned[item.course.id] = item
+                courses: tuple[CourseCandidate, ...] = tuple(
+                    item.course for item in owned.values() if item.course is not None
+                )
+                registration_facts = {
+                    item.course.id: (item.availability, item.waitlist_count)
+                    for item in owned.values()
+                    if item.course is not None
+                }
             else:
                 page = document
                 if not page.links and len(page.text.split()) < 5:
@@ -206,8 +234,10 @@ class PublicSourceBackend:
                         starts_at=occurrence.starts_at if occurrence else None,
                         ends_at=occurrence.ends_at if occurrence else None,
                         price_usd=usd_price(course.price),
-                        availability=registration.availability if registration else "unknown",
-                        waitlist_count=registration.waitlist_count if registration else None,
+                        availability=registration_facts[course.id][0]
+                        if registration
+                        else "unknown",
+                        waitlist_count=registration_facts[course.id][1] if registration else None,
                     )
                     if key in records and records[key] != record:
                         raise SourceUnavailable("Ambiguous source occurrence")

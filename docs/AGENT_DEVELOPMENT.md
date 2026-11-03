@@ -220,10 +220,23 @@ Explicit years remain authoritative; ambiguous DST times are rejected. A
 `Register` button is not proof of availability, and personal `Waitlisted` state
 is not a queue position or count.
 
-Only the selected occurrence is parsed in this increment. An expanded series
-marks the result partial; its other dates do not inherit the first occurrence's
-price or capacity. Unknown status remains unknown. The adapter does not silently
-fall back to model-generated registration facts.
+The selected occurrence and up to seven visible series rows are parsed separately.
+Each row must own its date and time; price and capacity never inherit from the
+selected occurrence. A past selected date does not suppress later rows inside the
+requested 28-day window. Row date labels use the same fresh-capture year and weekday
+validation as the selected date; ambiguous year transitions are not inferred.
+Unknown status remains unknown, including rows showing a Register button without
+a capacity field. Malformed rows are omitted with partial coverage; conflicting
+duplicate occurrences invalidate the source. Series enumeration remains partial,
+even if every currently visible row was parsed. Links identify the source series
+page, not an invented occurrence-specific registration URL.
+
+The browser sends only visible date/time/price/status fields from those rows, never
+their action controls or surrounding account text. The planner receives a candidate
+count, not internal session keys: those keys are reconciliation identities, not
+readable source IDs. Unknown read IDs still abort; this does not grant retries or
+additional browser permissions. The adapter does not fall back to model-generated
+registration facts.
 
 The production worker still uses the public document reader. There is **no
 autonomous browser transport enabled yet**: interactive browser inspection and
@@ -276,6 +289,12 @@ The opt-in `benchmarks.source_discovery --case anonymous` replay exercises the
 Pydantic AI loop. With `--live-web --source-url <PUBLIC_DETAIL_URL>`, it uses the
 private browser worker and fresh evidence. This is a known-source extraction
 benchmark, not proof that city-wide search discovers that URL.
+
+`anonymous-series` adds a separate November 3 observation with four subsequent
+occurrences in the requested window. Its source URL is supplied explicitly, so it
+tests anonymous series extraction and the local-model loop, not autonomous recall.
+Authentication remains disabled by user decision. A future authorized-login path
+is separate work, not a prerequisite silently enabled by the current agent.
 
 Catalog enumeration remains partial: the current browser reader follows at most
 four matching adult cards from the provider's default list. It does not yet apply

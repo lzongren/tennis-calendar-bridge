@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from urllib.parse import parse_qsl, urlsplit
@@ -21,12 +21,20 @@ from .public_web import Page, public_url
 
 
 @dataclass(frozen=True)
+class RegistrationOccurrence:
+    course: CourseCandidate | None
+    availability: Availability
+    waitlist_count: int | None
+
+
+@dataclass(frozen=True)
 class RegistrationObservation:
     page: Page
     course: CourseCandidate | None
     availability: Availability
     waitlist_count: int | None
     partial: bool
+    additional: tuple[RegistrationOccurrence, ...] = ()
 
 
 def _text(root: Tag, selector: str, *, required: bool = True) -> str:
@@ -92,11 +100,12 @@ def _times(label: str, day: date, zone: ZoneInfo) -> tuple[datetime, datetime]:
 def courtreserve_observation(
     document: BrowserDocument, request: DiscoveryRequest, *, now: datetime
 ) -> RegistrationObservation:
-    """Read only the selected occurrence. Other series dates are not inferred."""
+    """Read selected and visible row-owned occurrences, never infer a series."""
     try:
         url = public_url(document.url)
     except ValueError:
         raise SourceUnavailable("Unsafe browser course URL") from None
+    document = replace(document, url=url)
     parsed = urlsplit(url)
     query = parse_qsl(parsed.query, keep_blank_values=True)
     if (
@@ -151,6 +160,77 @@ def courtreserve_observation(
         if not series:
             raise SourceUnavailable("Unrecognized registration series")
         partial = partial or int(series[1]) > 1
+    selected = _occurrence(
+        heading, category, date_text, time_text, price, status, document, request
+    )
+    additional = []
+    lists = root.select('[data-testid="events-details-dates-list"]')
+    if len(lists) == 1:
+        for row in lists[0].find_all(recursive=False)[:7]:
+            if not isinstance(row, Tag):
+                continue
+            match = re.fullmatch(
+                r"events-details-date-row-(\d{1,3})", str(row.get("data-testid", ""))
+            )
+            if not match:
+                continue
+            try:
+                fields = {
+                    name: _text(
+                        row,
+                        f'[data-testid="events-details-date-row-{name}-{match[1]}"]',
+                        required=name in {"date", "time"},
+                    )
+                    for name in ("date", "time", "price", "slots")
+                }
+                # Observed row labels are split weekday/day/month cells with no year.
+                label = re.fullmatch(r"([A-Z]{3})\s+(\d{1,2})\s+([A-Z]{3})", fields["date"])
+                if not label:
+                    continue
+                row_date = f"{label[1].title()}, {label[3].title()} {label[2]}"
+                additional.append(
+                    _occurrence(
+                        heading,
+                        category,
+                        row_date,
+                        fields["time"],
+                        fields["price"],
+                        fields["slots"],
+                        document,
+                        request,
+                    )
+                )
+            except SourceUnavailable:
+                # A malformed row cannot borrow the selected occurrence's facts.
+                continue
+    return RegistrationObservation(
+        replace(
+            page,
+            text="\n\n".join(
+                (
+                    page.text,
+                    *(item.course.evidence for item in additional if item.course is not None),
+                )
+            ),
+        ),
+        selected.course,
+        selected.availability,
+        selected.waitlist_count,
+        partial,
+        tuple(additional),
+    )
+
+
+def _occurrence(
+    heading: str,
+    category: str,
+    date_text: str,
+    time_text: str,
+    price: str,
+    status: str,
+    document: BrowserDocument,
+    request: DiscoveryRequest,
+) -> RegistrationOccurrence:
     zone = ZoneInfo(request.timezone)
     day = _date(date_text, document.captured_at.astimezone(zone).date())
     start, end = _times(time_text, day, zone)
@@ -175,17 +255,19 @@ def courtreserve_observation(
     ):
         course = accepted_course(
             {
-                "id": hashlib.sha256((parsed.path + start.isoformat()).encode()).hexdigest()[:24],
+                "id": hashlib.sha256(
+                    (urlsplit(document.url).path + start.isoformat()).encode()
+                ).hexdigest()[:24],
                 "title": heading,
                 "level": level[1] if level else "",
                 "price": f"${Decimal(price[1:]):.2f}" if price else "",
-                "signup_url": url,
-                "source_url": url,
-                "evidence": page.text,
+                "signup_url": document.url,
+                "source_url": document.url,
+                "evidence": "\n".join((heading, category, date_text, time_text, price, status)),
                 "sessions": (Occurrence(starts_at=start, ends_at=end),),
                 "schedule_basis": "registration_detail",
                 "schedule_note": "Observed " + document.captured_at.isoformat(),
             },
             request,
         )
-    return RegistrationObservation(page, course, availability, count, partial)
+    return RegistrationOccurrence(course, availability, count)

@@ -67,6 +67,28 @@ async def course_summary(page: Page) -> BrowserReply:
     body += f'<h1>{title}</h1><div data-testid="events-details-category">{category}</div></div>'
     for name, value in values.items():
         body += f'<div data-testid="events-details-{name}">{html.escape(value)}</div>'
+    lists = page.get_by_test_id("events-details-dates-list")
+    rows = lists.locator(":scope > [data-testid]")
+    if await lists.count() == 1 and await lists.is_visible() and await rows.count():
+        body += '<div data-testid="events-details-dates-list">'
+        for index in range(min(await rows.count(), 7)):
+            row = rows.nth(index)
+            tag = await row.get_attribute("data-testid") or ""
+            match = re.fullmatch(r"events-details-date-row-(\d{1,3})", tag)
+            if not match or not await row.is_visible():
+                continue
+            fields = []
+            for field in ("date", "time", "price", "slots"):
+                field_id = f"events-details-date-row-{field}-{match[1]}"
+                node = row.get_by_test_id(field_id)
+                if await node.count() != 1 or not await node.is_visible():
+                    continue
+                value = (await node.inner_text()).strip()
+                if value and len(value) <= 500:
+                    # Preserve field boundaries without sending row action/account text.
+                    fields.append(f'<div data-testid="{field_id}">{html.escape(value)}</div>')
+            body += f'<div data-testid="{tag}">' + "".join(fields) + "</div>"
+        body += "</div>"
     body += "</main>"
     return BrowserReply(
         kind="browser", url=read_url(page.url), html=body, captured_at=datetime.now(timezone.utc)
