@@ -37,6 +37,7 @@ Searcher = Callable[[str, str, int, str], Awaitable[list[dict[str, str]]]]
 # registry for operator-linked schedules and registration details.
 AREA_RESULTS_PER_QUERY = 4
 REGISTRATION_LINK = re.compile(r"register|registration|portal|bookclass|bookcourse", re.I)
+SCHEDULE_LINK = re.compile(r"schedule|timetable|calendar", re.I)
 
 
 def identity(value: str) -> str:
@@ -48,16 +49,26 @@ def related_links(page: Page) -> tuple[PageLink, ...]:
     candidates = page.link_details or tuple(PageLink(url, "") for url in page.links)
     selected = []
     for link in candidates:
-        description = link.title + " " + urlsplit(link.url).path
+        path = urlsplit(link.url).path
+        description = link.title + " " + path
         if link.url == page.url or re.search(r"pickleball|youth|junior|camp", description, re.I):
             continue
         if not re.search(
-            r"adult|tennis|clinic|schedule|register|registration|portal|bookclass|bookcourse|csc",
+            r"adult|tennis|clinic|schedule|timetable|calendar|register|registration|portal|bookclass|bookcourse|csc",
             description,
             re.I,
         ):
             continue
-        rank = 0 if REGISTRATION_LINK.search(description) else 1
+        if REGISTRATION_LINK.search(description):
+            rank = 0
+        elif SCHEDULE_LINK.search(description) or (
+            path.lower().endswith(".pdf")
+            and re.search(r"adult|clinic|csc", description, re.I)
+            and not re.search(r"rating|rules|policy|policies", description, re.I)
+        ):
+            rank = 1
+        else:
+            rank = 2
         selected.append((rank, link))
     return tuple(link for _, link in sorted(selected, key=lambda item: item[0]))
 
@@ -248,8 +259,9 @@ class PublicSourceBackend:
                     self.details[key] = course
             linked: dict[str, SourceRef] = {}
             navigation = []
+            ranked_links = related_links(page)
             if source.depth < 2:
-                for link in related_links(page)[:6]:
+                for link in ranked_links[:6]:
                     ref = self.register(
                         link.url, link.title or "Linked course source", source.depth + 1
                     )
@@ -261,7 +273,7 @@ class PublicSourceBackend:
                             link.title + " " + urlsplit(link.url).path
                         ):
                             navigation.append(ref.id)
-            partial = partial or len(related_links(page)) > 6 or self.truncated
+            partial = partial or len(ranked_links) > 6 or self.truncated
             required = []
             for url in page.required_links:
                 if url not in page.links:
