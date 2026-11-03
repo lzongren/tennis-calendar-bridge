@@ -842,3 +842,78 @@ while one search group remained unread. It ended in `UnexpectedModelBehavior`.
 No original-course recall or end-to-end performance gain is established. This
 component remains on the experimental stack; production enablement is still blocked
 by the unmet recall and runtime gates, not deferred authentication alone.
+
+## Navigation After Evidence Failure: 2026-11-03
+
+The previous unseeded run lost the target operator's registration link when course
+extraction exhausted its structured-output retries. New regression tests reproduced
+that loss on the previous code: the detail was undiscovered and the failed-read
+response contained no links. The backend now separates unavailable course evidence
+from independently observed navigation. Failed evidence cannot carry records or
+claim complete coverage; the source report and audit remain unavailable. No retry
+or budget increased, and required-source failures still abort.
+
+The original anonymous course transcription now passes through that optional failure
+with unchanged time, price, full status and detail-owned evidence. The queue remains
+unknown. Additional tests cover caching, depth/registry limits, unrelated or unsafe
+links, model outages, cancellation, all-source failure and document invariants.
+
+An initial candidate passed all five scenarios with the actual private model,
+including the new synthetic `navigation_failure` case. Durations were
+**10.91s, 4.68s, 8.53s, 4.69s and 9.64s**
+for baseline, injection, date conflict, transient read and navigation failure. The
+new case keeps the original facts/evidence oracle and additionally requires partial
+coverage and an unavailable-source audit. This replay does not establish search recall.
+
+A separate fresh anonymous read of the real operator page used an explicitly
+injected extraction failure. It retained **six links**, including **one registration
+portal**, with **zero facts**, `evidence_invalid` and partial coverage. This establishes
+the navigation/failure boundary against a real page; it is not an end-to-end model
+search or evidence that the portal's catalog is anonymously accessible.
+
+Local validation passed: **703 tests**, **66 benchmark cases**, typing across
+**50 modules**, Ruff/format, isolated wheel build and Twine. Only isolated evaluator
+code on the VPS changed; production, the browser worker, saved login state and
+ingress remain untouched.
+
+That candidate's fresh unseeded search completed with a partial result after
+**208.32s**,
+**22 model requests**, **13 tool calls**, **three courses** and no denied tool
+attempts. It reproduced the real target operator's extraction failure and retained
+the registration portal and published schedules this time. The planner nevertheless
+read other venues/directories and finished without following that portal. The
+original-course identity, facts and provenance gates therefore **still failed**.
+Five sources were checked; the failed operator remained unavailable. A completed
+partial run is not a recall pass, and differing search paths do not establish a
+causal latency improvement. Source prioritization remains a release blocker.
+
+Its known-link check passed the facts but added redundant searches: **20.64s / 13.04s**,
+**7 / 5 model requests**, **6 / 4 tools**. The global navigation-failure instruction
+was removed. Guidance now appears only in the actual failed-source response, leaving
+the normal planner instructions and observations unchanged. The final candidate's
+known-link check passed **2/2**, **14.42s / 7.94s**, three requests and two tools each,
+with unchanged anonymous facts, evidence and partial series coverage. These are
+observations of the scoped correction, not a stable latency guarantee.
+
+The final code also passed all five private-model replay scenarios: **29.29s, 7.69s,
+8.49s, 4.65s and 9.65s**, with **5, 5, 6, 5 and 6 model requests** respectively.
+The model-only process audit recorded no blocked network, DNS or process attempts.
+The full **703-test** suite and **66 benchmark cases** passed again after moving the
+guidance into the failure response.
+
+One subsequent unseeded attempt produced no terminal report: after initial search
+progress, the remote process was confirmed absent and its report remained empty,
+while the local SSH connection stayed open. No cause was established from the
+available kernel log. The stale local connection was terminated only after those
+checks. This is an incomplete observation, not a passing run or an attributed code
+failure; it was not silently replaced by a success claim.
+
+The fresh retry on final code **failed** at the existing request ceiling after
+**255.30s**, **24 model requests**, **46 registered sources** and **six checked
+sources**. It reproduced the extraction failure, retained the target operator's
+links, and this time autonomously followed its registration portal. That anonymous
+read returned `membership_required`; no login or bypass was attempted. Subsequent
+source reads consumed the remaining model budget and ended in `UsageLimitExceeded`.
+The navigation-loss fix therefore reached the intended live boundary, but original
+course recall and bounded completion still fail. This does not prove that every
+possible public route is inaccessible; it does not satisfy production acceptance.

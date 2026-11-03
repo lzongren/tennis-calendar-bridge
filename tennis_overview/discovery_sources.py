@@ -153,6 +153,7 @@ class PublicSourceBackend:
         try:
             document = await self.reader(source.url)
             registration = None
+            evidence_unavailable = False
             if isinstance(document, BrowserDocument):
                 try:
                     observed_url = public_url(document.url)
@@ -202,16 +203,17 @@ class PublicSourceBackend:
                         () if page.required_links else await self.extractor.extract(page, request)
                     )
                 except UnexpectedModelBehavior:
-                    # Exhausted evidence validation invalidates this source, not
-                    # independent sources. Transport/budget failures still abort.
-                    raise SourceUnavailable(
-                        "Course evidence could not be validated",
-                        reason=SourceFailureReason.EVIDENCE_INVALID,
-                    ) from None
+                    # Invalid facts do not invalidate independently observed navigation.
+                    # Transport/budget failures still abort; no extraction retry is added.
+                    courses = ()
+                    evidence_unavailable = True
             source.page = page
             records: dict[str, SessionEvidence] = {}
             partial = (
-                page.partial or len(courses) >= 8 or bool(registration and registration.partial)
+                evidence_unavailable
+                or page.partial
+                or len(courses) >= 8
+                or bool(registration and registration.partial)
             )
             for course in courses[:8]:
                 occurrences = course.sessions or (None,)
@@ -270,8 +272,15 @@ class PublicSourceBackend:
                     if ref:
                         linked[ref.id] = ref
                         required.append(ref.id)
-            source.status = "checked"
-            source.failure_reason = None
+            if evidence_unavailable and not linked:
+                raise SourceUnavailable(
+                    "Course evidence could not be validated",
+                    reason=SourceFailureReason.EVIDENCE_INVALID,
+                )
+            source.status = "unavailable" if evidence_unavailable else "checked"
+            source.failure_reason = (
+                SourceFailureReason.EVIDENCE_INVALID if evidence_unavailable else None
+            )
             return SourceDocument(
                 source=source.ref,
                 text=page.text,
@@ -279,6 +288,7 @@ class PublicSourceBackend:
                 links=tuple(linked.values()),
                 required_ids=tuple(dict.fromkeys(required)),
                 partial=partial,
+                evidence_unavailable=evidence_unavailable,
             )
         except SourceUnavailable as error:
             source.status = "unavailable"

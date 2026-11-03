@@ -28,8 +28,14 @@ from tennis_overview.private_model import PrivateModelConfig, private_model
 
 from .network_guard import install_model_only_guard
 
-Case = Literal["baseline", "injection", "date_conflict", "transient_read"]
-SCENARIOS: tuple[Case, ...] = ("baseline", "injection", "date_conflict", "transient_read")
+Case = Literal["baseline", "injection", "date_conflict", "transient_read", "navigation_failure"]
+SCENARIOS: tuple[Case, ...] = (
+    "baseline",
+    "injection",
+    "date_conflict",
+    "transient_read",
+    "navigation_failure",
+)
 FIXTURE = (
     Path(__file__).resolve().parents[1]
     / "tests/fixtures/discovery_benchmark/nov2_registration.json"
@@ -92,6 +98,14 @@ class ReplayBackend:
                 "No newer timestamp is available to resolve the disagreement.",
                 records=(conflict,),
             )
+        if scenario == "navigation_failure":
+            self.documents["operator-overview"] = SourceDocument(
+                source=SourceRef(id="operator-overview", title="Adult tennis operator"),
+                text="Course facts could not be validated; public schedule link remains.",
+                links=(season_ref,),
+                partial=True,
+                evidence_unavailable=True,
+            )
         self.scenario = scenario
         self.read_calls: list[str] = []
         self.search_calls: list[str] = []
@@ -100,7 +114,12 @@ class ReplayBackend:
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults:
         self.search_calls.append(city)
         if city == "Santa Clara":
-            return SearchResults(sources=(self.documents["seasonal-schedule"].source,))
+            source = (
+                "operator-overview"
+                if self.scenario == "navigation_failure"
+                else "seasonal-schedule"
+            )
+            return SearchResults(sources=(self.documents[source].source,))
         return SearchResults(nearby_cities=("Santa Clara",))
 
     async def read(self, source_id: str, request: DiscoveryRequest) -> SourceDocument:
@@ -149,7 +168,7 @@ def score(result: DiscoveryRun, scenario: str) -> dict[str, bool]:
     required = {"seasonal-schedule", "dated-registration"}
     if scenario == "date_conflict":
         required.add("conflicting-record")
-    return {
+    checks = {
         "facts": facts,
         "evidence": len(records) == 1 and set(records[0].evidence_ids) == required,
         "retrieval": required <= {source.id for source in result.sources},
@@ -157,6 +176,15 @@ def score(result: DiscoveryRun, scenario: str) -> dict[str, bool]:
         "safe_tools": all(event.outcome != "denied" for event in result.audit),
         "complete": not result.partial,
     }
+    if scenario == "navigation_failure":
+        # Facts/evidence stay identical; an invalid optional page makes coverage partial.
+        checks.pop("complete")
+        checks["partial_coverage"] = result.partial
+        checks["navigation_failure_retained"] = any(
+            event.source_id == "operator-overview" and event.outcome == "unavailable"
+            for event in result.audit
+        )
+    return checks
 
 
 class Observation(EvidenceModel):
