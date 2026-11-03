@@ -70,6 +70,20 @@ marketing. This does not grant URL-based tool access: reads still require a
 registered opaque ID, and changing a registered reference is rejected. Private,
 credential-bearing and personal subscription URLs cannot become these hints.
 
+Read observations retain source metadata, navigation links, required detail IDs and
+the unique candidate count. They summarize at most eight distinct title/date tuples,
+with titles limited to 240 characters and an explicit truncation flag. The full page
+body stays with the extractor; full source-owned records stay with reconciliation.
+This projection changes neither extracted facts nor the final evidence set. Dates
+are included because a title-only live trial caused redundant follow-up searches.
+
+Pydantic AI exposes the completion tool only when the existing completion validator
+finds no outstanding work. Tool preparation calls that same side-effect-free
+validator; it does not maintain a second coverage policy. Terminal source failures
+still reach the validator and abort rather than becoming success. Hiding a tool is
+planning guidance, not a security boundary: the model can still attempt an absent
+tool or return prose, and existing validation and request limits still apply.
+
 Area discovery is the default. Dynamic Pydantic AI tool schemas expose the original
 city's outstanding overview, registration and schedule queries first, then nearby
 overview queries. Reads become available only after that coverage. The same rule
@@ -241,9 +255,9 @@ page, not an invented occurrence-specific registration URL.
 
 The browser sends only visible date/time/price/status fields from those rows, never
 their action controls or surrounding account text. The planner receives a candidate
-count, not internal session keys: those keys are reconciliation identities, not
-readable source IDs. Unknown read IDs still abort; this does not grant retries or
-additional browser permissions. The adapter does not fall back to model-generated
+count and bounded title/date summary, not internal session keys: those keys are
+reconciliation identities, not readable source IDs. Unknown read IDs still abort;
+this does not grant retries or additional browser permissions. The adapter does not fall back to model-generated
 registration facts.
 
 The production worker still uses the public document reader. There is **no
