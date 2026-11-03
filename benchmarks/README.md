@@ -84,6 +84,17 @@ Python isolated mode; install the candidate wheel in the evaluation environment
 so parent and worker code match. No production service restart is needed to run
 these checks. Keep failures and subsequent reruns separate in the results report.
 
+Each repetition includes a bounded `stage_metrics` timeline, including failed runs.
+It separates planner-model calls, extractor-model calls, source reads and searches.
+Times use a monotonic clock; token counts are the SDK usage values on completed
+model responses, not an independent tokenizer measurement. Calls without a response
+(including cancelled requests) use `null`, not zero, for token counts. Stage
+intervals can overlap and must not be added to claim wall time. Only fixed labels,
+durations, outcomes and token counts are retained; no URLs, prompts, responses,
+credentials or exception messages enter these measurements. At most 128 intervals
+are retained and `dropped` reports overflow. This is local benchmark instrumentation,
+not cloud tracing, and it changes neither the factual oracle nor runtime budgets.
+
 Offline browser acceptance now runs both legacy and agent paths through the actual
 worker, persistence, API and desktop/mobile calendar with controlled sources and a
 `FunctionModel`. This tests application integration, not live model reliability.
