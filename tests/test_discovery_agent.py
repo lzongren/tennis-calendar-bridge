@@ -68,33 +68,23 @@ class AreaBackend(ReplayBackend):
 
 
 @pytest.mark.benchmark
-def test_area_tool_schemas_reserve_searches_for_required_coverage():
+def test_area_preflight_reserves_coverage_and_hides_exhausted_search_tool():
     backend = AreaBackend()
     query = request().model_copy(
         update={"search_mode": "area", "nearby_cities": ("Santa Clara", "Cupertino")}
     )
-    searches = []
+    searches = [
+        ("San Jose", "overview"),
+        ("San Jose", "registration"),
+        ("San Jose", "schedule"),
+        ("Santa Clara", "overview"),
+        ("Cupertino", "overview"),
+    ]
     reads = iter(("seasonal-schedule", "dated-registration", "schedule-index"))
 
     def respond(messages, info):
         tools = {tool.name: tool for tool in info.function_tools}
-        if len(searches) < 5:
-            assert "read_source" not in tools
-            schema = tools["search_courses"].parameters_json_schema
-            assert schema["required"] == ["city", "focus"]
-            cities = schema["properties"]["city"]["enum"]
-            focuses = schema["properties"]["focus"]["enum"]
-            assert "default" not in schema["properties"]["focus"]
-            if len(searches) < 3:
-                assert cities == [query.city]
-                assert focuses == ["overview", "registration", "schedule"][len(searches) :]
-            else:
-                assert cities == ["Santa Clara", "Cupertino"][len(searches) - 3 :]
-                assert focuses == ["overview"]
-            searches.append((cities[0], focuses[0]))
-            return ModelResponse(
-                [ToolCallPart("search_courses", {"city": cities[0], "focus": focuses[0]})]
-            )
+        assert backend.search_calls == [city + "|" + focus for city, focus in searches]
         assert "search_courses" not in tools
         assert "read_source" in tools
         if source := next(reads, None):
@@ -108,7 +98,7 @@ def test_area_tool_schemas_reserve_searches_for_required_coverage():
     )
     assert run.searched_cities == ("San Jose", "Santa Clara", "Cupertino")
     assert backend.search_calls == [city + "|" + focus for city, focus in searches]
-    assert run.model_requests == 9
+    assert run.model_requests == 4 and run.tool_calls == 8
 
 
 def test_required_search_gate_rejects_optional_query_without_spending_search_budget():

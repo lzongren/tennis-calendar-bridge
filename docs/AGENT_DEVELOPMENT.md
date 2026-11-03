@@ -84,13 +84,25 @@ still reach the validator and abort rather than becoming success. Hiding a tool 
 planning guidance, not a security boundary: the model can still attempt an absent
 tool or return prose, and existing validation and request limits still apply.
 
-Area discovery is the default. Dynamic Pydantic AI tool schemas expose the original
-city's outstanding overview, registration and schedule queries first, then nearby
-overview queries. Reads become available only after that coverage. The same rule
-is checked before executing a search, so a model cannot spend the search budget on
-optional refinements while mandatory queries remain. The search tool disappears at
-the query limit. Completion still requires an attempted read from the new sources
-introduced by each nonempty search. Existing candidates cannot bypass these gates.
+Area discovery is the default. Before the first model request, the application
+executes the required overview, registration and schedule queries, then bounded
+nearby-city overview queries. It calls the existing search operation, preserving
+its validation, audit, cache, single transient retry and search/tool limits. The
+overall deadline includes this preflight; failure or cancellation cannot publish
+results or invoke the model with incomplete mandatory coverage.
+
+The request and structured `completed_searches` are supplied as input data, not
+fabricated assistant/tool history or system instructions. Source titles and URLs
+remain untrusted. Area-only instructions tell the planner not to repeat completed
+queries. It can still choose authorized refinements within the remaining budget.
+Searches count as application tool operations even though they do not consume model
+turns. `source_check` keeps its original prompt and model-driven search behavior.
+
+The existing query-phase and read guards remain authoritative. Dynamic tool schemas
+restrict optional refinements while mandatory queries remain, and the search tool
+disappears at the query limit. Completion still requires an attempted read from the
+new sources introduced by each nonempty search. Existing candidates cannot bypass
+these gates; preflight does not change required-detail or source-failure semantics.
 
 Each model turn also receives state-owned progress instructions: outstanding query
 phases, required detail IDs, unattempted source groups and remaining read capacity.
