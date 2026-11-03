@@ -163,9 +163,10 @@ def test_browser_client_keeps_credentials_at_fixed_endpoint():
     [
         (302, {"error": "redirect"}),
         (401, {"error": "unauthorized"}),
-        (503, {"error": "login_required"}),
-        (503, {"error": "membership_required"}),
-        (503, {"error": "browser_attention_required"}),
+        (503, {"error": "worker_unavailable"}),
+        (503, {"error": "source_unavailable"}),
+        (503, {"error": "busy"}),
+        (503, {"error": "timeout"}),
         (200, {"kind": "invalid"}),
     ],
 )

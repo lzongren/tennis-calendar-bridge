@@ -182,6 +182,20 @@ It must never expose arbitrary CDP access, scripts, files, booking or payment
 actions to the model. Local cookies stay local; the VPS receives sanitized course
 facts only. Existing private listeners and centrally managed ingress stay unchanged.
 
+The experimental private worker distinguishes source failures from worker failures.
+Only a recognized HTTP 503 read response (`page_unavailable`, `login_required`,
+`membership_required` or `browser_attention_required`) can mark one source
+unavailable. Optional failures leave an explicit partial result; required-detail
+or all-source failures still abort and preserve the previous snapshot. These
+responses never trigger login or a challenge bypass. Search failures remain fatal.
+Public HTTP error documents are source failures, not successful empty pages.
+
+Process exit, malformed/oversized output, browser disconnection, unknown exceptions,
+service authentication, transport failure and the legacy ambiguous
+`source_unavailable` response remain run-level failures. This distinction adds no
+retries or new permissions. Roll out the worker and client together: mixed versions
+fail closed rather than silently accepting an old worker fault as a page failure.
+
 The anonymous November 2 clinic case is a separate fixture from the original
 signed-in screenshot. It retains the same 18:30-19:50 Pacific occurrence and
 $54 price, but shows only `Full`; the waitlist count is unknown, not two and not

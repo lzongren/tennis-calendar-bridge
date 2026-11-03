@@ -14,6 +14,7 @@ from typing import TypedDict
 from urllib.parse import urljoin, urlsplit
 
 from playwright.async_api import BrowserContext, Page, ProxySettings, Route, async_playwright
+from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from .browser_network import get_resource
@@ -55,10 +56,10 @@ async def course_summary(page: Page) -> BrowserReply:
         if await nodes.count() != 1 or not await nodes.is_visible():
             if name in {"price-single", "slots", "tab-dates"}:
                 continue
-            raise BrowserReadError("source_unavailable")
+            raise BrowserReadError("page_unavailable")
         value = (await nodes.inner_text()).strip()
         if len(value) > 500:
-            raise BrowserReadError("source_unavailable")
+            raise BrowserReadError("page_unavailable")
         values[name] = value
     title = html.escape(values.pop("title"))
     category = html.escape(values.pop("category"))
@@ -80,6 +81,7 @@ class ReadNetwork:
         self.bytes = 0
         self.login_required = False
         self.attention_required = False
+        self.page_unavailable = False
         self.membership_required = False
         self.denied = False
         self.redirects: dict[str, str] = {}
@@ -127,6 +129,8 @@ class ReadNetwork:
                     self.membership_required = True
             if request.is_navigation_request() and resource.status in {401, 403}:
                 self.attention_required = True
+            if request.is_navigation_request() and resource.status >= 400:
+                self.page_unavailable = True
             if resource.status in {301, 302, 303, 307, 308}:
                 target = urljoin(request.url, resource.headers.get("location", ""))
                 if "/account/" in urlsplit(target).path.lower():
@@ -156,11 +160,13 @@ async def navigate(page: Page, url: str, network: ReadNetwork) -> None:
         await page.goto(read_url(url), wait_until="domcontentloaded", timeout=25000)
         if network.attention_required:
             raise BrowserReadError("browser_attention_required")
+        if network.page_unavailable:
+            raise BrowserReadError("page_unavailable")
         target = network.redirects.pop(url, None)
         if target is None:
             return
         url = target
-    raise BrowserReadError("source_unavailable")
+    raise BrowserReadError("page_unavailable")
 
 
 async def _read(
@@ -180,7 +186,7 @@ async def _read(
             except PlaywrightTimeoutError:
                 await page.get_by_text("Events, Camps, And Classes", exact=True).click(timeout=5000)
             if await link.count() != 1:
-                raise BrowserReadError("source_unavailable")
+                raise BrowserReadError("page_unavailable")
             read_url(urljoin(page.url, await link.get_attribute("href") or ""))
             await link.click(timeout=5000)
         if "/Events/Details/" not in request.url:
@@ -205,7 +211,7 @@ async def _read(
             links = []
             for course_id, title in selected:
                 if not course_id.isdigit():
-                    raise BrowserReadError("source_unavailable")
+                    raise BrowserReadError("page_unavailable")
                 await page.get_by_test_id("events-list-view-upcoming-dates-btn-" + course_id).click(
                     timeout=5000
                 )
@@ -216,7 +222,7 @@ async def _read(
                     timeout=15000
                 )
             if not links:
-                raise BrowserReadError("source_unavailable")
+                raise BrowserReadError("page_unavailable")
             return BrowserReply(
                 kind="page",
                 url=list_url,
@@ -231,10 +237,10 @@ async def _read(
     await page.wait_for_load_state("networkidle", timeout=8000)
     rendered = await page.content()
     if len(rendered.encode()) > 2_000_000:
-        raise BrowserReadError("source_unavailable")
+        raise BrowserReadError("page_unavailable")
     parsed = page_from_html(read_url(page.url), rendered.encode())
     if len(parsed.text.split()) < 5:
-        raise BrowserReadError("source_unavailable")
+        raise BrowserReadError("page_unavailable")
     return BrowserReply(
         kind="page",
         url=parsed.url,
@@ -316,14 +322,23 @@ async def _read_browser(
                 return await asyncio.wait_for(
                     _read(context, request, network), timeout=timeout_seconds
                 )
-            except Exception:
-                code = "source_unavailable"
-                if network.attention_required:
-                    code = "browser_attention_required"
-                if network.login_required:
-                    code = "login_required"
-                if network.membership_required:
-                    code = "membership_required"
+            except Exception as error:
+                code = "worker_unavailable"
+                if isinstance(error, BrowserReadError):
+                    code = str(error)
+                elif isinstance(error, (PlaywrightTimeoutError, TimeoutError)):
+                    code = "page_unavailable"
+                elif isinstance(error, PlaywrightError) and network.denied:
+                    code = "page_unavailable"
+                if isinstance(error, (BrowserReadError, PlaywrightError, TimeoutError)):
+                    if network.attention_required:
+                        code = "browser_attention_required"
+                    if network.login_required:
+                        code = "login_required"
+                    if network.membership_required:
+                        code = "membership_required"
+                if context.browser is not None and not context.browser.is_connected():
+                    code = "worker_unavailable"
                 raise BrowserReadError(code) from None
         finally:
             await context.close()
