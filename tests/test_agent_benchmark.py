@@ -8,10 +8,14 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pydantic import SecretStr
+from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.test import TestModel
 
 from benchmarks import source_discovery
 from benchmarks.network_guard import install_model_only_guard
 from tennis_overview.discovery_agent import SourceUnavailable
+from tennis_overview.discovery_sources import identity
 from tennis_overview.private_model import PrivateModelConfig
 
 
@@ -51,23 +55,30 @@ def test_live_benchmark_distinguishes_supplied_url_from_search(monkeypatch, case
 
     @asynccontextmanager
     async def model_context(config):
-        yield Mock()
+        yield TestModel()
 
     async def inspect_backend(request, backend, model, **kwargs):
         from tennis_overview.discovery_agent import LIVE_DISCOVERY_LIMITS
 
         assert kwargs["limits"] is LIVE_DISCOVERY_LIMITS
         assert request.city == "San Jose, CA"
-        assert backend.reader == client.read
+        await backend.reader("https://club.example.org/adults")
+        client.read.assert_awaited_once_with("https://club.example.org/adults")
+        results = await backend.searcher(
+            request.city, request.level, request.start.year, "overview"
+        )
         if case == "clinic-search":
             assert request.search_mode == "area"
             assert backend.initial_urls == ()
-            assert backend.searcher == client.search
+            client.search.assert_awaited_once_with(
+                request.city, request.level, request.start.year, "overview"
+            )
             assert source_discovery.BROWSER_URL not in request.model_dump_json()
         else:
             assert request.search_mode == "source_check"
             assert backend.initial_urls == (source_discovery.BROWSER_URL,)
-            assert backend.searcher == source_discovery.empty_search
+            assert results == []
+            client.search.assert_not_awaited()
         raise SourceUnavailable("Synthetic stopped run")
 
     monkeypatch.setattr(source_discovery, "private_model", model_context)
@@ -88,6 +99,10 @@ def test_live_benchmark_distinguishes_supplied_url_from_search(monkeypatch, case
         )
     )
     assert rows[0]["error"] == "SourceUnavailable"
+    assert [m["stage"] for m in rows[0]["stage_metrics"]["measurements"]] == [
+        "source_read",
+        "search",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -112,3 +127,42 @@ def test_search_score_requires_same_club_event_and_occurrence():
     assert not source_discovery.same_occurrence(anchor.replace("resId=123", "resId=456"), anchor)
     assert not source_discovery.same_occurrence(anchor.replace("/12345/", "/54321/"), anchor)
     assert not source_discovery.same_occurrence(anchor.replace("/EXAMPLE?", "/OTHER?"), anchor)
+
+
+@pytest.mark.benchmark
+def test_measured_replay_keeps_original_oracle_and_isolates_repetitions(monkeypatch):
+    turns = iter(
+        [
+            ToolCallPart("search_courses", {"city": "Example City"}),
+            ToolCallPart("read_source", {"source_id": identity(source_discovery.BROWSER_URL)}),
+            ToolCallPart("finish_discovery", {"outcome": "sources_checked"}),
+        ]
+        * 2
+    )
+
+    async def respond(messages, info):
+        return ModelResponse([next(turns)])
+
+    @asynccontextmanager
+    async def model_context(config):
+        yield FunctionModel(respond)
+
+    monkeypatch.setattr(source_discovery, "private_model", model_context)
+    config = PrivateModelConfig(
+        base_url="http://127.0.0.1:8123/v1",
+        model="synthetic-model",
+        api_key=SecretStr("synthetic-model-key-for-tests-only"),
+    )
+    rows = asyncio.run(source_discovery.evaluate(config, live=False, repeats=2, case="anonymous"))
+    assert len(rows) == 2
+    for row in rows:
+        assert all(row["checks"].values())
+        assert row["requests"] == 3 and row["tool_calls"] == 2
+        assert [m["stage"] for m in row["stage_metrics"]["measurements"]] == [
+            "planner_model",
+            "search",
+            "planner_model",
+            "source_read",
+            "planner_model",
+        ]
+        assert row["stage_metrics"]["dropped"] == 0

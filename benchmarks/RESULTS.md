@@ -715,3 +715,40 @@ same tool-level timeout, so this run is not evidence of a causal latency or reca
 gain from the fix. Original-course recall remains failed. The independent deadline
 regressions prove the bounded retry correction; source prioritization and end-to-end
 runtime remain unresolved. Twine metadata validation also passed.
+
+## Stage Measurements: 2026-11-03
+
+Source discovery now retains a bounded, content-free timing timeline per repetition,
+including failures and cancellation. Planner and extractor model calls are measured
+separately from source reads and searches. This instrumentation does not alter the
+agent's tools, instructions, oracle, limits or authentication policy.
+
+A fresh unseeded run failed at **171.74s**, with **16 completed model requests**,
+**22 registered sources** and **2 successful source reads**. The timeline recorded
+14 planner calls (**79.44s**), 5 searches (**7.56s**), 4 source reads (**10.99s**)
+and 3 extractor calls (**72.21s**, including one cancelled call). These measured
+intervals were sequential in this run; they are not generally additive. The
+cancelled extraction alone consumed **58.28s** after a general-information page
+loaded. Model work, not just browser retrieval, dominated this observation.
+
+The terminal failure was a source-read `ValueError`, not the total deadline. A
+separate fresh anonymous probe reproduced a worker page response with eight links;
+one ordinary HTTP link failed the client's HTTPS-reference policy. The original course was
+not reached. This identifies a concrete worker/client link-policy mismatch to fix
+separately; it does not justify weakening navigation validation or using a login.
+
+The initial timing probe used zero defaults when no response usage was available.
+The final implementation reports those counts as `null` instead of implying zero
+consumption. A subsequent known-link anonymous benchmark with this final format
+passed **2/2**, **11.89s / 7.36s**, three model requests and two tool calls each,
+with the unchanged original course facts, partial series coverage and no denied
+tool attempts. Supplied-link extraction is not autonomous recall.
+
+Local validation: **665 tests**, **54 benchmark cases**, typing across **50 modules**,
+Ruff/format, isolated wheel build and Twine passed. A sandboxed Chrome test launch
+failed before execution and passed when rerun with the required browser permission;
+a non-isolated build lacked setuptools and the normal isolated build passed.
+Tests cover request forwarding, usage, error/cancellation propagation, bounded
+storage, content exclusion and per-repetition isolation through the original oracle.
+Only isolated evaluation files changed on the VPS. Production, private browser
+worker, login state and ingress were untouched; the release gate remains unmet.

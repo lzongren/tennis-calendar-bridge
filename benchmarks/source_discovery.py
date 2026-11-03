@@ -29,6 +29,7 @@ from tennis_overview.discovery_sources import PublicSourceBackend
 from tennis_overview.private_model import PrivateModelConfig, private_model
 from tennis_overview.public_web import Page, page_from_html
 
+from .discovery_metrics import DiscoveryMetrics, MeasuredModel
 from .network_guard import install_model_only_guard
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
@@ -115,6 +116,9 @@ async def evaluate(
     observations = []
     async with private_model(config) as model:
         for repetition in range(repeats):
+            metrics = DiscoveryMetrics()
+            planner = MeasuredModel(model, metrics, "planner_model")
+            extractor = MeasuredModel(model, metrics, "extractor_model")
             request = DiscoveryRequest(
                 city="San Jose, CA" if live else "Example City",
                 level="NTRP 3.0",
@@ -127,7 +131,8 @@ async def evaluate(
             usage = RunUsage()
             limits = LIVE_DISCOVERY_LIMITS
             backend = PublicSourceBackend(
-                CourseExtractor(model, usage, limits.model_requests), source_limit=limits.sources
+                CourseExtractor(extractor, usage, limits.model_requests),
+                source_limit=limits.sources,
             )
             if live and case in {"anonymous", "anonymous-series", "clinic-search"}:
                 client = BrowserClient(
@@ -192,9 +197,25 @@ async def evaluate(
                 backend.reader = replay_read
                 backend.searcher = empty_search
                 backend.initial_urls = (replay_url,)
+            reader, searcher = backend.reader, backend.searcher
+
+            async def measured_read(url: str) -> Page | BrowserDocument:
+                with metrics.measure("source_read"):
+                    return await reader(url)
+
+            async def measured_search(
+                city: str, level: str, year: int, focus: str
+            ) -> list[dict[str, str]]:
+                with metrics.measure("search"):
+                    return await searcher(city, level, year, focus)
+
+            backend.reader = measured_read
+            backend.searcher = measured_search
             started = time.monotonic()
             try:
-                run = await run_discovery_agent(request, backend, model, usage=usage, limits=limits)
+                run = await run_discovery_agent(
+                    request, backend, planner, usage=usage, limits=limits
+                )
                 result = backend.result(run, request)
                 courses = result["courses"]
                 target = "www.sjsrc.com" if live else "club.example.org"
@@ -304,6 +325,7 @@ async def evaluate(
                     "registered_sources": len(backend.sources),
                     "read_sources": sum(s.status == "checked" for s in backend.sources.values()),
                 }
+            observation["stage_metrics"] = metrics.report()
             observations.append(observation)
             print(json.dumps(observation), flush=True)
     return observations
