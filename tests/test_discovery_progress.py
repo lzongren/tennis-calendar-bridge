@@ -108,22 +108,8 @@ def test_real_case_progress_guides_coverage_without_spending_completion_retries(
         progress = json.loads(
             info.instructions.split("Current research obligations", 1)[1].split("\n", 1)[1]
         )
-        tools = {tool.name: tool for tool in info.function_tools}
         finish_visible = any(tool.name == "finish_discovery" for tool in info.output_tools)
-        if progress["primary_focuses"]:
-            assert not finish_visible
-            schema = tools["search_courses"].parameters_json_schema
-            return ModelResponse(
-                [
-                    ToolCallPart(
-                        "search_courses",
-                        {
-                            "city": schema["properties"]["city"]["enum"][0],
-                            "focus": progress["primary_focuses"][0],
-                        },
-                    )
-                ]
-            )
+        assert progress["primary_focuses"] == []
         ids = progress["required_detail_ids"]
         groups = progress["unattempted_search_groups"]
         if ids or groups:
@@ -137,7 +123,8 @@ def test_real_case_progress_guides_coverage_without_spending_completion_retries(
     run = asyncio.run(run_discovery_agent(query, backend, FunctionModel(respond)))
     checks = score(run, "baseline")
     assert all(value for key, value in checks.items() if key != "neighbor_search")
-    assert finishes == 1 and run.model_requests == 8
+    assert finishes == 1 and run.model_requests == 5
+    assert run.tool_calls == 7 and backend.search_calls == [query.city] * 3
     assert set(backend.read_calls) == {
         "seasonal-schedule",
         "dated-registration",

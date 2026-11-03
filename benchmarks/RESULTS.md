@@ -917,3 +917,60 @@ source reads consumed the remaining model budget and ended in `UsageLimitExceede
 The navigation-loss fix therefore reached the intended live boundary, but original
 course recall and bounded completion still fail. This does not prove that every
 possible public route is inaccessible; it does not satisfy production acceptance.
+
+## Deterministic Search Preflight: 2026-11-03
+
+Area search now executes its already-required queries before the first model turn.
+It reuses the existing audited search operation inside the same overall deadline.
+Queries still consume search/tool budgets and retain the bounded transient retry;
+the planner receives structured results as untrusted input data. No tool history
+is fabricated. Source-check behavior and all factual/coverage gates remain unchanged.
+
+New tests failed against the prior implementation because the model ran before
+mandatory coverage. They now verify original-course facts across all five scenarios,
+budget accounting, failure redaction, cancellation and the overall deadline. Existing
+coverage tests preserve their queries and reads while requiring fewer model turns.
+The injection fixture now also places its attack in the visible source title, since
+page-body text no longer reaches the planner. This strengthens the adversarial input
+without changing any expected course facts.
+
+The prior merged agent and candidate were evaluated serially with the same replay
+fixtures, strengthened injection case, private model and `--search-mode area`.
+The old isolated agent's source hash was verified against the merged parent before
+the baseline run. Both versions passed all five factual and safety oracles:
+
+| Scenario | Prior model requests | Candidate model requests | Prior seconds | Candidate seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Baseline | 8 | 3 | 19.34 | 7.65 |
+| Injection | 8 | 3 | 14.88 | 4.54 |
+| Date conflict | 11 | 4 | 22.90 | 5.94 |
+| Transient read | 8 | 3 | 17.42 | 1.97 |
+| Navigation failure | 11 | 4 | 23.71 | 6.94 |
+
+Application tool counts were **7/7/10/7/10** before and **6/6/7/6/7** afterward;
+mandatory queries were not omitted from accounting. These are single-repetition
+observations, not a latency SLA or live recall result. The model-only process audit
+recorded no blocked network, DNS or subprocess attempts for the candidate.
+
+Local gates passed: **713 tests**, **71 benchmark cases**, typing across **50 modules**,
+Ruff/format, wheel build and Twine. Changes on the VPS are confined to the isolated
+evaluator. Production, the private browser worker, authentication and ingress are
+unchanged.
+
+The final unseeded live search completed within budget in **178.95s**, using
+**13 model requests** and **11 application tool calls**, with zero denied tool
+attempts. It returned three other courses with partial coverage and checked five
+sources. The target clinic identity, registration facts and source-evidence checks
+still **failed**. A transient search failure recovered through the existing retry.
+This is bounded completion, not successful original-course recall, and does not
+meet production acceptance. The observed operator navigation was retained, but the
+planner did not follow its registration portal during this run. No login was used.
+
+The final candidate also passed all five existing `source_check` private-model
+replays, including hostile source-title input: **13.43s, 7.20s, 8.42s, 4.63s and
+9.67s**. Fresh known-link anonymous checks passed **2/2** in **13.92s / 28.33s**,
+using **three / four model requests** and two tools each. Original registration
+facts, evidence, withheld personal queue information and partial series coverage
+were preserved. The second run needed an additional model turn; this remains a
+small observed sample, not a reliability or latency guarantee. The full local suite
+was rerun after review: **713 passed**.

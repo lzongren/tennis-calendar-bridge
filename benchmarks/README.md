@@ -26,10 +26,16 @@ keys, hostnames, raw model messages and provider error text are not included.
 The command exits nonzero if any case or network-audit check fails. Compare
 individual checks, not only a combined score. Never publish private replay inputs.
 
-The evidence replay request uses `source_check` mode. It verifies supplied records,
+The evidence replay request defaults to `source_check` mode. It verifies supplied records,
 neighboring-city tool use and required detail closure, not area-search coverage.
 The unseeded live `clinic-search` case uses the default `area` mode and must pass
 the overview, registration and schedule search gates before reading pages.
+
+Use `--search-mode area` with `benchmarks.agent_discovery` to exercise application
+search preflight against the same five replay scenarios. Compare before/after runs
+in that same mode; it is not live-web recall. The report records `search_mode`.
+Mandatory queries still count toward tool/search limits and audits, but the model
+starts from their structured results instead of choosing each fixed query in turn.
 
 Each of five scenarios is repeated serially. The scorer checks exact facts,
 complete source IDs, retrieval, neighboring-city expansion, denied tool attempts
@@ -42,6 +48,9 @@ but whose observed schedule link remains usable. The original registration facts
 and evidence oracle are unchanged. This case must retain an unavailable-source
 audit and partial coverage; it cannot pass by relabeling the failed page as checked.
 It is a synthetic failure around the real-course transcription, not a live search.
+The injection case also puts hostile text in the source title so it reaches the
+planner's actual metadata boundary, including area preflight input. The original
+course facts are unchanged; page-body text alone no longer reaches the planner.
 
 An audit hook limits DNS/connections to the configured model destination and
 blocks subprocesses during the CLI run. It is installed after imports and
@@ -55,7 +64,8 @@ SDK's platform cache to `Unknown`. This narrowly scoped compatibility shim is
 covered by a regression test and must be rechecked when upgrading the SDK.
 
 The `SourceBackend` boundary must produce source-owned, parsed records. The model
-receives only public page text, discovered opaque source IDs and candidate keys.
+receives discovered opaque source IDs, public navigation metadata and bounded
+candidate title/date summaries, not full page bodies or internal session keys.
 It cannot submit prices, authority, identities or personal booking status. Source
 adapters still need real-page fixtures and live retrieval acceptance before the
 worker can switch to this loop. These fixtures cannot prove that boundary correct.
