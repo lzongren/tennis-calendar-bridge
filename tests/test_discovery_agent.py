@@ -314,6 +314,43 @@ def test_invalid_time_zone_has_validation_error():
         type(request()).model_validate({**request().model_dump(), "timezone": "Not/AZone"})
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1/",
+        "https://private.example.ts.net/",
+        "https://user:password@example.org/",
+        "https://example.org/Online/PublicIcal/secret",
+        "https://example.org/classes?token=secret",
+        "file:///tmp/private",
+    ],
+)
+def test_source_navigation_hints_reject_private_or_credential_urls(url):
+    with pytest.raises(ValidationError):
+        SourceRef(id="source", title="Course", url=url)
+
+
+def test_source_navigation_metadata_preserves_opaque_read_boundary():
+    async def scenario():
+        state = ResearchState(request(), ReplayBackend(), DiscoveryLimits())
+        ref = SourceRef(
+            id="operator", title="Adult classes", url="https://club.example.org/adults#courses"
+        )
+        state.register((ref,))
+        assert ref.url == "https://club.example.org/adults"
+        document = SourceDocument(source=ref, text="Public adult course catalog")
+        model_document = state.model_document(document)
+        assert model_document["source"] == ref.model_dump(mode="json")
+        assert model_document["source_id"] == ref.id
+        with pytest.raises(AgentDiscoveryError, match="undiscovered"):
+            await state.read_source(ref.url)
+        with pytest.raises(AgentDiscoveryError, match="identity changed"):
+            state.register((ref.model_copy(update={"url": "https://other.example.org/"}),))
+        assert state.read_attempts == 0
+
+    asyncio.run(scenario())
+
+
 def test_sources_cannot_claim_another_sources_evidence():
     document = ReplayBackend().documents["dated-registration"]
     with pytest.raises(ValidationError):

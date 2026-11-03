@@ -445,3 +445,31 @@ search reliability, provider navigation and production calendar acceptance remai
 Local gates: **588 tests**, **42 benchmark cases**, typing across **49 modules**,
 Ruff/format and wheel build checks. Only isolated test environments were updated;
 the production discovery switch and centrally managed ingress remain unchanged.
+
+## Public Navigation Metadata: 2026-11-03
+
+The planner previously received source IDs and titles without their public URLs.
+The candidate adds validated public URL hints to search results, read observations
+and discovered links. Reads still accept only registered opaque IDs. Private/feed
+URLs, credential-bearing URLs and changed source identities remain rejected.
+This is a navigation hypothesis, not an established recall improvement.
+
+| Live run | Evidence | Outcome |
+| --- | --- | --- |
+| Baseline diagnostic, without hints | 24 model requests; 48 references; 7 completed reads; 161.63s | Failed with `UnexpectedModelBehavior` at the request ceiling; no reproduced HTTP rejection |
+| Candidate, with hints | 20 model requests; 48 references; 7 completed reads; 242.49s | Failed with `ModelTimeoutError`; target occurrence not discovered |
+| Candidate, known public detail URL | 3 model requests each; 31.02s / 10.95s | 2/2 passes for original clinic identity, time, price, full status, source provenance and unknown waitlist count |
+
+The known-source runs use fresh anonymous browser contexts and the private local
+model. They do not establish unseeded city-wide recall. The unseeded run supplies
+the expected occurrence only to the scorer, not to the agent or initial sources.
+Neither failed run establishes a cause for the earlier provider rejection, and
+their different failure modes are not evidence that URL hints improve latency.
+
+Local gates: **596 tests**, including **42 benchmark cases**, typing across
+**49 modules**, Ruff/format, wheel build and metadata validation passed. The
+standalone benchmark command initially lacked the local Chrome channel setting;
+rerunning with the same Chrome configuration as the full suite passed all 42.
+The candidate remains experimental. No production deployment, authentication
+expansion or ingress change was made. Date-window-aware catalog enumeration and
+successful autonomous navigation to the original occurrence remain open gates.

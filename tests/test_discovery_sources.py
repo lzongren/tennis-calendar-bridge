@@ -55,6 +55,22 @@ def test_benchmark_error_diagnostics_traverse_groups_without_messages_or_cycles(
     assert error_types(group) == ["ExceptionGroup", "ValueError"]
 
 
+def test_public_source_metadata_reaches_search_and_read_results():
+    async def scenario():
+        backend = PublicSourceBackend(CourseExtractor(planning_model(), RunUsage(), 4))
+        backend.searcher = AsyncMock(return_value=[{"url": URL, "title": "Adult classes"}])
+        backend.reader = AsyncMock(return_value=generic_page())
+        result = await backend.search(REQUEST.city, REQUEST)
+        ref = result.sources[0]
+        assert ref.url == URL
+        assert result.model_dump(mode="json")["sources"][0]["url"] == URL
+        document = await backend.read(ref.id, REQUEST)
+        assert ResearchState.model_document(document)["source"] == ref.model_dump(mode="json")
+        assert backend.register(URL, "Changed title", 1) == ref
+
+    asyncio.run(scenario())
+
+
 def source_fixture(name):
     return page_from_html(URL, (FIXTURES / name).read_bytes())
 
@@ -188,6 +204,9 @@ def test_term_case_preserves_owned_links_and_uncertainty():
             backend.sources[sid].url.startswith("https://registration.example.org/")
             for sid in doc.required_ids
         )
+        model_links = ResearchState.model_document(doc)["links"]
+        assert model_links == [link.model_dump(mode="json") for link in doc.links]
+        assert all(link.url == backend.sources[link.id].url for link in doc.links)
         dated = [record for record in doc.records if record.starts_at]
         assert any(record.starts_at.isoformat() == "2026-10-31T10:00:00-07:00" for record in dated)
         assert sum(record.starts_at is None for record in doc.records) == 2

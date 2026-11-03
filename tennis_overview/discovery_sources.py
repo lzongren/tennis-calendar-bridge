@@ -85,7 +85,9 @@ class PublicSourceBackend:
             if len(self.sources) >= self.source_limit:
                 self.truncated = True
                 return None
-            self.sources[key] = PublicSource(SourceRef(id=key, title=title[:240]), url, depth)
+            self.sources[key] = PublicSource(
+                SourceRef(id=key, title=title[:240], url=url), url, depth
+            )
         return self.sources[key].ref
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults:

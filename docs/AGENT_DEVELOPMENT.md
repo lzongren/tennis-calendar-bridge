@@ -64,6 +64,11 @@ The agent exposes only bounded city searches and reads of discovered opaque sour
 IDs. Required detail links must be read before completion. The application derives
 results from source records and retains all relevant evidence, even if the model
 tries to finish early. It has no shell, filesystem, booking or payment tools.
+Source references include a validated public URL as untrusted navigation metadata,
+so the planner can distinguish local operator pages from directories and platform
+marketing. This does not grant URL-based tool access: reads still require a
+registered opaque ID, and changing a registered reference is rejected. Private,
+credential-bearing and personal subscription URLs cannot become these hints.
 
 Area discovery is the default. It performs overview, registration and schedule
 searches before reading pages, then requires an attempted read from the new sources
@@ -227,3 +232,10 @@ The opt-in `benchmarks.source_discovery --case anonymous` replay exercises the
 Pydantic AI loop. With `--live-web --source-url <PUBLIC_DETAIL_URL>`, it uses the
 private browser worker and fresh evidence. This is a known-source extraction
 benchmark, not proof that city-wide search discovers that URL.
+
+Catalog enumeration remains partial: the current browser reader follows at most
+four matching adult cards from the provider's default list. It does not yet apply
+the request's date window or enumerate all pages. A previously observed occurrence
+may no longer appear in that default list even when its public detail URL works.
+Date-aware catalog navigation therefore remains a separate recall acceptance gate;
+missing a card is not evidence that the course does not exist.
