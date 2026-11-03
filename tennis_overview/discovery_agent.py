@@ -318,8 +318,9 @@ class ResearchState:
         self.read_attempts += 1
         reason = SourceFailureReason.PAGE_UNAVAILABLE
         for attempt in range(2):
+            deadline = asyncio.timeout(self.limits.tool_seconds)
             try:
-                async with asyncio.timeout(self.limits.tool_seconds):
+                async with deadline:
                     document = await self.backend.read(source_id, self.request)
                 if document.source != self.registry[source_id]:
                     raise AgentDiscoveryError("Retrieved source identity did not match.")
@@ -328,6 +329,10 @@ class ResearchState:
                 self.audit.append(ToolAudit(tool="read_source", source_id=source_id, outcome="ok"))
                 return self.model_document(document)
             except (TransientSourceError, TimeoutError):
+                # The tool budget includes extraction, not just network I/O.
+                # Repeating an exhausted operation can consume the whole run.
+                if deadline.expired():
+                    break
                 self.audit.append(
                     ToolAudit(tool="read_source", source_id=source_id, outcome="retry")
                 )

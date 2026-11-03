@@ -680,3 +680,38 @@ Final local gates: **653 tests**, **51 benchmark cases**, typing across **49 mod
 Ruff/format, wheel build and Twine passed. The added tests cover row ownership,
 past-selected-date filtering, duplicate conflicts, normalized source URLs, hidden
 fields, browser sanitization and internal-ID separation from planner tool inputs.
+
+## Read Deadline Isolation: 2026-11-03
+
+An unseeded run with the series changes still failed after **300.03s**, **20 model
+requests**, **37 registered sources** and **4 successful reads**. Search returned
+the target operator, but the planner had not read its detail. An unrelated source's
+extraction consumed its tool deadline; the research loop then restarted the entire
+read, including browser retrieval and model extraction. The global deadline expired
+before completion. This failure occurred before the target catalog restriction was
+reached, so membership requirements alone do not explain the recall failure.
+
+The read loop now checks whether its own timeout context expired. An exhausted tool
+deadline marks that source unavailable without an automatic second read. Early
+adapter timeouts and explicit transient failures retain one retry. Required details
+still abort; optional source failures preserve verified facts with partial coverage;
+external cancellation does not become a cached source failure. No budget increased.
+
+Two targeted baseline checks confirmed duplicate reads before the change. New
+regressions cover direct deadline handling, the original course with optional and
+required slow sources, early adapter timeout recovery, explicit transient recovery,
+and external cancellation. The optional-source case retains the original factual
+oracle while requiring incomplete coverage rather than claiming a complete result.
+
+Local gates: **659 tests**, **53 benchmark cases**, typing across **49 modules**,
+Ruff/format and wheel build passed. Only the isolated VPS evaluation module changed;
+production, browser worker, authentication policy and ingress were not modified.
+
+The next unseeded live run still hit the total deadline: **300.05s**, **18 model
+requests**, **43 registered sources** and **5 successful reads**. It reached the
+target operator's page and registered its portal link, then selected a general
+directory rather than following that registration link. It did not reproduce the
+same tool-level timeout, so this run is not evidence of a causal latency or recall
+gain from the fix. Original-course recall remains failed. The independent deadline
+regressions prove the bounded retry correction; source prioritization and end-to-end
+runtime remain unresolved. Twine metadata validation also passed.
