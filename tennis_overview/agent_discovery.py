@@ -14,7 +14,7 @@ from pydantic_ai.usage import RunUsage
 from .course_extraction import CourseExtractor
 from .discovery_agent import (
     AgentDiscoveryError,
-    DiscoveryLimits,
+    LIVE_DISCOVERY_LIMITS,
     DiscoveryRequest,
     run_discovery_agent,
 )
@@ -30,9 +30,7 @@ async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, 
         timezone=location["timezone"],
         start=datetime.now(ZoneInfo(location["timezone"])).date(),
     )
-    limits = DiscoveryLimits(
-        model_requests=24, tool_calls=30, sources=48, tool_seconds=60, total_seconds=300
-    )
+    limits = LIVE_DISCOVERY_LIMITS
     usage = RunUsage()
     config = PrivateModelConfig(
         base_url=app.discovery_api_url,

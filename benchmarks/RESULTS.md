@@ -411,3 +411,37 @@ focuses. The PDF-only query returned multiple out-of-area operators. Three broad
 generic queries produced more local results but still did not find the target.
 These observations motivate geographic expansion and source-selection work, not
 seeding the benchmark with the expected registration URL.
+
+## Offline Nearby Coverage: 2026-11-03
+
+Area search now derives up to two nearby populated places from an offline GeoNames
+snapshot, resolving state/country qualifiers and remaining alias ambiguity with
+the request time zone. GeographicLib measures same-country centers within 25km.
+Unknown/ambiguous inputs do not expand. Geographic coverage is explicitly partial:
+the population threshold, urban districts and two-place cap prevent an exhaustive
+claim. Neither a club name nor the expected course URL is part of this expansion.
+
+The agent must search those places before reading, even if the original city has
+courses. The live application and harness share one immutable limit configuration:
+six search queries instead of four, with the same 24 model requests, 48 references,
+30 tool calls and 300-second deadline. Generic registration and schedule queries
+no longer require the course's level label or PDF format to discover its operator.
+
+Four additional benchmark cases cover offline geography across three regions and
+an end-to-end scripted Pydantic AI loop that obtains the real anonymous-course
+transcription only after a neighboring-city search. The real-case time, price,
+full status and unknown waitlist oracle is unchanged; this is not live recall proof.
+
+| Unseeded live run | Evidence | Outcome |
+| --- | --- | --- |
+| First candidate | 3 model requests; 14 registered sources; 31.77s | Automatically searched both neighboring places; third search unavailable before any page read |
+| Second candidate | 17 model requests; 40 registered sources; 4 completed reads; 88.47s | All five queries completed; target operator appeared in neighboring-city results, but the agent selected other sources and a later extraction raised `ModelRequestRejectedError` |
+
+Neither run passed the original course-recall gate. The target operator entering
+the public candidate set is observed progress, not a found course or a confirmed
+registration. The model rejection cause has not been established. Source selection,
+search reliability, provider navigation and production calendar acceptance remain open.
+
+Local gates: **588 tests**, **42 benchmark cases**, typing across **49 modules**,
+Ruff/format and wheel build checks. Only isolated test environments were updated;
+the production discovery switch and centrally managed ingress remain unchanged.

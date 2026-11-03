@@ -27,6 +27,8 @@ dependencies = [
   "recurring-ical-events>=3.8.2,<4",
   "beautifulsoup4>=4.12,<5",
   "ddgs==9.16.1",
+  "geonamescache==3.0.2",
+  "geographiclib==2.1",
   "python-dateutil>=2.9,<3",
   "pydantic>=2.12,<3",
   "pydantic-ai-slim[openai]==2.64.0",

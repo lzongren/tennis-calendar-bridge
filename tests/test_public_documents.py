@@ -53,6 +53,22 @@ def test_selected_agent_search_backend_is_available_in_installed_dependency():
     assert "yahoo" in ENGINES["text"]
 
 
+@pytest.mark.parametrize(
+    "focus,expected",
+    [
+        ("registration", "Example City adult tennis classes registration"),
+        ("schedule", "Example City adult tennis class schedule 2026"),
+    ],
+)
+def test_area_queries_do_not_require_pdf_or_level_to_discover_an_operator(
+    monkeypatch, focus, expected
+):
+    search = MagicMock(return_value=[])
+    monkeypatch.setattr("tennis_overview.search_layouts.search_index", search)
+    assert search_courses("Example City", "NTRP 3.0", 2026, focus) == []
+    search.assert_called_once_with(expected)
+
+
 def test_disabled_search_backend_fails_before_ddgs_can_select_other_providers(monkeypatch):
     from ddgs.engines import ENGINES
 
