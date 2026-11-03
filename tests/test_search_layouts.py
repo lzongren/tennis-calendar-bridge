@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from ddgs.exceptions import DDGSException
 
 from tennis_overview.search_layouts import LayoutAwareYahoo, search_index
 
@@ -29,7 +30,13 @@ def test_classic_search_layout_still_uses_library_parser():
 )
 def test_unrecognized_search_page_does_not_become_empty_success(monkeypatch, body):
     monkeypatch.setattr(LayoutAwareYahoo, "request", lambda *a, **kw: body)
-    with pytest.raises(ValueError, match="unavailable"):
+    with pytest.raises(DDGSException, match="unavailable"):
+        search_index("Example City adult tennis")
+
+
+def test_missing_search_response_is_retryable_not_empty(monkeypatch):
+    monkeypatch.setattr(LayoutAwareYahoo, "request", lambda *a, **kw: None)
+    with pytest.raises(DDGSException, match="unavailable"):
         search_index("Example City adult tennis")
 
 

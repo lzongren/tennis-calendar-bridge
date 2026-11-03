@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from bs4 import BeautifulSoup
 from ddgs.engines.yahoo import Yahoo
+from ddgs.exceptions import DDGSException
 from ddgs.results import TextResult
 
 
@@ -35,5 +36,5 @@ def search_index(query: str) -> list[dict[str, str]]:
     rows = LayoutAwareYahoo(timeout=12).search(query)
     if not rows:
         # An unrecognized or blocked page is not evidence of zero matching courses.
-        raise ValueError("Public search results unavailable")
+        raise DDGSException("Public search results unavailable")
     return [{"title": row.title, "href": row.href} for row in rows[:8]]

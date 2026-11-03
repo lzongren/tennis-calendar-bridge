@@ -525,3 +525,39 @@ but linked only to that portal and quoted a different price from the dated detai
 It cannot establish current price or availability. This confirms a separate catalog
 access boundary, not a need to authenticate every detail read. No authenticated
 fallback was enabled by these changes.
+
+## Public Search Recovery: 2026-11-03
+
+Expected search-provider failures were reaching the browser client as
+`worker_unavailable`, bypassing the research loop's existing bounded retry.
+The worker now emits `search_unavailable` only for the search adapter's provider
+exception type. The client recognizes it only on HTTP 503 search responses.
+Missing/unrecognized provider results use the same exception type rather than
+becoming empty catalogs. Unknown worker faults, wrong-operation labels, failed
+child processes and authentication/protocol errors remain fatal.
+
+Ten assertions failed against the earlier implementation before the correction.
+The added real-case replay tests cover one successful retry and two consecutive
+failures through the actual client, backend and Pydantic AI loop. Recovery retains
+the original clinic facts; exhaustion performs no detail read and does not invent
+an empty successful result. Both attempts use the same query and only one backoff.
+
+In the unseeded live run, the original city's registration query failed, was
+classified as `TransientSourceError`, and succeeded on its single retry. The agent
+then completed all mandatory searches and read the target operator page, including
+its newly registered portal/PDF links. This directly verifies recovery from an
+observed live failure, rather than inferring it from a run with no failure.
+
+The complete run still **failed** later with `UnexpectedModelBehavior` after
+**128.81s**, **21 model requests**, **36 references** and **6 completed reads**.
+The target occurrence was not discovered. No claim is made about the precise
+later validation failure or overall autonomous recall. The separate anonymous
+known-source benchmark passed **2/2**, **14.77s / 27.59s**, with **3 requests each**
+and unchanged identity, time, price, full status, provenance and unknown waitlist.
+
+Local gates: **630 tests**, **48 benchmark cases**, typing across **49 modules**,
+Ruff/format, wheel build and metadata checks passed. The private experimental
+browser worker and isolated VPS test client were updated together; worker health
+was verified from the VPS. Production application, ingress and browser login
+permissions were not changed. This component can advance independently; the
+parent discovery feature still requires full recall and deployment acceptance.
