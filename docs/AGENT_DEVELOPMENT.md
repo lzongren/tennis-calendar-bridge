@@ -264,6 +264,14 @@ or all-source failures still abort and preserve the previous snapshot. These
 responses never trigger login or a challenge bypass.
 Public HTTP error documents are source failures, not successful empty pages.
 
+Rendered public-page links pass the same `read_url` policy used by the client before
+the browser worker applies its 24-link response limit. Unreadable references, such
+as HTTP navigation chrome or checkout links, are omitted rather than invalidating
+the otherwise readable page. They are not fetched, rewritten to HTTPS or treated
+as registration evidence. The page destination and every returned link still face
+client-side validation; malformed worker responses remain errors. Portal detail
+selection, authentication requirements and partial-coverage semantics are unchanged.
+
 Recognized failures retain a fixed `SourceFailureReason` through the browser client,
 research loop and source report. Only that allowlisted reason reaches the model or
 UI; exception messages and response bodies do not. The UI distinguishes sources
