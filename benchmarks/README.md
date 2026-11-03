@@ -26,6 +26,11 @@ keys, hostnames, raw model messages and provider error text are not included.
 The command exits nonzero if any case or network-audit check fails. Compare
 individual checks, not only a combined score. Never publish private replay inputs.
 
+The evidence replay request uses `source_check` mode. It verifies supplied records,
+neighboring-city tool use and required detail closure, not area-search coverage.
+The unseeded live `clinic-search` case uses the default `area` mode and must pass
+the overview, registration and schedule search gates before reading pages.
+
 Each of four scenarios is repeated serially. The scorer checks exact facts,
 complete source IDs, retrieval, neighboring-city expansion, denied tool attempts
 and partial-result state. Facts are constructed by the same deterministic Python

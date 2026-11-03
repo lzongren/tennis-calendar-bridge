@@ -40,7 +40,11 @@ from tennis_overview.public_web import Page, PageLink, page_from_html
 FIXTURES = Path(__file__).parent / "fixtures"
 URL = "https://club.example.org/adults"
 REQUEST = DiscoveryRequest(
-    city="Example City", timezone="America/Los_Angeles", level="3.0", start=date(2026, 10, 25)
+    city="Example City",
+    timezone="America/Los_Angeles",
+    level="3.0",
+    start=date(2026, 10, 25),
+    search_mode="source_check",
 )
 
 

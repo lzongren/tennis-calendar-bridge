@@ -65,6 +65,23 @@ IDs. Required detail links must be read before completion. The application deriv
 results from source records and retains all relevant evidence, even if the model
 tries to finish early. It has no shell, filesystem, booking or payment tools.
 
+Area discovery is the default. It performs overview, registration and schedule
+searches before reading pages, then requires an attempted read from the new sources
+introduced by each nonempty search. Existing candidates cannot bypass these gates.
+The application and live recall harness share a 48-reference registry limit while
+retaining the existing model, read, tool and time budgets. This reserves discovery
+work before linked pages consume the registry; it does not promise exhaustive coverage.
+`source_check` is the explicit focused mode for supplied-source and evidence replay
+benchmarks, not the production city-discovery path. It retains the same required
+detail, grounding and failure rules but makes no area-recall claim.
+
+The public search adapter retains the existing Yahoo transport and redirect decoder
+and accepts both observed desktop and alternate result layouts. It excludes account
+navigation and related-query promotions. Unknown or blocked pages are errors, never
+successful empty catalogs; no automatic switch to another search provider is enabled.
+DDGS is pinned to the evaluated version because this compatibility layer subclasses
+its provider adapter. A dependency update must rerun the layout fixtures and live search.
+
 The private client uses an explicit model and key, Tailscale HTTPS or loopback HTTP,
 no environment proxy, no redirects, bounded decoded responses and no SDK transport
 retries. Agent instrumentation is explicitly disabled. A `.ts.net` hostname alone

@@ -229,7 +229,12 @@ def search_courses(
     if focus is not None and backend not in ENGINES["text"]:
         # DDGS otherwise silently switches an unavailable backend to "auto".
         raise ValueError("Configured public search backend is unavailable")
-    results = DDGS(timeout=12).text(query, max_results=8, backend=backend)
+    if focus is None:
+        results = DDGS(timeout=12).text(query, max_results=8, backend=backend)
+    else:
+        from .search_layouts import search_index
+
+        results = search_index(query)
     candidates = []
     for item in results:
         try:

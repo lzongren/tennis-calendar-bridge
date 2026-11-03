@@ -5,12 +5,14 @@ from collections.abc import Sequence
 
 import pytest
 from pydantic import ValidationError
+from pydantic_ai import ModelRetry
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from benchmarks.agent_discovery import ReplayBackend, request, score
 from tennis_overview.discovery_agent import (
     AgentDiscoveryError,
+    Completion,
     DiscoveryLimits,
     ResearchState,
     SearchResults,
@@ -44,6 +46,78 @@ def plan(*, conflict: bool = False, early_finish: bool = False) -> list[ToolCall
         calls.append(ToolCallPart("read_source", {"source_id": "conflicting-record"}))
     calls.append(finish)
     return calls
+
+
+class AreaBackend(ReplayBackend):
+    schedule_ref = SourceRef(id="schedule-index", title="Additional operator schedule")
+
+    async def search(self, city, request):
+        self.search_calls.append(city + "|" + request.search_focus)
+        ref = {
+            "overview": self.documents["seasonal-schedule"].source,
+            "registration": self.documents["dated-registration"].source,
+            "schedule": self.schedule_ref,
+        }[request.search_focus]
+        return SearchResults(sources=(ref,))
+
+    async def read(self, source_id, request):
+        if source_id == self.schedule_ref.id:
+            self.read_calls.append(source_id)
+            return SourceDocument(source=self.schedule_ref, text="No additional dated courses")
+        return await super().read(source_id, request)
+
+
+@pytest.mark.benchmark
+def test_area_discovery_cannot_spend_reads_before_search_coverage_or_skip_new_sources():
+    async def scenario():
+        backend = AreaBackend()
+        state = ResearchState(
+            request().model_copy(update={"search_mode": "area"}), backend, DiscoveryLimits()
+        )
+        await state.search_courses("San Jose")
+        with pytest.raises(ModelRetry, match="registration, schedule"):
+            await state.read_source("seasonal-schedule")
+        assert backend.read_calls == []
+        assert state.read_attempts == 0
+        await state.search_courses("San Jose", "registration")
+        await state.search_courses("San Jose", "schedule")
+        await state.read_source("seasonal-schedule")
+        await state.read_source("dated-registration")
+        with pytest.raises(ModelRetry, match="newly discovered.*schedule-index"):
+            state.complete(Completion(outcome="sources_checked"))
+        await state.read_source("schedule-index")
+        assert state.complete(Completion(outcome="sources_checked")).outcome == "sources_checked"
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.benchmark
+def test_area_agent_refines_search_despite_finding_existing_candidates():
+    calls = [
+        *[
+            ToolCallPart("search_courses", {"city": "San Jose", "focus": focus})
+            for focus in ("overview", "registration", "schedule")
+        ],
+        ToolCallPart("read_source", {"source_id": "seasonal-schedule"}),
+        ToolCallPart("read_source", {"source_id": "dated-registration"}),
+        ToolCallPart("finish_discovery", {"outcome": "sources_checked"}),
+        ToolCallPart("read_source", {"source_id": "schedule-index"}),
+        ToolCallPart("finish_discovery", {"outcome": "sources_checked"}),
+    ]
+    backend = AreaBackend()
+    run = asyncio.run(
+        run_discovery_agent(
+            request().model_copy(update={"search_mode": "area"}), backend, scripted(calls)
+        )
+    )
+    assert backend.search_calls == [
+        "San Jose|overview",
+        "San Jose|registration",
+        "San Jose|schedule",
+    ]
+    assert "schedule-index" in backend.read_calls
+    assert run.sessions[0].price_usd == 54
+    assert run.sessions[0].availability == "full"
 
 
 @pytest.mark.benchmark
