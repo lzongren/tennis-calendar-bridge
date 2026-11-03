@@ -116,8 +116,9 @@ cannot establish dynamic registration recall, occupancy or geographic completene
 ## Browser Evidence
 
 Course discovery should not require a dedicated search API. The next retrieval
-layer will use general search and read-only browser navigation, with authentication
-kept in a local browser. This does not mean giving the model unrestricted control
+layer uses general search and read-only browser navigation, starting with a fresh
+anonymous context. Login is not inferred from a provider's domain name. Any
+explicitly authorized authentication stays in a local browser. This does not mean giving the model unrestricted control
 over a personal browser or copying its profile to the VPS.
 
 `BrowserDocument` is the transport-neutral input boundary for a trusted reader.
@@ -151,8 +152,18 @@ fall back to model-generated registration facts.
 The production worker still uses the public document reader. There is **no
 autonomous browser transport enabled yet**: interactive browser inspection and
 an injected-reader replay do not establish production search recall. A future
-transport must provide a dedicated authenticated browser context, allowlisted
+transport must provide fresh anonymous browser contexts, separately authorized
+login fallback only on an explicit login requirement, allowlisted
 read operations, origin/navigation checks, cancellation and resource budgets.
 It must never expose arbitrary CDP access, scripts, files, booking or payment
 actions to the model. Local cookies stay local; the VPS receives sanitized course
 facts only. Existing private listeners and centrally managed ingress stay unchanged.
+
+The anonymous November 2 clinic case is a separate fixture from the original
+signed-in screenshot. It retains the same 18:30-19:50 Pacific occurrence and
+$54 price, but shows only `Full`; the waitlist count is unknown, not two and not
+zero. `pytest -m benchmark` checks both observations without merging their facts.
+The opt-in `benchmarks.source_discovery --case anonymous` replay exercises the
+Pydantic AI loop. With `--live-web --source-url <PUBLIC_DETAIL_URL>`, it uses the
+private browser worker and fresh evidence. This is a known-source extraction
+benchmark, not proof that city-wide search discovers that URL.

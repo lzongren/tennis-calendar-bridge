@@ -22,7 +22,7 @@ classifiers = [
   "Topic :: Office/Business :: Scheduling",
 ]
 dependencies = [
-  "playwright>=1.44.0",
+  "playwright>=1.48.0",
   "icalendar>=7.0,<8",
   "recurring-ical-events>=3.8.2,<4",
   "beautifulsoup4>=4.12,<5",
@@ -92,6 +92,12 @@ module = [
   "tennis_overview.agent_discovery",
   "tennis_overview.browser_documents",
   "tennis_overview.courtreserve_discovery",
+  "tennis_overview.browser_protocol",
+  "tennis_overview.browser_query_policy",
+  "tennis_overview.browser_network",
+  "tennis_overview.browser_runtime",
+  "tennis_overview.browser_worker",
+  "tennis_overview.browser_client",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

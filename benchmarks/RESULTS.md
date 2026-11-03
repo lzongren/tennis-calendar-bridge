@@ -266,3 +266,42 @@ Local checks on the final candidate: **416 pytest tests**, including **25 benchm
 tests**, strict typing across 40 modules, Ruff lint/format and wheel/Twine checks
 pass. Fixtures use synthetic IDs and omit account data. Production is unchanged;
 the autonomous browser transport and live city-search acceptance remain open gates.
+
+## Anonymous-First Browser: 2026-11-02
+
+The original clinic detail is readable without login. A fresh browser context on
+the private Mac read the November 2 occurrence at 18:30-19:50 Pacific for $54.00,
+with status `Full`. The anonymous view did not expose a waitlist count. The new
+sanitized fixture keeps that count unknown instead of reusing the signed-in
+screenshot's two-person count. No login profile was loaded or exported.
+
+The earlier reader conflated the provider's hostname with authentication. It
+also dropped anonymous `Set-Cookie` state and frontend content-negotiation headers.
+The replacement starts anonymously, follows bounded validated redirect hops,
+identifies its HTTP relay honestly, and keeps anonymous cookies inside one job.
+Two strictly validated browser-generated catalog queries are permitted; action
+requests and bearer forwarding remain blocked. Authentication cannot be requested
+through the agent protocol. A 403 is not treated as a login requirement.
+
+The final installed candidate passed the live known-source Pydantic AI + private
+Qwen/Rapid-MLX benchmark **2/2** from the VPS (7.20s and 6.47s). Each run used
+three model requests and two tool calls, read one source, produced one occurrence,
+and had zero denied model tool attempts. Clinic identity, exact timestamps, $54,
+full status, unknown waitlist count, provenance and explicit partial-series status
+all passed. This is real retrieval, not a replay, but the detail URL was supplied:
+it does not establish autonomous discovery recall.
+
+The sanitized anonymous replay also passed **2/2** (2.84s and 2.16s), including
+the clinic-identity assertion. Its model-only audit recorded one model connection
+and zero blocked connection, DNS or subprocess attempts. Local checks passed
+**509 pytest tests**, typing across 47 modules, Ruff lint/format, wheel build and
+Twine metadata checks.
+
+The anonymous directory path is a separate failed acceptance case. After fixing
+the browser query transport, the provider explicitly required organization
+membership to list its courses. The final VPS-to-Mac check returned HTTP 503 with
+`membership_required`, not an empty successful catalog. Public detail access and
+catalog access therefore need separate policies. Membership-aware discovery,
+city-wide recall and production calendar/UI acceptance remain open. Only the
+isolated Mac browser worker was updated; the production tennis service and agent
+enable flag were not changed.

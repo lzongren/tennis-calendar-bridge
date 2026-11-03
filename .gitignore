@@ -1,5 +1,6 @@
 .env
 .inference.env
+.browser.env
 .DS_Store
 .venv/
 __pycache__/

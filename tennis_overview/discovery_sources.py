@@ -138,10 +138,12 @@ class PublicSourceBackend:
                 page = document
                 if not page.links and len(page.text.split()) < 5:
                     raise SourceUnavailable("Source needs dynamic or authenticated access")
-                courses = await self.extractor.extract(page, request)
+                courses = () if page.required_links else await self.extractor.extract(page, request)
             source.page = page
             records: dict[str, SessionEvidence] = {}
-            partial = len(courses) >= 8 or bool(registration and registration.partial)
+            partial = (
+                page.partial or len(courses) >= 8 or bool(registration and registration.partial)
+            )
             for course in courses[:8]:
                 occurrences = course.sessions or (None,)
                 for occurrence in occurrences:
@@ -180,6 +182,15 @@ class PublicSourceBackend:
                         linked[ref.id] = ref
             partial = partial or len(related_links(page)) > 6 or self.truncated
             required = []
+            for url in page.required_links:
+                if url not in page.links:
+                    raise SourceUnavailable("Invalid browser detail reference")
+                ref = self.register(url, "Course registration detail", source.depth + 1)
+                if ref:
+                    linked[ref.id] = ref
+                    required.append(ref.id)
+                else:
+                    partial = True
             for course in courses[:8]:
                 # Only deterministic adapters can supply a course-owned registration URL.
                 # A general portal link is useful navigation, not an event identity.

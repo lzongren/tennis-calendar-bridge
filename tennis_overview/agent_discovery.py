@@ -40,6 +40,12 @@ async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, 
     async with private_model(config) as model:
         extractor = CourseExtractor(model, usage, limits.model_requests)
         backend = PublicSourceBackend(extractor, tuple(location["sources"]))
+        if app.discovery_browser_url or app.discovery_browser_key:
+            from .browser_client import BrowserClient
+
+            browser = BrowserClient(app.discovery_browser_url, SecretStr(app.discovery_browser_key))
+            backend.reader = browser.read
+            backend.searcher = browser.search
         result = await run_discovery_agent(request, backend, model, limits=limits, usage=usage)
         return backend.result(result, request)
 

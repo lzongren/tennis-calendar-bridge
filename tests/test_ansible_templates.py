@@ -13,6 +13,30 @@ from tennis_overview.config import load_config
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_private_browser_environment_is_optional_and_not_published():
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(ROOT / "ansible/templates"), undefined=jinja2.StrictUndefined
+    )
+    result = env.get_template("browser.env.j2").render(
+        tennis_discovery_browser_url="https://browser.example.ts.net:8444",
+        vault_tennis_discovery_browser_key="synthetic-worker-key",
+    )
+    assert "TENNIS_DISCOVERY_BROWSER_KEY='synthetic-worker-key'" in result
+    assert "TENNIS_DISCOVERY_AGENT_ENABLED" not in result
+    play = yaml.safe_load((ROOT / "ansible/playbook.yml").read_text())[0]
+    task = next(t for t in play["tasks"] if t["name"] == "Render optional private browser settings")
+    assert task["no_log"] and task["ansible.builtin.template"]["mode"] == "0600"
+    assert "default('')" in task["when"]
+    for path in (
+        ".gitignore",
+        ".dockerignore",
+        "scripts/deploy_vps.sh",
+        "ansible/playbook.yml",
+        "docker-compose.yml",
+    ):
+        assert ".browser.env" in (ROOT / path).read_text()
+
+
 def test_private_inference_environment_is_isolated_and_optional():
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(ROOT / "ansible/templates"), undefined=jinja2.StrictUndefined

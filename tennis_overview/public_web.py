@@ -124,6 +124,8 @@ class Page:
     schedules: tuple[ScheduleBlock, ...] = ()
     link_details: tuple[PageLink, ...] = ()
     content_type: str = "text/html"
+    partial: bool = False
+    required_links: tuple[str, ...] = ()
 
 
 def fetch_page(url: str) -> Page:
