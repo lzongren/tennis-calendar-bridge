@@ -81,3 +81,20 @@ these checks. Keep failures and subsequent reruns separate in the results report
 Offline browser acceptance now runs both legacy and agent paths through the actual
 worker, persistence, API and desktop/mobile calendar with controlled sources and a
 `FunctionModel`. This tests application integration, not live model reliability.
+
+## Rendered Registration Replay
+
+```sh
+python -m benchmarks.source_discovery --case browser --repeats 2 --output /tmp/source-browser.json
+```
+
+This case injects a trusted `BrowserDocument` using the sanitized structural DOM
+transcription in `discovery_benchmark/courtreserve_detail.html`. The backend,
+deterministic registration adapter, Pydantic AI loop and reconciler run normally.
+The November 2 screenshot oracle remains unchanged. Checks include exact start,
+end, price, full/waitlist facts, no inferred personal queue position, provenance
+and an explicit partial result for the unparsed series dates.
+
+The capture and validation clock are fixed for replay. No real browser, login or
+search is performed by this command. It uses the model-only network guard and
+cannot establish autonomous browser compatibility or live course coverage.

@@ -235,3 +235,34 @@ date conflict 5.30/4.30s, and transient read 3.42/3.49s. The generic quoted-page
 case passed **2/2** (9.95/4.79s, four requests each), including exact title, price,
 date/time and evidence, with no denied calls and non-partial completion. These
 replay results do not resolve the separate live-search failure.
+
+## Browser Registration Evidence: 2026-11-02
+
+The retrieval direction is now general browser access, without a dedicated search
+API requirement. The optional API PR was closed, not merged. An authorized
+read-only local-browser inspection reached the original course's dynamic detail
+page using an existing session. It displayed November 2, 6:30p-7:50p, $54.00 and
+`Full - 2 Registrant(s) Waitlisted`. No registration, account or payment action
+was performed, and no browser profile or cookies were exported.
+
+The next component accepts a trusted rendered observation through the existing
+reader boundary and deterministically parses the selected occurrence. Its fixture
+is a sanitized structural transcription of the inspected DOM, not an archived
+authenticated page. The original screenshot oracle remains unchanged. Replays
+exercise the real source backend and agent loop; they do not exercise autonomous
+search, login or browser navigation.
+
+The configured private Qwen/Rapid-MLX endpoint passed **2/2** new browser-evidence
+replays before the final series-label guard (3.79/2.14s). After the URL and
+unexpanded-series safeguards, a fresh installed wheel passed **2/2** again
+(2.83/2.12s). Each run used three model requests, two tool calls, one checked
+source and zero denied tool attempts. Exact start/end, $54 price, full status,
+two-person waitlist, provenance and no personal queue-position inference passed.
+The series remains explicitly partial because other occurrence rows are not yet
+parsed. Both reports recorded one model connection and zero blocked connection,
+DNS or subprocess attempts under the model-only audit guard.
+
+Local checks on the final candidate: **416 pytest tests**, including **25 benchmark
+tests**, strict typing across 40 modules, Ruff lint/format and wheel/Twine checks
+pass. Fixtures use synthetic IDs and omit account data. Production is unchanged;
+the autonomous browser transport and live city-search acceptance remain open gates.
