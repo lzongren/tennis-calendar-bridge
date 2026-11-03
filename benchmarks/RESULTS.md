@@ -974,3 +974,69 @@ facts, evidence, withheld personal queue information and partial series coverage
 were preserved. The second run needed an additional model turn; this remains a
 small observed sample, not a reliability or latency guarantee. The full local suite
 was rerun after review: **713 passed**.
+
+## Registration Navigation Coverage: 2026-11-03
+
+The prior live run could finish after reading an operator overview without trying
+its observed registration link, because other clubs already supplied candidates.
+Area discovery now tracks bounded `navigation_ids` independently of required
+course-detail verification. A navigation read must be attempted; a membership or
+login response records unavailable/partial coverage without authorizing a login.
+Required course-detail failures still abort. Registration observations do not
+reopen their general catalog through back-navigation links.
+
+Three new controlled scenarios retain the original clinic facts and add unrelated
+courses, an operator navigation page and a second search group. They verify that
+unrelated candidates cannot end the search before the registration route is tried.
+The variants cover readable details, anonymous membership denial and hostile link
+titles. The denial case must not invent the missing clinic. The scorer also rejects
+a deliberately premature result, even when it has other valid courses.
+
+An initial implementation prioritized navigation immediately. Its three-scenario
+private-model replay passed two repetitions, but the live run spent much of its
+budget on one club's signup pages before visiting other sources. It eventually
+reached the target operator portal and received `membership_required`, then failed
+on an undiscovered model-supplied source ID: **259.01s**, **16 model requests**.
+The existing unknown-source rejection remained active. This was not a passing
+original-course recall result.
+
+The correction gives unattempted search groups priority over optional linked reads,
+while allowing required course details immediately. Tool schema and execution guard
+share the same coverage-ID calculation. A regression failed before this correction
+because an optional catalog read executed before the remaining group. It now passes
+without relaxing any factual or budget checks. The existing frontier benchmark's
+read order was updated; its exact date, time, price, capacity and source-limit
+assertions remain intact.
+
+One intermediate replay used the earlier fixture because its transfer stalled.
+That run passed the earlier three scenarios but does not validate the additional
+search group. The old destination hash was detected, the identified transfer was
+cancelled after the run ended, and both final module hashes were checked before
+starting the fresh evaluation. No production files or browser-worker configuration
+were changed.
+
+On the hash-verified candidate, the expanded navigation suite passed **5/6** across
+two repetitions. Readable navigation and membership denial passed both times; the
+second hostile-title run raised `AgentDiscoveryError`. The process-local network
+audit recorded no blocked connection, DNS or process attempts. This establishes
+neither the exact failure cause nor functional robustness, so the component is not
+eligible for merge on this evidence. A diagnostic rerun retains fixed failure
+categories and synthetic source IDs only, without exposing model messages or keys.
+
+Local verification passed **732 tests**, **77 benchmark cases**, typing across
+**50 modules**, Ruff/format, wheel build and Twine. These local gates do not override
+the real-model failure or the separate original-course recall gate.
+
+The diagnostic rerun passed **4/6**: readable navigation and membership denial
+passed twice, while both hostile-title repetitions failed (**19.88s / 72.39s**).
+The first failure trace showed repeated reads of cached operator pages while the
+other-club search group remained unattempted. The second attempted navigation too
+early, then read the other-club page before failing. Both surfaced a redacted
+`AgentDiscoveryError`; the underlying terminal exception was not captured, so no
+specific timeout or request-limit cause is claimed. These traces establish a
+completion problem despite the coverage guard, not a safe production result.
+
+The component remains draft and unmerged. A new unseeded live run and final
+known-link/evidence replay are deferred until the controlled completion failure is
+resolved. The earlier anonymous live run and prior component's passing known-link
+checks are not presented as acceptance of this final candidate.

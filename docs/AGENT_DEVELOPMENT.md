@@ -104,8 +104,30 @@ disappears at the query limit. Completion still requires an attempted read from 
 new sources introduced by each nonempty search. Existing candidates cannot bypass
 these gates; preflight does not change required-detail or source-failure semantics.
 
+Area coverage also requires an attempt at observed registration navigation. The
+source adapter marks `navigation_ids` only among the existing bounded, validated
+links, using registration labels/paths. It never creates a URL from model output.
+The same classification ranks links before the six-link cap; depth and registry
+limits are unchanged. Failed course extraction can retain these obligations with
+its independently observed links. Registration detail observations do not create
+new catalog obligations from their back-navigation links.
+
+These are not `required_ids`: an unavailable catalog completes the navigation
+attempt and leaves coverage partial, while a failed required course detail still
+aborts verification. Other courses cannot bypass an unattempted navigation ID.
+Completion-tool visibility and validation use the same pending-ID calculation,
+and fixed progress instructions prioritize these IDs. A membership/login response
+does not authorize a login or retry. `source_check` does not expand area navigation.
+
+The read tool's schema and execution guard share a coverage-first ID set while any
+search group is unattempted. It permits a representative from those groups or a
+required course-detail read, but defers optional linked navigation. This prevents
+one operator's signup links from consuming the budget before other search groups
+are inspected. After that breadth pass, all outstanding navigation attempts remain
+mandatory. Budgets and required-detail failure handling are unchanged.
+
 Each model turn also receives state-owned progress instructions: outstanding query
-phases, required detail IDs, unattempted source groups and remaining read capacity.
+phases, required detail IDs, registration navigation, unattempted source groups and remaining read capacity.
 Source text, titles and URLs are not promoted into these instructions. Completion
 validation reports all outstanding detail/group reads together, rather than spending
 one output retry per missing group. The progress display and validator share the

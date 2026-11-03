@@ -93,7 +93,7 @@ def test_search_frontier_retains_room_for_operator_to_real_course_navigation():
             ),
             *(
                 ToolCallPart("read_source", {"source_id": identity(url)})
-                for url in (operator, PORTAL, DETAIL, *other_sources)
+                for url in (operator, *other_sources, PORTAL, DETAIL)
             ),
             ToolCallPart("finish_discovery", {"outcome": "sources_checked"}),
         ]
@@ -106,7 +106,7 @@ def test_search_frontier_retains_room_for_operator_to_real_course_navigation():
         run_discovery_agent(request, backend, FunctionModel(respond), limits=LIVE_DISCOVERY_LIMITS)
     )
     assert backend.initial_urls == () and DETAIL not in request.model_dump_json()
-    assert seen_urls[:3] == [operator, PORTAL, DETAIL]
+    assert seen_urls == [operator, *other_sources, PORTAL, DETAIL]
     assert len(backend.sources) < LIVE_DISCOVERY_LIMITS.sources
     assert run.partial and backend.truncated
     assert len(run.sessions) == 1

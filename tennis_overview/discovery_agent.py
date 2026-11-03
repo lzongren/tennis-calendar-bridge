@@ -116,6 +116,7 @@ class SourceDocument(EvidenceModel):
     text: Annotated[str, Field(max_length=24000)]
     links: tuple[SourceRef, ...] = Field(default=(), max_length=16)
     required_ids: tuple[SourceID, ...] = Field(default=(), max_length=8)
+    navigation_ids: tuple[SourceID, ...] = Field(default=(), max_length=6)
     records: tuple[SessionEvidence, ...] = Field(default=(), max_length=64)
     partial: bool = False
     evidence_unavailable: bool = False
@@ -126,6 +127,8 @@ class SourceDocument(EvidenceModel):
             raise ValueError("A record must belong to the retrieved source")
         if not set(self.required_ids) <= {link.id for link in self.links}:
             raise ValueError("Required sources must be discovered links")
+        if not set(self.navigation_ids) <= {link.id for link in self.links}:
+            raise ValueError("Navigation sources must be discovered links")
         if self.evidence_unavailable and (self.records or not self.partial or not self.links):
             raise ValueError("Unavailable evidence may retain only partial navigation, not facts")
         return self
@@ -338,6 +341,12 @@ class ResearchState:
             return self.model_document(self.documents[source_id])
         if source_id in self.failed_sources:
             return self.source_failure(source_id)
+        if coverage := self.coverage_read_ids():
+            if source_id not in coverage:
+                raise ModelRetry(
+                    "Inspect unattempted search groups before optional linked navigation. "
+                    "Allowed source IDs: " + ", ".join(coverage)
+                )
         if self.read_attempts >= self.limits.reads:
             raise AgentDiscoveryError("Discovery read budget exceeded; narrow the search.")
         self.read_attempts += 1
@@ -400,6 +409,7 @@ class ResearchState:
                 "reason": SourceFailureReason.EVIDENCE_INVALID.value,
                 "links": [link.model_dump() for link in document.links],
                 "required_ids": document.required_ids,
+                "navigation_ids": document.navigation_ids,
             }
         candidates = list(
             dict.fromkeys(
@@ -411,6 +421,7 @@ class ResearchState:
             "source": document.source.model_dump(mode="json"),
             "links": [link.model_dump() for link in document.links],
             "required_ids": document.required_ids,
+            "navigation_ids": document.navigation_ids,
             "candidate_session_count": len({record.session_key for record in document.records}),
             "candidate_sessions": [
                 {
@@ -445,6 +456,10 @@ class ResearchState:
         obligations = []
         if missing:
             obligations.append("Read required detail source IDs: " + ", ".join(missing))
+        if navigation := self.unattempted_navigation_ids():
+            obligations.append(
+                "Attempt discovered registration navigation IDs: " + ", ".join(navigation)
+            )
         if groups := self.unattempted_search_groups():
             obligations.append(
                 "Inspect a relevant newly discovered source from EACH search group before "
@@ -476,6 +491,13 @@ class ResearchState:
             sid for search in self.searches.values() for sid in search.required_ids
         }
 
+    def unattempted_navigation_ids(self) -> tuple[str, ...]:
+        """Area coverage requires a read attempt, not authenticated access or course facts."""
+        if self.request.search_mode != "area":
+            return ()
+        discovered = {sid for doc in self.documents.values() for sid in doc.navigation_ids}
+        return tuple(sorted(discovered - self.documents.keys() - self.failed_sources))
+
     def unattempted_search_groups(self) -> tuple[tuple[str, ...], ...]:
         if self.request.search_mode != "area":
             return ()
@@ -490,12 +512,21 @@ class ResearchState:
                 groups.append(tuple(sorted(new_ids)))
         return tuple(groups)
 
+    def coverage_read_ids(self) -> tuple[str, ...]:
+        """Cover search groups before optional depth; required facts retain priority."""
+        groups = self.unattempted_search_groups()
+        if not groups:
+            return ()
+        pending_details = self.required_source_ids() - self.documents.keys() - self.failed_sources
+        return tuple(sorted({sid for group in groups for sid in group} | pending_details))
+
     def progress_instructions(self) -> str:
         # Only bounded application state enters instructions, never page text or titles.
         progress = {
             "primary_focuses": self.unsearched_focuses(),
             "nearby_searches_remaining": len(self.unsearched_nearby_cities()),
             "required_detail_ids": sorted(self.required_source_ids() - self.documents.keys()),
+            "registration_navigation_ids": self.unattempted_navigation_ids(),
             "unattempted_search_groups": self.unattempted_search_groups(),
             "unread_if_no_candidates": sorted(
                 self.registry.keys() - self.documents.keys() - self.failed_sources
@@ -506,8 +537,13 @@ class ResearchState:
         }
         return (
             "Current research obligations: complete mandatory searches using the current tool "
-            "schema, then read required details and at least one ID per unattempted search "
-            "group before finish_discovery. Failed sources must not be retried. "
+            "schema, then cover unattempted search groups before optional linked navigation. "
+            "Required detail IDs may be read immediately. After group coverage, prioritize "
+            "registration_navigation_ids before other unread sources. "
+            "Attempt these navigation IDs even if other courses exist; "
+            "an unavailable navigation source satisfies the attempt, not verification. "
+            "Read at least one ID per unattempted search group before finish_discovery. "
+            "Failed sources must not be retried. "
             "These are minimum coverage requirements, not proof of exhaustive discovery.\n"
             + json.dumps(progress)
         )
@@ -593,7 +629,13 @@ async def run_discovery_agent(
     async def prepare_read(
         ctx: RunContext[None], definition: ToolDefinition
     ) -> ToolDefinition | None:
-        return None if state.required_search_options() else definition
+        if state.required_search_options():
+            return None
+        if coverage := state.coverage_read_ids():
+            schema = deepcopy(definition.parameters_json_schema)
+            schema["properties"]["source_id"]["enum"] = list(coverage)
+            return replace(definition, parameters_json_schema=schema)
+        return definition
 
     async def prepare_completion(
         ctx: RunContext[None], definitions: list[ToolDefinition]

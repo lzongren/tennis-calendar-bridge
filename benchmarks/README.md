@@ -37,6 +37,16 @@ in that same mode; it is not live-web recall. The report records `search_mode`.
 Mandatory queries still count toward tool/search limits and audits, but the model
 starts from their structured results instead of choosing each fixed query in turn.
 
+Use `--suite navigation --search-mode area` for the registration-navigation
+regressions. Other-club candidates and an observed operator signup link reproduce
+the early-finish failure shape. Three scenarios cover readable catalog details,
+anonymous membership denial and an injected catalog title. A denial must retain
+other verified candidates and partial coverage without inventing target facts.
+Successful navigation must recover the original course facts and evidence. The
+scorer rejects skipped navigation even when another course is already present.
+These are controlled transcripts, not proof of live-web discovery; the original
+unseeded clinic case remains a separate acceptance gate.
+
 Each of five scenarios is repeated serially. The scorer checks exact facts,
 complete source IDs, retrieval, neighboring-city expansion, denied tool attempts
 and partial-result state. Facts are constructed by the same deterministic Python

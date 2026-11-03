@@ -36,6 +36,7 @@ Searcher = Callable[[str, str, int, str], Awaitable[list[dict[str, str]]]]
 # Six live queries admit at most 24 results, leaving room in the 48-source
 # registry for operator-linked schedules and registration details.
 AREA_RESULTS_PER_QUERY = 4
+REGISTRATION_LINK = re.compile(r"register|registration|portal|bookclass|bookcourse", re.I)
 
 
 def identity(value: str) -> str:
@@ -56,7 +57,7 @@ def related_links(page: Page) -> tuple[PageLink, ...]:
             re.I,
         ):
             continue
-        rank = 0 if re.search(r"register|portal|bookclass|bookcourse", description, re.I) else 1
+        rank = 0 if REGISTRATION_LINK.search(description) else 1
         selected.append((rank, link))
     return tuple(link for _, link in sorted(selected, key=lambda item: item[0]))
 
@@ -246,6 +247,7 @@ class PublicSourceBackend:
                     records[key] = record
                     self.details[key] = course
             linked: dict[str, SourceRef] = {}
+            navigation = []
             if source.depth < 2:
                 for link in related_links(page)[:6]:
                     ref = self.register(
@@ -253,6 +255,12 @@ class PublicSourceBackend:
                     )
                     if ref:
                         linked[ref.id] = ref
+                        # A general signup route needs an area-search attempt, not
+                        # successful course verification or an authenticated fallback.
+                        if not registration and REGISTRATION_LINK.search(
+                            link.title + " " + urlsplit(link.url).path
+                        ):
+                            navigation.append(ref.id)
             partial = partial or len(related_links(page)) > 6 or self.truncated
             required = []
             for url in page.required_links:
@@ -287,6 +295,7 @@ class PublicSourceBackend:
                 records=tuple(records.values()),
                 links=tuple(linked.values()),
                 required_ids=tuple(dict.fromkeys(required)),
+                navigation_ids=tuple(dict.fromkeys(navigation)),
                 partial=partial,
                 evidence_unavailable=evidence_unavailable,
             )
