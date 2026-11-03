@@ -88,6 +88,8 @@ def load_config(path: str | None = None) -> Config:
         discovery_api_url=os.getenv("TENNIS_DISCOVERY_API_URL", ""),
         discovery_model=os.getenv("TENNIS_DISCOVERY_MODEL", "tennis-discovery"),
         discovery_api_key=os.getenv("TENNIS_DISCOVERY_API_KEY", ""),
+        discovery_browser_url=os.getenv("TENNIS_DISCOVERY_BROWSER_URL", ""),
+        discovery_browser_key=os.getenv("TENNIS_DISCOVERY_BROWSER_KEY", ""),
         walls_catalog_path=os.getenv("TENNIS_WALLS_FILE", app_raw.get("walls_catalog_path", "")),
     )
 

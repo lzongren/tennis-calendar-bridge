@@ -11,6 +11,7 @@ htmlcov/
 data/
 .env
 .inference.env
+.browser.env
 .vault-pass
 ansible/.vault-pass
 config/clubs.toml

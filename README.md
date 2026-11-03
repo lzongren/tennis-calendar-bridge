@@ -486,3 +486,9 @@ docker compose up -d --build
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Experimental course-discovery geography uses offline [GeoNames](https://www.geonames.org/)
+data through [geonamescache](https://github.com/yaph/geonamescache). GeoNames data is
+licensed under [Creative Commons Attribution](https://www.geonames.org/export/),
+separately from this project's code. Nearby-place selection uses
+[GeographicLib](https://geographiclib.sourceforge.io/html/python/) for WGS84 distances.

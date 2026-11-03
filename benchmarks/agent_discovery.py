@@ -121,6 +121,7 @@ def request() -> DiscoveryRequest:
         level="NTRP 2.5-3.5",
         start=date(2026, 11, 2),
         timezone="America/Los_Angeles",
+        search_mode="source_check",
     )
 
 

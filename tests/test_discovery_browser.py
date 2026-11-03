@@ -50,7 +50,10 @@ def populated_server(tmp_path, monkeypatch, request):
             )
         calls = iter(
             [
-                ToolCallPart("search_courses", {"city": "Example City"}),
+                *(
+                    ToolCallPart("search_courses", {"city": "Example City", "focus": focus})
+                    for focus in ("overview", "registration", "schedule")
+                ),
                 *(
                     ToolCallPart("read_source", {"source_id": identity(url)})
                     for url in (*urls, *details)
@@ -79,8 +82,8 @@ def populated_server(tmp_path, monkeypatch, request):
         monkeypatch.setattr(
             agent_discovery,
             "PublicSourceBackend",
-            lambda extractor, sources: PublicSourceBackend(
-                extractor, sources, reader=read, searcher=search
+            lambda extractor, sources, **kwargs: PublicSourceBackend(
+                extractor, sources, reader=read, searcher=search, **kwargs
             ),
         )
     config = Config(

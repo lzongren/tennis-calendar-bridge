@@ -132,6 +132,12 @@ tennis_public_base_url: https://YOUR_DOMAIN
 
 ## Calendar Feed Import
 
+For the optional discovery browser worker, see
+[Private Browser Worker](../docs/BROWSER_WORKER.md). Its `.browser.env` is preserved
+unless `vault_tennis_discovery_browser_key` is supplied; also set
+`tennis_discovery_browser_url` when managing that file with Vault. This does not
+enable the agent preview or change ingress routes.
+
 To use CourtReserve's official member calendar feed instead of browser login,
 add `calendar_feed_env` to the relevant club's existing `options` in your ignored
 `ansible/group_vars/tennis_servers/zz-local.yml`:

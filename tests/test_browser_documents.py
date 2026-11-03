@@ -202,7 +202,12 @@ def test_browser_reader_to_agent_preserves_facts_without_account_data_or_model_e
             clock=lambda: NOW,
         )
         with capture_run_messages() as messages:
-            run = await run_discovery_agent(REQUEST, backend, model, usage=usage)
+            run = await run_discovery_agent(
+                REQUEST.model_copy(update={"search_mode": "source_check"}),
+                backend,
+                model,
+                usage=usage,
+            )
         result = backend.result(run, REQUEST)
         assert "synthetic-private" not in str(messages) + str(result)
         assert "Unsubscribe" not in str(messages) + str(result)

@@ -43,6 +43,7 @@ rsync -az --delete \
   --exclude "*.egg-info/" \
   --exclude ".vault-pass" \
   --exclude ".inference.env" \
+  --exclude ".browser.env" \
   --exclude "data/" \
   --exclude "ansible/inventory.yml" \
   --exclude "ansible/group_vars/**/vault.yml" \

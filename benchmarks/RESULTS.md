@@ -266,3 +266,182 @@ Local checks on the final candidate: **416 pytest tests**, including **25 benchm
 tests**, strict typing across 40 modules, Ruff lint/format and wheel/Twine checks
 pass. Fixtures use synthetic IDs and omit account data. Production is unchanged;
 the autonomous browser transport and live city-search acceptance remain open gates.
+
+## Anonymous-First Browser: 2026-11-02
+
+The original clinic detail is readable without login. A fresh browser context on
+the private Mac read the November 2 occurrence at 18:30-19:50 Pacific for $54.00,
+with status `Full`. The anonymous view did not expose a waitlist count. The new
+sanitized fixture keeps that count unknown instead of reusing the signed-in
+screenshot's two-person count. No login profile was loaded or exported.
+
+The earlier reader conflated the provider's hostname with authentication. It
+also dropped anonymous `Set-Cookie` state and frontend content-negotiation headers.
+The replacement starts anonymously, follows bounded validated redirect hops,
+identifies its HTTP relay honestly, and keeps anonymous cookies inside one job.
+Two strictly validated browser-generated catalog queries are permitted; action
+requests and bearer forwarding remain blocked. Authentication cannot be requested
+through the agent protocol. A 403 is not treated as a login requirement.
+
+The final installed candidate passed the live known-source Pydantic AI + private
+Qwen/Rapid-MLX benchmark **2/2** from the VPS (7.20s and 6.47s). Each run used
+three model requests and two tool calls, read one source, produced one occurrence,
+and had zero denied model tool attempts. Clinic identity, exact timestamps, $54,
+full status, unknown waitlist count, provenance and explicit partial-series status
+all passed. This is real retrieval, not a replay, but the detail URL was supplied:
+it does not establish autonomous discovery recall.
+
+The sanitized anonymous replay also passed **2/2** (2.84s and 2.16s), including
+the clinic-identity assertion. Its model-only audit recorded one model connection
+and zero blocked connection, DNS or subprocess attempts. Local checks passed
+**509 pytest tests**, typing across 47 modules, Ruff lint/format, wheel build and
+Twine metadata checks.
+
+The anonymous directory path is a separate failed acceptance case. After fixing
+the browser query transport, the provider explicitly required organization
+membership to list its courses. The final VPS-to-Mac check returned HTTP 503 with
+`membership_required`, not an empty successful catalog. Public detail access and
+catalog access therefore need separate policies. Membership-aware discovery,
+city-wide recall and production calendar/UI acceptance remain open. Only the
+isolated Mac browser worker was updated; the production tennis service and agent
+enable flag were not changed.
+
+## Unseeded Discovery: 2026-11-02
+
+The new `clinic-search` case starts from San Jose, NTRP 3.0 and the fixed date
+window. Its expected registration URL is scorer-only, never a seed, tool result
+or model input. The scorer matches the club/event/occurrence before checking the
+original facts. Replay and supplied source URLs are rejected for this case.
+
+The first three exploratory attempts failed: 3.19s before any source was registered,
+then 86.72s and 88.85s after six and five source reads. A separate direct worker
+search returned seven public sources. That does not explain or erase the initial
+failure. Instrumented retrieval then isolated a repeatable application failure:
+exhausted evidence validation on a social-media page aborted the entire run.
+
+| Candidate | Time | Model requests | Read sources | Outcome |
+| --- | --- | --- | --- | --- |
+| Before source isolation, exact-occurrence scorer | 63.72s | 14 | 5 | Extraction retries exhausted; run aborted |
+| After source isolation | 71.56s | 15 | 6 | Four partial candidates; original clinic absent; benchmark failed |
+
+The post-change live run returned an empty extraction for the problematic page,
+so its completion alone does not prove that exception isolation caused the
+improvement. Deterministic agent tests exercise that branch explicitly: an
+invalid optional source cannot discard independent valid evidence; a failed
+required source or an all-failed run still retains previous results. Model HTTP
+failures and total request-budget exhaustion are not swallowed.
+
+Local verification: **520 tests**, including **29 benchmark cases**, with typing
+and lint checks. A separate post-change known-source live check passed **2/2**
+(8.55s / 25.39s), retaining the original exact facts. This increment improves
+failure isolation and makes discovery recall measurable; it does **not** pass the original city-to-clinic acceptance
+gate. The agent can still finish after one search focus once it has some
+candidates, leaving relevant operators undiscovered. Search coverage, registration
+navigation and production acceptance remain open. No production service was changed.
+
+## Area Coverage And Search Layouts: 2026-11-02
+
+Area discovery now requires overview, registration and schedule searches before
+page reads, and an attempted read from each newly introduced source group before
+completion. The application and recall harness use the same 48-reference ceiling;
+model, read, tool and time budgets are unchanged. Supplied-source and evidence
+replays explicitly use `source_check`, retaining their factual oracles without
+claiming area coverage. The unseeded anchor case remains in `area` mode.
+
+A live search failure was not actually an empty result set. Yahoo returned HTTP
+200 and course links in `section.algo`, while DDGS recognized only `div.relsrch`.
+The adapter now handles both observed shapes, uses heading-owned result links,
+and retains the existing transport and redirect decoding. The new fixture is a
+structural transcription with synthetic links, not a captured search session.
+DDGS is pinned to the evaluated 9.16.1 version. An unrecognized result-less layout
+was also observed and still fails closed; it has not been classified as a genuine
+zero-result response. These observations do not establish search reliability.
+
+| Live area attempt | Time | Sources read | Outcome |
+| --- | --- | --- | --- |
+| Coverage gate before layout fix | 8.42s | 0 | Second search unavailable |
+| Layout compatibility candidate | 56.40s | 5 | All three searches completed; later run failed |
+| Same candidate rerun | 4.93s | 0 | Second search unavailable |
+| Same candidate with stage diagnostics | 38.03s | 1 | All three searches completed; a browser read failed |
+
+None passed the original clinic-recall gate. The final worker's separate remote
+search checks returned 8, 8 and 7 HTTPS links for the three focuses. Its live
+known-source check passed **2/2** (8.95s / 6.99s), with the original time, price,
+full status and unknown anonymous waitlist count. These component passes do not
+replace the failed area runs.
+
+Local validation: **527 tests**, **32 benchmark cases**, typing across **48 modules**,
+lint/format and wheel metadata checks. Only the isolated Mac browser test worker
+was updated. Production discovery and centrally managed ingress are unchanged.
+The remaining acceptance work includes search-state classification, reliable
+source navigation, geographic recall and the complete production calendar flow.
+
+## Browser Failure Scope: 2026-11-02
+
+A fresh unseeded baseline completed all three searches, then aborted at a browser
+read: **35.95s**, 8 model requests, 30 registered sources and one completed source.
+The old worker protocol conflated unreadable pages with process/runtime failures;
+the client treated both as a run-level outage.
+
+The worker now emits distinct, fixed codes. Only recognized read-page failures
+are source-scoped. Optional failures produce partial coverage; required/all-source
+failures, worker faults, authentication errors and unknown legacy replies remain
+fatal. No additional login, permissions, retries or budget increases are involved.
+Six new benchmark variants combine the real anonymous course transcription with
+synthetic page/membership failures in optional, required and all-source positions.
+The optional cases retain the exact original facts; the other cases reject completion.
+
+The candidate's full city search still **failed at the 300.03s deadline**: 18 model
+requests, 26 registered sources, two completed sources. Page extraction retries
+and unsuitable source selection consumed time. That run did not reproduce the
+browser failure, so it is not causal live proof of the isolation fix and does not
+pass the recall gate. The final worker's known-source anonymous benchmark passed
+**2/2**, at **15.37s / 10.54s** (7 / 5 model requests), preserving the original
+time, price, full status, provenance and unknown waitlist count.
+
+Local validation: **565 tests**, **38 benchmark cases**, typing across **48 modules**,
+Ruff, format, wheel build and metadata checks. The isolated browser test worker was
+updated; the production application and ingress were not. Geographic recall,
+source selection and the full production calendar path remain acceptance gates.
+Browser regressions also reject HTTP 404/410/429/500/503 documents rather than
+treating their error-page text as a successful source.
+
+A separate candidate-list probe found no target operator in any of the three
+focuses. The PDF-only query returned multiple out-of-area operators. Three broader
+generic queries produced more local results but still did not find the target.
+These observations motivate geographic expansion and source-selection work, not
+seeding the benchmark with the expected registration URL.
+
+## Offline Nearby Coverage: 2026-11-03
+
+Area search now derives up to two nearby populated places from an offline GeoNames
+snapshot, resolving state/country qualifiers and remaining alias ambiguity with
+the request time zone. GeographicLib measures same-country centers within 25km.
+Unknown/ambiguous inputs do not expand. Geographic coverage is explicitly partial:
+the population threshold, urban districts and two-place cap prevent an exhaustive
+claim. Neither a club name nor the expected course URL is part of this expansion.
+
+The agent must search those places before reading, even if the original city has
+courses. The live application and harness share one immutable limit configuration:
+six search queries instead of four, with the same 24 model requests, 48 references,
+30 tool calls and 300-second deadline. Generic registration and schedule queries
+no longer require the course's level label or PDF format to discover its operator.
+
+Four additional benchmark cases cover offline geography across three regions and
+an end-to-end scripted Pydantic AI loop that obtains the real anonymous-course
+transcription only after a neighboring-city search. The real-case time, price,
+full status and unknown waitlist oracle is unchanged; this is not live recall proof.
+
+| Unseeded live run | Evidence | Outcome |
+| --- | --- | --- |
+| First candidate | 3 model requests; 14 registered sources; 31.77s | Automatically searched both neighboring places; third search unavailable before any page read |
+| Second candidate | 17 model requests; 40 registered sources; 4 completed reads; 88.47s | All five queries completed; target operator appeared in neighboring-city results, but the agent selected other sources and a later extraction raised `ModelRequestRejectedError` |
+
+Neither run passed the original course-recall gate. The target operator entering
+the public candidate set is observed progress, not a found course or a confirmed
+registration. The model rejection cause has not been established. Source selection,
+search reliability, provider navigation and production calendar acceptance remain open.
+
+Local gates: **588 tests**, **42 benchmark cases**, typing across **49 modules**,
+Ruff/format and wheel build checks. Only isolated test environments were updated;
+the production discovery switch and centrally managed ingress remain unchanged.

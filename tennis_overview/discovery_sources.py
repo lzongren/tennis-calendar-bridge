@@ -11,10 +11,13 @@ from decimal import Decimal
 from typing import Any
 from urllib.parse import urlsplit
 
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+
 from .browser_documents import BrowserDocument
 from .course_evidence import SessionEvidence
 from .course_extraction import CourseCandidate, CourseExtractor
 from .courtreserve_discovery import courtreserve_observation
+from .discovery_geography import nearby_cities
 from .discovery_agent import (
     DiscoveryRequest,
     DiscoveryRun,
@@ -110,6 +113,10 @@ class PublicSourceBackend:
         returned = tuple(refs.values())[:12]
         return SearchResults(
             sources=returned,
+            nearby_cities=nearby_cities(request.city, request.timezone)
+            if request.search_mode == "area" and city.casefold() == request.city.casefold()
+            else (),
+            partial=request.search_mode == "area",
             required_ids=tuple(
                 ref.id for ref in returned if self.sources[ref.id].url in self.initial_urls
             )[:4],
@@ -138,10 +145,19 @@ class PublicSourceBackend:
                 page = document
                 if not page.links and len(page.text.split()) < 5:
                     raise SourceUnavailable("Source needs dynamic or authenticated access")
-                courses = await self.extractor.extract(page, request)
+                try:
+                    courses = (
+                        () if page.required_links else await self.extractor.extract(page, request)
+                    )
+                except UnexpectedModelBehavior:
+                    # Exhausted evidence validation invalidates this source, not
+                    # independent sources. Transport/budget failures still abort.
+                    raise SourceUnavailable("Course evidence could not be validated") from None
             source.page = page
             records: dict[str, SessionEvidence] = {}
-            partial = len(courses) >= 8 or bool(registration and registration.partial)
+            partial = (
+                page.partial or len(courses) >= 8 or bool(registration and registration.partial)
+            )
             for course in courses[:8]:
                 occurrences = course.sessions or (None,)
                 for occurrence in occurrences:
@@ -180,6 +196,15 @@ class PublicSourceBackend:
                         linked[ref.id] = ref
             partial = partial or len(related_links(page)) > 6 or self.truncated
             required = []
+            for url in page.required_links:
+                if url not in page.links:
+                    raise SourceUnavailable("Invalid browser detail reference")
+                ref = self.register(url, "Course registration detail", source.depth + 1)
+                if ref:
+                    linked[ref.id] = ref
+                    required.append(ref.id)
+                else:
+                    partial = True
             for course in courses[:8]:
                 # Only deterministic adapters can supply a course-owned registration URL.
                 # A general portal link is useful navigation, not an event identity.

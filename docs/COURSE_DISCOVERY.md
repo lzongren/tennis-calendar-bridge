@@ -162,8 +162,11 @@ weakening validation. Missing required fields trigger one bounded retry, not a
 successful empty report. Generic extraction does not establish registration
 authority or availability; extracted candidates are not confirmed bookings.
 
-The preview supports public text PDFs but not authenticated or JavaScript-only
-registration details. Search/source limits and unread sources are retained in
+The preview supports public text PDFs. An optional experimental
+[private browser worker](BROWSER_WORKER.md) adds anonymous-first rendered evidence.
+A real known-course read passed; complete catalog discovery remains unverified,
+and some catalogs require membership even when individual details are public.
+Search/source limits and unread sources are retained in
 the partial-result metadata. Inference or required-source failures preserve the
 previous snapshot and report an error. The legacy six-page limit above applies
 only when the agent flag is false.

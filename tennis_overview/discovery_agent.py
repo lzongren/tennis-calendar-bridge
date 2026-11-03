@@ -42,6 +42,7 @@ class DiscoveryRequest(EvidenceModel):
     timezone: str
     nearby_cities: tuple[Name, ...] = Field(default=(), max_length=4)
     search_focus: SearchFocus = "overview"
+    search_mode: Literal["area", "source_check"] = "area"
 
     @field_validator("city", "level")
     @classmethod
@@ -69,6 +70,7 @@ class SearchResults(EvidenceModel):
     sources: tuple[SourceRef, ...] = Field(default=(), max_length=12)
     nearby_cities: tuple[Name, ...] = Field(default=(), max_length=4)
     required_ids: tuple[SourceID, ...] = Field(default=(), max_length=4)
+    partial: bool = False
 
     @model_validator(mode="after")
     def required_sources(self) -> SearchResults:
@@ -114,6 +116,11 @@ class DiscoveryLimits(EvidenceModel):
     tool_seconds: float = Field(default=20, gt=0, le=60, allow_inf_nan=False)
 
 
+LIVE_DISCOVERY_LIMITS = DiscoveryLimits(
+    model_requests=24, tool_calls=30, sources=48, searches=6, tool_seconds=60, total_seconds=300
+)
+
+
 class Completion(EvidenceModel):
     outcome: Literal["sources_checked", "no_results"]
 
@@ -135,7 +142,14 @@ class DiscoveryRun(EvidenceModel):
 
 
 INSTRUCTIONS = """Research adult tennis sessions using only search_courses and read_source.
-Start by searching the requested city. If no relevant sessions are found, expand to the
+Start by searching the requested city. In area mode, search that city with overview,
+registration and schedule focuses before reading sources. Inspect new relevant sources
+from each focus, not just the first results with some courses. Also search the nearby
+cities returned by the adapter with overview focus before reading, even when the
+primary city already has candidates. Prioritize operator registration links in all
+searched cities over unrelated directories or distant venues. In source_check mode,
+concentrate on the supplied evidence and its required detail links.
+If no relevant sessions are found, expand to the
 nearby cities returned by search or supplied in the request. Read relevant sources and
 their required detail links. A successful tool read supplies candidate session keys;
 the application, not you, reconciles the facts and attaches their source evidence.
@@ -241,6 +255,16 @@ class ResearchState:
         if source_id not in self.registry:
             self.audit.append(ToolAudit(tool="read_source", outcome="denied"))
             raise AgentDiscoveryError("An undiscovered source was blocked.")
+        missing_focuses = self.unsearched_focuses()
+        if missing_focuses:
+            raise ModelRetry(
+                "Before reading sources, search the requested city with focuses: "
+                + ", ".join(missing_focuses)
+            )
+        if cities := self.unsearched_nearby_cities():
+            raise ModelRetry(
+                "Before reading, search nearby cities with overview focus: " + "; ".join(cities)
+            )
         if source_id in self.documents:
             self.audit.append(ToolAudit(tool="read_source", source_id=source_id, outcome="cached"))
             return self.model_document(self.documents[source_id])
@@ -286,6 +310,13 @@ class ResearchState:
         searched_cities = {city.casefold() for city in self.search_locations.values()}
         if self.request.city.casefold() not in searched_cities:
             raise ModelRetry("Search the requested city before finishing.")
+        missing_focuses = self.unsearched_focuses()
+        if missing_focuses:
+            raise ModelRetry(
+                "Search the requested city with focuses: " + ", ".join(missing_focuses)
+            )
+        if cities := self.unsearched_nearby_cities():
+            raise ModelRetry("Search nearby cities with overview focus: " + "; ".join(cities))
         required = {sid for doc in self.documents.values() for sid in doc.required_ids}
         required.update(sid for search in self.searches.values() for sid in search.required_ids)
         if required & self.failed_sources:
@@ -295,6 +326,18 @@ class ResearchState:
         missing = sorted(required - self.documents.keys())
         if missing:
             raise ModelRetry("Read required detail source IDs: " + ", ".join(missing))
+        if self.request.search_mode == "area":
+            seen: set[str] = set()
+            attempted = self.documents.keys() | self.failed_sources
+            for key, search in self.searches.items():
+                ids = {ref.id for ref in search.sources}
+                new_ids = ids - seen
+                seen.update(ids)
+                if new_ids and not new_ids & attempted:
+                    raise ModelRetry(
+                        "Inspect a relevant newly discovered source from this search before "
+                        "finishing: " + ", ".join(sorted(new_ids)[:8])
+                    )
         records = [record for doc in self.documents.values() for record in doc.records]
         if not records:
             unread = sorted(self.registry.keys() - self.documents.keys() - self.failed_sources)
@@ -314,6 +357,26 @@ class ResearchState:
             raise ModelRetry("Retrieved candidates exist; finish with sources_checked.")
         return output
 
+    def unsearched_focuses(self) -> tuple[SearchFocus, ...]:
+        if self.request.search_mode != "area":
+            return ()
+        city = self.request.city.casefold()
+        focuses: tuple[SearchFocus, ...] = ("overview", "registration", "schedule")
+        return tuple(
+            focus
+            for focus in focuses
+            if (city if focus == "overview" else city + "|" + focus) not in self.searches
+        )
+
+    def unsearched_nearby_cities(self) -> tuple[str, ...]:
+        if self.request.search_mode != "area":
+            return ()
+        neighbors = [
+            city for key, city in self.allowed_cities.items() if key != self.request.city.casefold()
+        ][: max(0, self.limits.searches - 3)]
+        searched = {city.casefold() for city in self.search_locations.values()}
+        return tuple(city for city in neighbors if city.casefold() not in searched)
+
     def result(self, requests: int) -> DiscoveryRun:
         grouped: dict[str, list[SessionEvidence]] = defaultdict(list)
         for document in self.documents.values():
@@ -327,7 +390,10 @@ class ResearchState:
             searched_cities=tuple(dict.fromkeys(self.search_locations.values())),
             audit=tuple(self.audit),
             partial=bool(
-                unread or self.failed_sources or any(d.partial for d in self.documents.values())
+                unread
+                or self.failed_sources
+                or any(d.partial for d in self.documents.values())
+                or any(s.partial for s in self.searches.values())
             ),
             model_requests=requests,
             tool_calls=self.calls,

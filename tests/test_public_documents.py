@@ -38,18 +38,35 @@ def test_legacy_search_query_is_preserved_and_agent_focus_is_explicit(monkeypatc
     assert search_courses("Example City", "3.0", 2026) == []
     assert search.call_args.args[0] == "Example City adult tennis clinics classes schedule"
     assert search.call_args.kwargs["backend"] == "bing,duckduckgo"
+    focused_search = MagicMock(return_value=[])
+    monkeypatch.setattr("tennis_overview.search_layouts.search_index", focused_search)
     assert search_courses("Example City", "3.0", 2026, "overview") == []
-    assert search.call_args.args[0] == "adult tennis group clinics near Example City"
-    assert search.call_args.kwargs["backend"] == "yahoo"
+    assert focused_search.call_args.args[0] == "adult tennis group clinics near Example City"
     with pytest.raises(ValueError, match="Invalid search focus"):
         search_courses("Example City", "3.0", 2026, "arbitrary query")
-    assert search.call_count == 2
+    assert search.call_count == focused_search.call_count == 1
 
 
 def test_selected_agent_search_backend_is_available_in_installed_dependency():
     from ddgs.engines import ENGINES
 
     assert "yahoo" in ENGINES["text"]
+
+
+@pytest.mark.parametrize(
+    "focus,expected",
+    [
+        ("registration", "Example City adult tennis classes registration"),
+        ("schedule", "Example City adult tennis class schedule 2026"),
+    ],
+)
+def test_area_queries_do_not_require_pdf_or_level_to_discover_an_operator(
+    monkeypatch, focus, expected
+):
+    search = MagicMock(return_value=[])
+    monkeypatch.setattr("tennis_overview.search_layouts.search_index", search)
+    assert search_courses("Example City", "NTRP 3.0", 2026, focus) == []
+    search.assert_called_once_with(expected)
 
 
 def test_disabled_search_backend_fails_before_ddgs_can_select_other_providers(monkeypatch):
@@ -68,11 +85,13 @@ def test_agent_search_does_not_enable_automatic_provider_fallback(monkeypatch, f
     from ddgs.exceptions import DDGSException
 
     search = MagicMock(side_effect=DDGSException("No results found."))
-    monkeypatch.setattr("ddgs.DDGS", lambda **kwargs: MagicMock(text=search))
+    monkeypatch.setattr("tennis_overview.search_layouts.LayoutAwareYahoo.search", search)
+    fallback = MagicMock(side_effect=AssertionError("Must not enable another provider"))
+    monkeypatch.setattr("ddgs.DDGS", fallback)
     with pytest.raises(DDGSException):
         search_courses("Example City", "3.0", 2026, focus)
     search.assert_called_once()
-    assert search.call_args.kwargs["backend"] == "yahoo"
+    fallback.assert_not_called()
 
 
 def pdf_bytes(text="Adult Clinic", links=(), *, pages=1, password=None):

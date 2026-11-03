@@ -124,6 +124,8 @@ class Page:
     schedules: tuple[ScheduleBlock, ...] = ()
     link_details: tuple[PageLink, ...] = ()
     content_type: str = "text/html"
+    partial: bool = False
+    required_links: tuple[str, ...] = ()
 
 
 def fetch_page(url: str) -> Page:
@@ -215,8 +217,8 @@ def search_courses(
     queries = {
         None: f"{location} adult tennis clinics classes schedule",
         "overview": f"adult tennis group clinics near {location}",
-        "registration": f"{location} adult tennis clinics registration {level} {year}",
-        "schedule": f"{location} adult tennis clinic schedule {year} filetype:pdf",
+        "registration": f"{location} adult tennis classes registration",
+        "schedule": f"{location} adult tennis class schedule {year}",
     }
     if focus not in queries:
         raise ValueError("Invalid search focus")
@@ -227,7 +229,12 @@ def search_courses(
     if focus is not None and backend not in ENGINES["text"]:
         # DDGS otherwise silently switches an unavailable backend to "auto".
         raise ValueError("Configured public search backend is unavailable")
-    results = DDGS(timeout=12).text(query, max_results=8, backend=backend)
+    if focus is None:
+        results = DDGS(timeout=12).text(query, max_results=8, backend=backend)
+    else:
+        from .search_layouts import search_index
+
+        results = search_index(query)
     candidates = []
     for item in results:
         try:

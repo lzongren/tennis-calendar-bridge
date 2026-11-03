@@ -65,6 +65,23 @@ IDs. Required detail links must be read before completion. The application deriv
 results from source records and retains all relevant evidence, even if the model
 tries to finish early. It has no shell, filesystem, booking or payment tools.
 
+Area discovery is the default. It performs overview, registration and schedule
+searches before reading pages, then requires an attempted read from the new sources
+introduced by each nonempty search. Existing candidates cannot bypass these gates.
+The application and live recall harness share a 48-reference registry limit while
+retaining the existing model, read, tool and time budgets. This reserves discovery
+work before linked pages consume the registry; it does not promise exhaustive coverage.
+`source_check` is the explicit focused mode for supplied-source and evidence replay
+benchmarks, not the production city-discovery path. It retains the same required
+detail, grounding and failure rules but makes no area-recall claim.
+
+The public search adapter retains the existing Yahoo transport and redirect decoder
+and accepts both observed desktop and alternate result layouts. It excludes account
+navigation and related-query promotions. Unknown or blocked pages are errors, never
+successful empty catalogs; no automatic switch to another search provider is enabled.
+DDGS is pinned to the evaluated version because this compatibility layer subclasses
+its provider adapter. A dependency update must rerun the layout fixtures and live search.
+
 The private client uses an explicit model and key, Tailscale HTTPS or loopback HTTP,
 no environment proxy, no redirects, bounded decoded responses and no SDK transport
 retries. Agent instrumentation is explicitly disabled. A `.ts.net` hostname alone
@@ -113,11 +130,41 @@ A valid JSON object is not a sufficient gate:
 live replay and live-web extraction must pass separately. A fixed minimal transcription
 cannot establish dynamic registration recall, occupancy or geographic completeness.
 
+When extraction exhausts its evidence-validation retry, that source is unavailable,
+not an empty successful page. The agent may continue with independent sources and
+must mark the result partial. Failed required details and all-failed searches still
+retain the previous snapshot. Model HTTP failures and the shared model-request
+budget remain fatal; this isolation does not introduce extra retries.
+
+## Geographic Coverage
+
+Area search resolves exact city names and aliases against the pinned offline
+GeoNames populated-place dataset. A state/country qualifier disambiguates names;
+the requested time zone can resolve remaining alias ambiguity. Unknown or still
+ambiguous locations are not guessed. No geocoding service or model-authored
+coordinates are used. The input city remains the original search argument.
+
+The backend offers the two nearest same-country populated places with centers
+between 1km and 25km away, using GeographicLib WGS84 distance. The dataset's
+15,000-person threshold excludes many small places and can include urban districts;
+this is neither driving distance nor complete metropolitan coverage. Searches are
+explicitly partial even when every returned source was read.
+
+The agent searches these bounded neighboring places before reading sources, even
+when the original city has candidates, and must inspect a newly introduced source
+from each nonempty query group before completion. Exact-source checks do not expand
+geography. Application and live benchmark share `LIVE_DISCOVERY_LIMITS`: six search
+queries, 24 model requests, 30 tools, 48 source references and 300 seconds. Only the
+search-query ceiling increased (from four); the other runtime limits are unchanged.
+General registration/schedule queries no longer require an NTRP label or PDF result;
+level/date validation remains in evidence extraction.
+
 ## Browser Evidence
 
 Course discovery should not require a dedicated search API. The next retrieval
-layer will use general search and read-only browser navigation, with authentication
-kept in a local browser. This does not mean giving the model unrestricted control
+layer uses general search and read-only browser navigation, starting with a fresh
+anonymous context. Login is not inferred from a provider's domain name. Any
+explicitly authorized authentication stays in a local browser. This does not mean giving the model unrestricted control
 over a personal browser or copying its profile to the VPS.
 
 `BrowserDocument` is the transport-neutral input boundary for a trusted reader.
@@ -151,8 +198,32 @@ fall back to model-generated registration facts.
 The production worker still uses the public document reader. There is **no
 autonomous browser transport enabled yet**: interactive browser inspection and
 an injected-reader replay do not establish production search recall. A future
-transport must provide a dedicated authenticated browser context, allowlisted
+transport must provide fresh anonymous browser contexts, separately authorized
+login fallback only on an explicit login requirement, allowlisted
 read operations, origin/navigation checks, cancellation and resource budgets.
 It must never expose arbitrary CDP access, scripts, files, booking or payment
 actions to the model. Local cookies stay local; the VPS receives sanitized course
 facts only. Existing private listeners and centrally managed ingress stay unchanged.
+
+The experimental private worker distinguishes source failures from worker failures.
+Only a recognized HTTP 503 read response (`page_unavailable`, `login_required`,
+`membership_required` or `browser_attention_required`) can mark one source
+unavailable. Optional failures leave an explicit partial result; required-detail
+or all-source failures still abort and preserve the previous snapshot. These
+responses never trigger login or a challenge bypass. Search failures remain fatal.
+Public HTTP error documents are source failures, not successful empty pages.
+
+Process exit, malformed/oversized output, browser disconnection, unknown exceptions,
+service authentication, transport failure and the legacy ambiguous
+`source_unavailable` response remain run-level failures. This distinction adds no
+retries or new permissions. Roll out the worker and client together: mixed versions
+fail closed rather than silently accepting an old worker fault as a page failure.
+
+The anonymous November 2 clinic case is a separate fixture from the original
+signed-in screenshot. It retains the same 18:30-19:50 Pacific occurrence and
+$54 price, but shows only `Full`; the waitlist count is unknown, not two and not
+zero. `pytest -m benchmark` checks both observations without merging their facts.
+The opt-in `benchmarks.source_discovery --case anonymous` replay exercises the
+Pydantic AI loop. With `--live-web --source-url <PUBLIC_DETAIL_URL>`, it uses the
+private browser worker and fresh evidence. This is a known-source extraction
+benchmark, not proof that city-wide search discovers that URL.

@@ -6,6 +6,8 @@ services:
       - .env
       - path: .inference.env
         required: false
+      - path: .browser.env
+        required: false
     environment:
       TENNIS_CONFIG: /config/clubs.toml
       TENNIS_DATA_DIR: /data

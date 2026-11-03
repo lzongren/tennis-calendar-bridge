@@ -26,6 +26,11 @@ keys, hostnames, raw model messages and provider error text are not included.
 The command exits nonzero if any case or network-audit check fails. Compare
 individual checks, not only a combined score. Never publish private replay inputs.
 
+The evidence replay request uses `source_check` mode. It verifies supplied records,
+neighboring-city tool use and required detail closure, not area-search coverage.
+The unseeded live `clinic-search` case uses the default `area` mode and must pass
+the overview, registration and schedule search gates before reading pages.
+
 Each of four scenarios is repeated serially. The scorer checks exact facts,
 complete source IDs, retrieval, neighboring-city expansion, denied tool attempts
 and partial-result state. Facts are constructed by the same deterministic Python
@@ -98,3 +103,28 @@ and an explicit partial result for the unparsed series dates.
 The capture and validation clock are fixed for replay. No real browser, login or
 search is performed by this command. It uses the model-only network guard and
 cannot establish autonomous browser compatibility or live course coverage.
+
+## Anonymous Read And Discovery Recall
+
+These live cases use the configured private browser worker and local model:
+
+```sh
+python -m benchmarks.source_discovery --live-web --case anonymous \
+  --source-url "$PUBLIC_DETAIL_URL" --repeats 2 --output /tmp/anonymous-detail.json
+python -m benchmarks.source_discovery --live-web --case clinic-search \
+  --expected-source-url "$PUBLIC_DETAIL_URL" --repeats 2 --output /tmp/clinic-search.json
+```
+
+The first supplies a known detail URL to the agent. The second starts with only
+the city, level and date window: no initial source or club URL is supplied to the
+agent or search backend. Its expected URL is used only by the scorer to identify
+the original club, event and occurrence, ignoring the selected UI tab. It is not
+included in the report. Use the publicly accessible event detail, never a personal
+calendar feed or credential-bearing URL.
+
+Both check the original date, time, price and full status. The anonymous detail
+does not establish a waitlist count; that field must remain unknown. A matching
+course name alone cannot pass the search case. A supplied-link pass does not
+compensate for a search failure, and successful search results alone do not prove
+that the registration detail was found. `clinic-search` rejects replay mode and
+preseeded source URLs. Keep baseline failures and reruns separate.

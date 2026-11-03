@@ -6,18 +6,25 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from pydantic import SecretStr
 from pydantic_ai.usage import RunUsage
 
 from tennis_overview.browser_documents import BrowserDocument
+from tennis_overview.browser_client import BrowserClient
+from tennis_overview.browser_protocol import read_url
 from tennis_overview.course_extraction import CourseExtractor
-from tennis_overview.discovery_agent import DiscoveryLimits, DiscoveryRequest, run_discovery_agent
+from tennis_overview.discovery_agent import (
+    LIVE_DISCOVERY_LIMITS,
+    DiscoveryRequest,
+    run_discovery_agent,
+)
 from tennis_overview.discovery_sources import PublicSourceBackend
 from tennis_overview.private_model import PrivateModelConfig, private_model
 from tennis_overview.public_web import Page, page_from_html
@@ -52,8 +59,25 @@ async def empty_search(city: str, level: str, year: int, focus: str) -> list[dic
     return []
 
 
+def same_occurrence(actual: str, expected: str) -> bool:
+    """Compare registration identity, ignoring UI tab and query ordering."""
+    found, anchor = urlsplit(actual), urlsplit(expected)
+    return (
+        found.scheme == anchor.scheme == "https"
+        and found.netloc == anchor.netloc
+        and found.path == anchor.path
+        and parse_qs(found.query).get("resId") == parse_qs(anchor.query).get("resId")
+    )
+
+
 async def evaluate(
-    config: PrivateModelConfig, *, live: bool, repeats: int, case: str = "ongoing"
+    config: PrivateModelConfig,
+    *,
+    live: bool,
+    repeats: int,
+    case: str = "ongoing",
+    source_url: str = "",
+    expected_url: str = "",
 ) -> list[dict[str, Any]]:
     observations = []
     async with private_model(config) as model:
@@ -63,14 +87,26 @@ async def evaluate(
                 level="NTRP 3.0",
                 timezone="America/Los_Angeles",
                 start=date(2026, 11, 1),
+                search_mode="area" if live and case != "anonymous" else "source_check",
             )
             usage = RunUsage()
-            limits = DiscoveryLimits(
-                model_requests=24, tool_calls=30, tool_seconds=60, total_seconds=300
+            limits = LIVE_DISCOVERY_LIMITS
+            backend = PublicSourceBackend(
+                CourseExtractor(model, usage, limits.model_requests), source_limit=limits.sources
             )
-            backend = PublicSourceBackend(CourseExtractor(model, usage, limits.model_requests))
+            if live and case in {"anonymous", "clinic-search"}:
+                client = BrowserClient(
+                    os.environ["TENNIS_DISCOVERY_BROWSER_URL"],
+                    SecretStr(os.environ["TENNIS_DISCOVERY_BROWSER_KEY"]),
+                )
+                backend.reader = client.read
+                if case == "anonymous":
+                    backend.searcher = empty_search
+                    backend.initial_urls = (read_url(source_url),)
+                else:
+                    backend.searcher = client.search
             if not live:
-                replay_url = BROWSER_URL if case == "browser" else REPLAY_URL
+                replay_url = BROWSER_URL if case in {"browser", "anonymous"} else REPLAY_URL
                 page: Page | BrowserDocument = page_from_html(
                     REPLAY_URL, (FIXTURES / "discovery_ongoing.html").read_bytes()
                 )
@@ -88,11 +124,16 @@ async def evaluate(
                         ),
                         (),
                     )
-                elif case == "browser":
+                elif case in {"browser", "anonymous"}:
+                    fixture = (
+                        "courtreserve_anonymous_detail.html"
+                        if case == "anonymous"
+                        else "courtreserve_detail.html"
+                    )
                     page = BrowserDocument(
                         BROWSER_URL,
                         "Synthetic browser title",
-                        (FIXTURES / "discovery_benchmark" / "courtreserve_detail.html").read_text(),
+                        (FIXTURES / "discovery_benchmark" / fixture).read_text(),
                         CAPTURE_TIME,
                     )
                     backend.clock = lambda: CAPTURE_TIME
@@ -111,7 +152,7 @@ async def evaluate(
                 result = backend.result(run, request)
                 courses = result["courses"]
                 target = "www.sjsrc.com" if live else "club.example.org"
-                if case == "browser":
+                if case in {"browser", "anonymous", "clinic-search"}:
                     target = "app.courtreserve.com"
                 matching = [
                     course
@@ -143,17 +184,26 @@ async def evaluate(
                     checks["quoted_title"] = any(
                         course["title"] == "Adult Coach Clinic" for course in matching
                     )
-                elif case == "browser":
+                elif case in {"browser", "anonymous", "clinic-search"}:
                     expected = json.loads(
                         (FIXTURES / "discovery_benchmark" / "nov2_registration.json").read_text()
                     )["expected"]
+                    waitlist_count = expected["waitlist_count"] if case == "browser" else None
+                    if case == "clinic-search":
+                        # Other courses are expected in a genuine discovery run.
+                        # Isolate the anchor by identity before checking its facts.
+                        matching = [
+                            course
+                            for course in matching
+                            if same_occurrence(course["source_url"], expected_url)
+                        ]
                     checks = {
                         "original_registration_facts": len(matching) == 1
                         and matching[0]["sessions"]
                         == [{"starts_at": expected["starts_at"], "ends_at": expected["ends_at"]}]
                         and matching[0]["price"] == "$" + expected["price_usd"]
                         and matching[0]["availability"] == expected["availability"]
-                        and matching[0]["waitlist_count"] == expected["waitlist_count"],
+                        and matching[0]["waitlist_count"] == waitlist_count,
                         "no_personal_queue_inference": bool(matching)
                         and all(c["user_waitlist_position"] is None for c in matching),
                         "source_evidence": bool(matching)
@@ -161,6 +211,13 @@ async def evaluate(
                         "series_incomplete": result["partial"],
                         "request_budget": usage.requests <= limits.model_requests,
                     }
+                    if case in {"anonymous", "clinic-search"}:
+                        checks["clinic_identity"] = len(matching) == 1 and bool(
+                            re.search(
+                                r"Adult Coach.*Clinic.*NTRP 2\.5 - 3\.0.*MON 6:30PM - Fall 2",
+                                matching[0]["title"],
+                            )
+                        )
                 observation = {
                     "repetition": repetition + 1,
                     "checks": checks,
@@ -193,12 +250,36 @@ async def evaluate(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live-web", action="store_true")
-    parser.add_argument("--case", choices=("ongoing", "quoted", "browser"), default="ongoing")
+    parser.add_argument(
+        "--case",
+        choices=("ongoing", "quoted", "browser", "anonymous", "clinic-search"),
+        default="ongoing",
+    )
+    parser.add_argument(
+        "--source-url",
+        default="",
+        help="Known public detail URL for the live anonymous case; not a search benchmark",
+    )
+    parser.add_argument(
+        "--expected-source-url",
+        default="",
+        help="Scorer-only anchor for clinic-search; never supplied to the agent or search backend",
+    )
     parser.add_argument("--repeats", type=int, default=2, choices=range(1, 4))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.live_web and args.case != "ongoing":
+    if args.live_web and args.case not in {"ongoing", "anonymous", "clinic-search"}:
         parser.error("Transcriptions are replay cases, not live public pages")
+    if args.case == "clinic-search" and not args.live_web:
+        parser.error("clinic-search requires --live-web; source replay cannot establish recall")
+    if bool(args.source_url) != (args.live_web and args.case == "anonymous"):
+        parser.error("--source-url is required only for --live-web --case anonymous")
+    if bool(args.expected_source_url) != (args.case == "clinic-search"):
+        parser.error("--expected-source-url is required only for clinic-search scoring")
+    if args.source_url:
+        read_url(args.source_url)
+    if args.expected_source_url:
+        read_url(args.expected_source_url)
     config = PrivateModelConfig(
         base_url=os.environ["TENNIS_DISCOVERY_API_URL"],
         model=os.environ["TENNIS_DISCOVERY_MODEL"],
@@ -208,7 +289,14 @@ def main() -> None:
     audit = install_model_only_guard(config.base_url) if not args.live_web else None
     with args.output.open("x", encoding="utf-8") as output:
         rows = asyncio.run(
-            evaluate(config, live=args.live_web, repeats=args.repeats, case=args.case)
+            evaluate(
+                config,
+                live=args.live_web,
+                repeats=args.repeats,
+                case=args.case,
+                source_url=args.source_url,
+                expected_url=args.expected_source_url,
+            )
         )
         json.dump(
             {"live_web": args.live_web, "case": args.case, "rows": rows, "network_audit": audit},
