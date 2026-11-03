@@ -263,14 +263,22 @@ async def _read(
     parsed = page_from_html(read_url(page.url), rendered.encode())
     if len(parsed.text.split()) < 5:
         raise BrowserReadError("page_unavailable")
+    readable: list[BrowserLink] = []
+    for reference in parsed.link_details:
+        try:
+            url = read_url(reference.url)
+        except ValueError:
+            continue
+        # Apply the client's read policy before spending the output link budget.
+        readable.append(BrowserLink(url=url, title=reference.title))
+        if len(readable) == 24:
+            break
     return BrowserReply(
         kind="page",
         url=parsed.url,
         title=parsed.title,
         text=parsed.text,
-        links=tuple(
-            BrowserLink(url=link.url, title=link.title) for link in parsed.link_details[:24]
-        ),
+        links=tuple(readable),
     )
 
 

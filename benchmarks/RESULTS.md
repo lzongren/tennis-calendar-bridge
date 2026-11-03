@@ -752,3 +752,40 @@ Tests cover request forwarding, usage, error/cancellation propagation, bounded
 storage, content exclusion and per-repetition isolation through the original oracle.
 Only isolated evaluation files changed on the VPS. Production, private browser
 worker, login state and ingress were untouched; the release gate remains unmet.
+
+## Browser Link Policy Alignment: 2026-11-03
+
+Two new browser regressions failed on the previous implementation: a public page
+returned HTTP/action outlinks alongside a readable course detail, and HTTP links
+could consume the entire 24-link response budget. The worker now filters rendered
+public-page outlinks with the existing `read_url` policy before that budget applies.
+The client still rejects malformed worker responses. No URL is upgraded or fetched
+as part of filtering, and no authentication or navigation permission was added.
+
+The original course transcription remains reachable through the filtered public
+page in a browser/client/agent replay. Its time, price, status and evidence remain
+unchanged; anonymous queue counts remain unknown. Additional tests preserve output
+ordering and capacity and reject HTTP, checkout, credential, private-host and login
+references at the client boundary. Local gates passed: **672 tests**, **55 benchmark
+cases**, typing across **50 modules**, Ruff/format, wheel build and Twine.
+
+The candidate wheel was installed in the experimental browser worker after copying
+its previous package for rollback. Installed source hashes match the candidate;
+the worker health check returned ready. A fresh anonymous probe of the failing
+public page returned seven valid links instead of eight links containing an HTTP
+reference. The subsequent unseeded search also read and extracted that same page
+successfully, establishing that this specific failure no longer aborts discovery.
+
+Unseeded recall still failed: **223.99s**, **21 model requests**, **29 registered
+sources**, **5 successful reads**. The planner found the target operator's portal
+but did not follow it. Repeated completion attempts with unmet coverage obligations
+ended in `UnexpectedModelBehavior`, not the previous link-policy `ValueError`.
+Planner calls accounted for **168.26s**, extraction **32.85s**, searches **8.55s**
+and source reads **11.80s**. The final planner request had **11,656 input tokens**
+and took **32.65s**. These observations motivate work on completion handling and
+context growth; they do not establish a causal latency improvement from this fix.
+
+The original anonymous known-link check passed **2/2**, **11.65s / 7.38s**, three
+model requests and two tool calls each, with all original factual checks intact.
+Production app, ingress and saved login state were not changed. Autonomous recall
+remains an unmet release gate; this component is not a production enablement.
