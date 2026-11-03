@@ -159,7 +159,7 @@ def courtreserve_observation(
         series = re.fullmatch(r"Dates \((\d{1,4})\)", series_label)
         if not series:
             raise SourceUnavailable("Unrecognized registration series")
-        partial = partial or int(series[1]) > 1
+        partial = partial or int(series[1]) > 0
     selected = _occurrence(
         heading, category, date_text, time_text, price, status, document, request
     )

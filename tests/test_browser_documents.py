@@ -105,7 +105,8 @@ def test_unexpanded_series_is_still_partial():
         "</main>", '<div data-testid="events-details-tab-dates">Dates (6)</div></main>'
     )
     assert observation(html).partial
-    assert not observation(html.replace("Dates (6)", "Dates (1)")).partial
+    assert observation(html.replace("Dates (6)", "Dates (1)")).partial
+    assert not observation(html.replace("Dates (6)", "Dates (0)")).partial
     with pytest.raises(SourceUnavailable):
         observation(html.replace("Dates (6)", "Layout changed"))
 
