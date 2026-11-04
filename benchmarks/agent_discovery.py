@@ -209,7 +209,9 @@ class ReplayBackend:
             return SearchResults(sources=(self.documents[source].source,))
         return SearchResults(nearby_cities=("Santa Clara",))
 
-    async def read(self, source_id: str, request: DiscoveryRequest) -> SourceDocument:
+    async def read(
+        self, source_id: str, request: DiscoveryRequest, *, deadline: float | None = None
+    ) -> SourceDocument:
         self.read_calls.append(source_id)
         if self.scenario == "membership_navigation" and source_id == "registration-catalog":
             raise SourceUnavailable(reason=SourceFailureReason.MEMBERSHIP_REQUIRED)

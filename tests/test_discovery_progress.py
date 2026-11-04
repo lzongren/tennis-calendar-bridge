@@ -30,14 +30,14 @@ class CoverageBackend(ReplayBackend):
         )
         return SearchResults(sources=(ref,))
 
-    async def read(self, source_id, query):
+    async def read(self, source_id, query, *, deadline=None):
         if source_id in {"registration", "schedule"}:
             self.read_calls.append(source_id)
             return SourceDocument(
                 source=SourceRef(id=source_id, title="Additional public catalog"),
                 text="No additional dated sessions on this page",
             )
-        return await super().read(source_id, query)
+        return await super().read(source_id, query, deadline=deadline)
 
 
 def test_completion_reports_all_missing_detail_and_coverage_obligations_together():
