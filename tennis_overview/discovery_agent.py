@@ -217,6 +217,7 @@ Do not repeat these completed queries. Start by reading the discovered source ID
 to the current research obligations, prioritizing operator registration details.
 Use search_courses only for additional authorized refinements if still needed.
 Use only tools advertised in the current request, not tools from earlier turns.
+Respond with exactly one advertised tool call and no prose, commentary or planning text.
 When completion.state is ready, finish_discovery accepts the exact arguments shown
 in completion.arguments, for example {"outcome": "sources_checked"}. The outcome
 field is required; never call finish_discovery with empty arguments or while pending.

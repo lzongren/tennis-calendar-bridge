@@ -1435,3 +1435,74 @@ extra path segments, action-bearing slugs and query parameters.
 Local validation passed **810 tests**, **104 benchmark cases**, mypy across
 **50 modules**, and Ruff/format. Fixtures contain synthetic URLs and course text;
 the live URLs, captured HTML and machine-specific probe stayed outside the repo.
+
+## Anonymous Recall And Planner Output Probe: 2026-11-03
+
+The merged USTA policy was installed in a new, temporary evaluator on the browser
+host. The complete agent, private model client and ephemeral authenticated loopback
+browser worker used the same original `clinic-search` scorer. The worker used fresh
+anonymous contexts; it was stopped after each run. Production, the running browser
+service, saved profiles and ingress were unchanged. Because agent and browser were
+co-located, these runs are not VPS transport or deployment acceptance.
+
+The unseeded baseline failed at **300.01s** with 10 completed model requests,
+29 registered sources and three checked sources. All six completed planner calls
+used their full **1,024 output tokens**, taking **30.21-48.21s** each. No original
+course recall or successful whole-run completion was established.
+
+A separate capture stopped after the mandatory searches and saved the first
+planner request without sending inference. That fixed public-search snapshot was
+replayed serially against the same model with four request variations, twice each.
+The selected source ID had to belong to the currently advertised tool enum. No
+course facts or downstream tool execution were scored in this one-step probe.
+
+| Request variation | Output tokens | Durations | Valid single tool call |
+| --- | --- | --- | --- |
+| Existing instructions, 1,024-token cap | 1,024 / 1,024 | 31.25s / 22.84s | 2/2 |
+| Existing instructions, 256-token cap | 256 / 256 | 5.68s / 5.69s | 2/2 |
+| Tool-only sentence appended, 1,024-token cap | 517 / 43 | 20.19s / 10.23s | 2/2 |
+| Tool-only sentence appended, 256-token cap | 256 / 256 | 5.67s / 5.70s | 2/2 |
+
+The apparent validity was not enough: capped responses retained incomplete raw
+`<tool_call>` markup in their content despite containing a parsed tool call.
+Inspection of the installed serving code confirmed that non-streaming responses
+replace the generation finish reason with `tool_calls` whenever parsed calls exist.
+It also trims the parsed list to one when parallel calls are disabled. The probe
+does not establish that extra generated calls were executed, nor does it identify
+the underlying cause of generation repetition. No serving code was modified.
+
+An additional three-pair probe kept the 1,024-token cap and compared greedy
+sampling with the [Qwen3-Coder model-card settings](https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct#best-practices):
+temperature 0.7, top-p 0.8, top-k 20 and repetition penalty 1.05. The baseline
+reached the cap and retained raw tool markup in **3/3** calls. The recommended
+settings produced **514 / 1,024 / 170** tokens, with residual markup in **1/3**.
+All six parsed calls passed the tool-argument check. This small, fixed-order probe
+does not establish a reliable serving fix; sampling settings and caps were not
+changed in the application or running service.
+
+The application candidate adds only the tool-only sentence within the area's
+preflight instructions. This placement differs from appending it to the captured
+system message above. The full live search still failed at **300.01s**:
+19 completed model requests, 39 registered sources and eight checked sources.
+The first planner response still used 1,024 tokens and retained tool markup;
+subsequent completed planner responses used **38-177 tokens**. Three planning
+steps selected IDs outside the current enum and did not start a source read;
+the diagnostic does not distinguish cached IDs from coverage-policy rejection. An extractor also
+returned `search_courses` while only `extract_courses` was advertised, and another
+extraction exhausted its local deadline. Different retrieval/cache conditions and
+the small sample preclude attributing source-count differences solely to the prompt.
+
+The candidate is **not accepted for merge**. Its 810 tests, 104 benchmark cases,
+mypy across 50 modules and Ruff/format passed, but the original unseeded factual
+oracle and completion gate did not. Neither token-budget nor sampling variants
+were adopted. The known-link anchor was not supplied to the search backend.
+
+There is also a search capability gap independent of response length. The agent
+read a directory naming the target operator, but that page linked only to nearby
+directories. Existing search tools permit city/focus templates, not a follow-up
+using an observed operator name. A separate query through the application's same
+search backend returned the operator's official adult-program page first when
+given that observed name. This diagnostic was not injected into the benchmark.
+A bounded, source-derived refinement tool now needs its own tests and real-course
+acceptance; an unrestricted model-written query or hard-coded target URL would not
+address the same boundary.
