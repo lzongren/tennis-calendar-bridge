@@ -1292,5 +1292,20 @@ planner-call counts to reflect automatic steps, not their expected course facts.
 Cache coverage still exercises a stale call before automatic completion. Injection
 input-placement assertions run on a branching case that actually invokes the model,
 not on a fully deterministic path where those assertions would be unreachable.
-The built wheel was installed only in the isolated evaluator. The unseeded real-web
-run is being evaluated separately; the experimental parent is not production-ready.
+The built wheel was installed only in the isolated evaluator.
+
+The unseeded real-web run still failed at **300.01s**, with 29 registered sources and
+two checked sources. Usage recorded 14 completed model requests; the stage trace
+recorded **17 attempts**, including three cancelled extraction calls. Extraction
+accounted for nine attempts / **152.37s**, and planning for eight / **117.86s**.
+The trace again observed planner tool names returned during extraction. Those calls
+did not gain planner privileges; invalid output was retried or timed out under the
+unchanged limits. This does not identify whether model generation, serving or parsing
+caused the mismatch. Search results also differed from earlier runs, so these timings
+are not a controlled latency comparison. Original-course recall and bounded live
+completion remain unsatisfied; the experimental parent is not production-ready.
+
+Known-link live anonymous verification passed **2/2** in **13.93s / 6.61s**, with
+three model requests and two tool calls each. Original occurrence facts, source
+evidence, no personal queue inference and incomplete-series reporting all passed.
+This validates the supplied-detail path, not discovery of that link from a city query.
