@@ -1183,3 +1183,129 @@ Final known-link anonymous checks passed **2/2** on this candidate in **15.08s /
 7.18s**, with three model requests and two tool calls each. Original registration
 facts, source evidence, no personal queue inference and incomplete-series reporting
 all passed. This confirms the existing supplied-detail path, not unseeded recall.
+
+## Post-Coverage Read Priority: 2026-11-03
+
+The prior live trace visited general tennis directories while known registration
+routes remained unread. Instructions requested registration priority, but after
+search-group coverage both the read-tool schema and execution boundary admitted
+any unread source. A plausible but optional source could therefore spend the same
+finite read/extraction budget needed for verification.
+
+Area-mode read priority now continues after breadth coverage: required details and
+observed registration navigation precede optional exploration. The tool schema,
+cache guidance and execution guard share the same source-ID calculation. Rejected
+out-of-order calls still consume tool operations but do not fetch or extract pages.
+Optional reads become available after these obligations are clear. Focused
+`source_check` behavior, anonymity, failure semantics and all budgets are unchanged.
+
+Four of five new regression cases failed on the baseline, including the actual
+Pydantic AI tool-schema path. With a scripted chooser that selects the first
+advertised ID, the added distraction case previously spent ten model requests and
+read all three optional directories before verifying the original course. The
+candidate uses seven and preserves every original fact/evidence assertion. The
+scorer separately rejects early optional reads even if final course facts are right;
+it accepts optional exploration after verification. This is a deterministic policy
+test, not a measured private-model performance improvement.
+
+Local gates passed **755 tests**, **85 benchmark cases**, typing across **50 modules**,
+Ruff/format, wheel build and Twine. The new `priority` suite is separate from the
+unchanged navigation and evidence suites. The private-model baseline already passed
+**3/3**, each with seven requests (**25.08s / 18.26s / 21.48s**), so those runs do not
+reproduce the live trace's choice error. Its model-only network audit recorded zero
+blocked attempts. The candidate must still be checked against the same replay and
+the unseeded real-course gate; the baseline's success is not acceptance of new code.
+
+The candidate's private-model distraction replay also passed **3/3**, with seven
+requests each (**21.47s / 19.10s / 19.28s**) and no blocked network, DNS or process
+attempts. This does not establish a model performance improvement. The unchanged
+navigation suite then passed only **7/9**. A separate diagnostic run passed **6/9**:
+one membership case exhausted model retries, and two injection cases ended in
+structured-output validation errors. The diagnostic exception chains contained
+`UnexpectedModelBehavior` with `ModelRetry` or `ValidationError`; they do not yet
+identify the responsible argument or prove the priority policy caused the failures.
+Both failed batches remain part of the evidence; reruns do not replace them.
+
+Replay reports now share bounded exception-class diagnostics with the live source
+benchmark. They follow causes and exception groups without persisting error messages,
+validation inputs, page bodies or provider responses. Added regression tests cover
+cycle/depth limits, failure serialization and successful reports. Final local gates
+passed **758 tests**, **85 benchmark cases**, typing, lint/format and wheel/Twine.
+This candidate remains unmerged. Production, saved login profiles and browser-worker
+configuration are unchanged; anonymous catalog rejection does not trigger login.
+
+A final six-case replay with content-free tool-call diagnostics passed **4/6**.
+Both injection repetitions followed the same failure path: two premature
+`finish_discovery` calls while that tool was unavailable, then a call with missing
+`outcome` after required reads completed. The latter produced a `missing` validation
+error at `outcome` and exhausted retries. Some passing cases also attempted a stale
+`read_source` call after the read tool was no longer advertised. These observations
+identify a tool-contract adherence problem; they do not establish a causal regression
+from read priority. Invalid calls did not bypass the existing execution/completion
+guards. This batch is diagnostic, not a replacement for either previous failed batch
+or the unseeded live-course acceptance test. Required fields, retry limits and
+completion checks remain unchanged pending a separately measured fix.
+
+## Deterministic Required Steps: 2026-11-03
+
+Adding exact completion arguments and readable IDs to state-owned instructions was
+not sufficient: the unchanged nine-case navigation replay passed **8/9**, with the
+last injection case failing through `UnexpectedModelBehavior` / `ToolRetryError`.
+That prompt-only result is retained, not counted as acceptance.
+
+The next candidate uses Pydantic AI graph iteration to execute singleton mandatory
+reads and validate exhausted-source completion in application code. It does not
+select between multiple sources, automatically explore optional links, accept empty
+completion arguments, or change course facts. Every automatic read still consumes
+the existing tool/read budget. Observations supplied to later model turns are input
+data, not fabricated tool-call history. This follows the framework's documented
+[graph iteration interface](https://pydantic.dev/docs/ai/core-concepts/agent/).
+
+The same navigation suite then passed **9/9**, preserving original facts, coverage,
+membership-denial semantics and injection assertions. This is an execution-policy
+change: fewer decisions reach the model, not evidence that model instruction
+following became intrinsically more reliable. The original unseeded search remains
+a separate acceptance gate. Production and authenticated access are unchanged.
+
+The automatic-step candidate used two planner requests in each of those nine
+navigation runs (**2.15-6.80s**). The distraction suite passed **3/3** with five
+requests (**17.76s / 13.76s / 15.58s**); optional exploration after verification
+remained available. Both suites recorded zero blocked network, DNS or process
+attempts under the model-only process guard.
+
+Applying the new instructions to focused `source_check` as well was not accepted:
+that evidence replay passed only **6/10**, with date-conflict and transient-read
+failures. The candidate was revised to keep focused instructions, progress fields
+and the `Agent.run` execution path unchanged. The added guidance and graph controller
+are now area-only. Final scoped-candidate results must be evaluated separately from
+the earlier candidate; its passing navigation batch cannot be carried over blindly.
+
+The final scoped candidate passed navigation **9/9** (two planner requests each,
+**2.63-6.76s**), focused evidence **10/10**, and distraction **3/3** (five, five and
+four requests; **16.42s / 13.17s / 7.87s**). All three process-local model-only audits
+recorded zero blocked network, DNS or process attempts. These controlled replays
+preserve the original fact/evidence checks; they do not establish live source recall.
+
+Local validation passed **776 tests**, **92 benchmark cases**, mypy across
+**50 modules**, Ruff/format, wheel build and Twine. Existing tests changed their
+planner-call counts to reflect automatic steps, not their expected course facts.
+Cache coverage still exercises a stale call before automatic completion. Injection
+input-placement assertions run on a branching case that actually invokes the model,
+not on a fully deterministic path where those assertions would be unreachable.
+The built wheel was installed only in the isolated evaluator.
+
+The unseeded real-web run still failed at **300.01s**, with 29 registered sources and
+two checked sources. Usage recorded 14 completed model requests; the stage trace
+recorded **17 attempts**, including three cancelled extraction calls. Extraction
+accounted for nine attempts / **152.37s**, and planning for eight / **117.86s**.
+The trace again observed planner tool names returned during extraction. Those calls
+did not gain planner privileges; invalid output was retried or timed out under the
+unchanged limits. This does not identify whether model generation, serving or parsing
+caused the mismatch. Search results also differed from earlier runs, so these timings
+are not a controlled latency comparison. Original-course recall and bounded live
+completion remain unsatisfied; the experimental parent is not production-ready.
+
+Known-link live anonymous verification passed **2/2** in **13.93s / 6.61s**, with
+three model requests and two tool calls each. Original occurrence facts, source
+evidence, no personal queue inference and incomplete-series reporting all passed.
+This validates the supplied-detail path, not discovery of that link from a city query.

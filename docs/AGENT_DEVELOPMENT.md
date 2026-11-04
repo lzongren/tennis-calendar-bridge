@@ -89,12 +89,42 @@ guidance use the same ID calculation. These hints do not replace execution guard
 unknown sources remain blocked, coverage rules still apply, and repeated calls can
 still exhaust the unchanged run budget.
 
+After search-group coverage, area mode restricts reads to outstanding required
+details and observed registration navigation until those obligations are attempted.
+Both the schema and execution guard use this priority set. A stale call to a known
+but optional source consumes a tool operation, not a network read, and receives the
+current allowed IDs. Once obligations are clear, optional exploration is available
+again. `source_check` retains its focused read policy. Anonymous navigation failures
+satisfy an attempt only; failed required details still abort verification.
+
 Pydantic AI exposes the completion tool only when the existing completion validator
 finds no outstanding work. Tool preparation calls that same side-effect-free
 validator; it does not maintain a second coverage policy. Terminal source failures
 still reach the validator and abort rather than becoming success. Hiding a tool is
 planning guidance, not a security boundary: the model can still attempt an absent
 tool or return prose, and existing validation and request limits still apply.
+
+Area-mode instructions repeat the currently readable IDs and a completion state
+derived from that same validator. Only a ready state includes the exact completion
+arguments: `sources_checked` when records exist, otherwise `no_results`. Pending and
+terminal failure states are distinct. These hints contain no page text or source
+titles, do not charge tool calls, and do not relax the required `outcome` field.
+The planner must use the current tool schema rather than replaying a tool that was
+available earlier in the conversation.
+Focused `source_check` retains its existing instructions and `Agent.run` path.
+
+Area mode drives the Pydantic AI graph with `Agent.iter`. Before a model request,
+the application executes mandatory reads only while the allowed priority set has
+exactly one ID. Each uses the normal read method, including its audit, retry policy,
+source validation and budgets. Multiple choices and optional links remain with the
+planner. Completed observations are enqueued as structured input data, not invented
+assistant/tool messages or system instructions.
+
+If no unread sources remain, the application calls the same completion validator
+and returns reconciled evidence without asking the model to emit a redundant final
+tool call. Failed required details still abort, and pending search obligations still
+require the planner. `source_check` does not use these automatic steps. The enclosing
+deadline and shared model usage include extraction performed by automatic reads.
 
 Area discovery is the default. Before the first model request, the application
 executes the required overview, registration and schedule queries, then bounded

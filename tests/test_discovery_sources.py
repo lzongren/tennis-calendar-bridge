@@ -14,7 +14,7 @@ from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior, Usag
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RunUsage
 
-from benchmarks.source_discovery import error_types
+from benchmarks.discovery_metrics import error_types
 
 from tennis_overview.agent_discovery import run_until_stopped
 from tennis_overview.course_extraction import (

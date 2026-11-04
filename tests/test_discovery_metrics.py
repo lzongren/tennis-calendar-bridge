@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import asynccontextmanager
 
 import pytest
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
@@ -9,7 +10,56 @@ from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RequestUsage
 
-from benchmarks.discovery_metrics import DiscoveryMetrics, MeasuredModel
+from benchmarks.discovery_metrics import DiscoveryMetrics, MeasuredModel, error_types
+
+
+def test_error_types_follow_explicit_causes_and_bound_cycles_and_depth():
+    cause = TimeoutError("private-provider-body")
+    error = RuntimeError("private-wrapper-body")
+    error.__cause__ = cause
+    cause.__context__ = error
+    assert error_types(error) == ["RuntimeError", "TimeoutError"]
+    for _ in range(20):
+        wrapper = RuntimeError("private-wrapper-body")
+        wrapper.__cause__ = error
+        error = wrapper
+    assert error_types(error) == ["RuntimeError"] * 12
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_replay_report_keeps_error_structure_without_exception_content(monkeypatch, capsys, failed):
+    from benchmarks import agent_discovery as benchmark
+    from tennis_overview.discovery_agent import AgentDiscoveryError, DiscoveryRun
+
+    @asynccontextmanager
+    async def model_context(config):
+        yield object()
+
+    async def run(*args, **kwargs):
+        if failed:
+            try:
+                raise TimeoutError("private-provider-body")
+            except TimeoutError:
+                raise AgentDiscoveryError("private-error-message") from None
+        return DiscoveryRun(
+            sessions=(),
+            sources=(),
+            searched_cities=(),
+            audit=(),
+            partial=True,
+            model_requests=1,
+            tool_calls=0,
+        )
+
+    monkeypatch.setattr(benchmark, "private_model", model_context)
+    monkeypatch.setattr(benchmark, "run_discovery_agent", run)
+    observations = asyncio.run(benchmark.evaluate(None, 1, scenarios=("baseline",)))
+    report = observations[0].model_dump_json()
+    assert observations[0].error_types == (
+        ["AgentDiscoveryError", "TimeoutError"] if failed else []
+    )
+    assert observations[0].error_type == ("AgentDiscoveryError" if failed else None)
+    assert "private-" not in report + capsys.readouterr().out
 
 
 def test_measurements_use_monotonic_timeline_and_bound_storage():

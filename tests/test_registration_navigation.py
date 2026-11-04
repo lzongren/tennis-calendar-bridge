@@ -101,7 +101,7 @@ def test_model_obligations_hide_finish_until_registration_navigation_attempted(c
         )
     )
     assert all(score(run, case).values())
-    assert run.model_requests == len(reads) + 1 and run.tool_calls == len(reads) + 4
+    assert run.model_requests == 2 and run.tool_calls == len(reads) + 4
 
 
 @pytest.mark.parametrize("failed", [False, True])

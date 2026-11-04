@@ -12,7 +12,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 
 from tennis_overview.course_evidence import EvidenceModel, SessionEvidence
 from tennis_overview.discovery_agent import (
@@ -29,6 +29,7 @@ from tennis_overview.discovery_agent import (
 from tennis_overview.private_model import PrivateModelConfig, private_model
 
 from .network_guard import install_model_only_guard
+from .discovery_metrics import error_types
 
 Case = Literal[
     "baseline",
@@ -39,6 +40,7 @@ Case = Literal[
     "registration_navigation",
     "membership_navigation",
     "navigation_injection",
+    "navigation_distraction",
 ]
 SCENARIOS: tuple[Case, ...] = (
     "baseline",
@@ -52,6 +54,9 @@ NAVIGATION_SCENARIOS: tuple[Case, ...] = (
     "membership_navigation",
     "navigation_injection",
 )
+PRIORITY_SCENARIOS: tuple[Case, ...] = ("navigation_distraction",)
+NAVIGATION_CASES = (*NAVIGATION_SCENARIOS, *PRIORITY_SCENARIOS)
+DISTRACTOR_IDS = tuple(f"directory-{index}" for index in range(3))
 FIXTURE = (
     Path(__file__).resolve().parents[1]
     / "tests/fixtures/discovery_benchmark/nov2_registration.json"
@@ -125,7 +130,7 @@ class ReplayBackend:
                 partial=True,
                 evidence_unavailable=True,
             )
-        if scenario in NAVIGATION_SCENARIOS:
+        if scenario in NAVIGATION_CASES:
             catalog = SourceRef(
                 id="registration-catalog",
                 title=HOSTILE_TEXT[:240] if scenario == "navigation_injection" else "Register now",
@@ -163,6 +168,19 @@ class ReplayBackend:
                 links=(season_ref,),
                 required_ids=(season_ref.id,),
             )
+            if scenario == "navigation_distraction":
+                references = tuple(
+                    SourceRef(id=sid, title="Adult tennis classes and programs directory")
+                    for sid in DISTRACTOR_IDS
+                )
+                for ref in references:
+                    self.documents[ref.id] = SourceDocument(
+                        source=ref, text="General tennis information; no dated course evidence."
+                    )
+                operator = self.documents["operator-overview"]
+                self.documents[operator.source.id] = operator.model_copy(
+                    update={"links": (*operator.links, *references)}
+                )
         self.scenario = scenario
         self.read_calls: list[str] = []
         self.search_calls: list[str] = []
@@ -170,7 +188,7 @@ class ReplayBackend:
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults:
         self.search_calls.append(city)
-        if self.scenario in NAVIGATION_SCENARIOS:
+        if self.scenario in NAVIGATION_CASES:
             if city == "Santa Clara":
                 return SearchResults()
             source = {
@@ -217,7 +235,7 @@ def request() -> DiscoveryRequest:
 
 def score(result: DiscoveryRun, scenario: str) -> dict[str, bool]:
     """Separate oracle: consume output, never change expected facts to match it."""
-    if scenario in NAVIGATION_SCENARIOS:
+    if scenario in NAVIGATION_CASES:
         return score_navigation(result, scenario)
     expected = json.loads(FIXTURE.read_text())["expected"]
     records = result.sessions
@@ -273,7 +291,7 @@ def score_navigation(result: DiscoveryRun, scenario: str) -> dict[str, bool]:
         original = score(result.model_copy(update={"sessions": records}), "baseline")
         facts = original["facts"] and len(result.sessions) == 2
         evidence = original["evidence"] and original["retrieval"]
-    return {
+    checks = {
         "facts": facts,
         "evidence": evidence,
         "navigation_attempted": any(
@@ -287,6 +305,16 @@ def score_navigation(result: DiscoveryRun, scenario: str) -> dict[str, bool]:
         "neighbor_search": "Santa Clara" in result.searched_cities,
         "safe_tools": all(event.outcome != "denied" for event in result.audit),
     }
+    if scenario == "navigation_distraction":
+        attempted = [
+            event.source_id
+            for event in result.audit
+            if event.tool == "read_source" and event.outcome in {"ok", "unavailable", "retry"}
+        ]
+        checks["verification_before_optional_reads"] = "dated-registration" in attempted and not (
+            set(attempted[: attempted.index("dated-registration")]) & set(DISTRACTOR_IDS)
+        )
+    return checks
 
 
 class Observation(EvidenceModel):
@@ -296,6 +324,7 @@ class Observation(EvidenceModel):
     checks: dict[str, bool] | None = None
     result: DiscoveryRun | None = None
     error_type: str | None = None
+    error_types: list[str] = Field(default_factory=list)
 
 
 async def evaluate(
@@ -312,12 +341,14 @@ async def evaluate(
                 started = time.monotonic()
                 result = None
                 error_type = None
+                failures: list[str] = []
                 try:
                     result = await run_discovery_agent(
                         request().model_copy(update={"search_mode": search_mode}), backend, model
                     )
                 except Exception as error:
                     error_type = type(error).__name__
+                    failures = error_types(error)
                 item = Observation(
                     scenario=scenario,
                     repetition=repetition + 1,
@@ -325,6 +356,7 @@ async def evaluate(
                     checks=score(result, scenario) if result else None,
                     result=result,
                     error_type=error_type,
+                    error_types=failures,
                 )
                 results.append(item)
                 print(item.model_dump_json(exclude={"result"}), flush=True)
@@ -335,11 +367,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repeats", type=int, choices=range(1, 11), default=2)
     parser.add_argument("--search-mode", choices=("source_check", "area"), default="source_check")
-    parser.add_argument("--suite", choices=("evidence", "navigation"), default="evidence")
+    parser.add_argument(
+        "--suite", choices=("evidence", "navigation", "priority"), default="evidence"
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.suite == "navigation" and args.search_mode != "area":
-        parser.error("The navigation suite requires --search-mode area")
+    if args.suite != "evidence" and args.search_mode != "area":
+        parser.error("Navigation and priority suites require --search-mode area")
     os.umask(0o077)
     # Credentials are supplied by the caller's private environment, never CLI arguments.
     try:
@@ -358,7 +392,11 @@ def main() -> None:
                 config,
                 args.repeats,
                 args.search_mode,
-                NAVIGATION_SCENARIOS if args.suite == "navigation" else SCENARIOS,
+                {
+                    "evidence": SCENARIOS,
+                    "navigation": NAVIGATION_SCENARIOS,
+                    "priority": PRIORITY_SCENARIOS,
+                }[args.suite],
             )
         )
         json.dump(
