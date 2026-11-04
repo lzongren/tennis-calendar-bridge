@@ -9,7 +9,8 @@ from urllib.parse import urlsplit
 import httpx2 as httpx
 from openai import AsyncOpenAI
 from pydantic import Field, SecretStr, field_validator
-from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.models import ModelRequestParameters
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.profiles import InlineDefsJsonSchemaTransformer, ModelProfile
 from pydantic_ai.providers.openai_compatible import OpenAICompatibleProvider
 
@@ -22,6 +23,7 @@ class PrivateModelConfig(EvidenceModel):
     model: str = Field(min_length=1, max_length=160)
     api_key: SecretStr
     request_seconds: float = Field(default=60, gt=0, le=180, allow_inf_nan=False)
+    require_read_tool: bool = False
 
     @field_validator("api_key")
     @classmethod
@@ -90,6 +92,21 @@ class PrivateOpenAIClient(AsyncOpenAI):
         return {}
 
 
+class PrivateChatModel(OpenAIChatModel):
+    """Require the sole read tool when enabled, without forcing typed output tools."""
+
+    def _supports_tool_forcing(
+        self,
+        model_settings: OpenAIChatModelSettings,
+        model_request_parameters: ModelRequestParameters,
+    ) -> bool:
+        return (
+            model_settings.get("tool_choice") == ["read_source"]
+            and set(model_request_parameters.declared_tool_defs) == {"read_source"}
+            and super()._supports_tool_forcing(model_settings, model_request_parameters)
+        )
+
+
 @asynccontextmanager
 async def private_model(
     config: PrivateModelConfig,
@@ -119,19 +136,18 @@ async def private_model(
         # No public opt-out exists; pin the SDK and regression-test this small shim.
         client._platform = "Unknown"
         async with client:
-            yield OpenAIChatModel(
+            yield PrivateChatModel(
                 config.model,
                 provider=OpenAICompatibleProvider(
                     "private-tennis",
                     openai_client=client,
                     # Local aliases need not encode a vendor. Inline nested tool
                     # schemas without changing their local validation contract.
-                    # Tool forcing is not a reliable decoder constraint on the
-                    # evaluated local runtime. Let Pydantic AI validate/retry
-                    # typed outputs instead of requiring server-side enforcement.
+                    # Required choice is an opt-in provider hint, not a decoder or
+                    # security guarantee. Extraction keeps auto + local validation.
                     profile=ModelProfile(
                         json_schema_transformer=InlineDefsJsonSchemaTransformer,
-                        supports_forced_tool_choice=False,
+                        supports_forced_tool_choice=config.require_read_tool,
                     ),
                 ),
             )

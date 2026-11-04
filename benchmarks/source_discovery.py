@@ -497,6 +497,7 @@ async def evaluate(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live-web", action="store_true")
+    parser.add_argument("--require-read-tool", action="store_true")
     parser.add_argument(
         "--case",
         choices=(
@@ -546,6 +547,7 @@ def main() -> None:
         base_url=os.environ["TENNIS_DISCOVERY_API_URL"],
         model=os.environ["TENNIS_DISCOVERY_MODEL"],
         api_key=SecretStr(os.environ["TENNIS_DISCOVERY_API_KEY"]),
+        require_read_tool=args.require_read_tool,
     )
     os.umask(0o077)
     audit = install_model_only_guard(config.base_url) if not args.live_web else None

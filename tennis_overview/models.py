@@ -35,6 +35,7 @@ class AppConfig:
     discovery_agent_enabled: bool = False
     discovery_api_url: str = ""
     discovery_model: str = "tennis-discovery"
+    discovery_require_read_tool: bool = False
     discovery_api_key: str = field(default="", repr=False)
     discovery_browser_url: str = ""
     discovery_browser_key: str = field(default="", repr=False)
