@@ -112,6 +112,10 @@ class PublicSourceBackend:
             self.sources[key] = PublicSource(
                 SourceRef(id=key, title=title[:240], url=url), url, depth
             )
+        else:
+            # Search rediscovery can make a previously linked page a new root.
+            # Keep its identity/evidence; use the shortest observed path on future reads.
+            self.sources[key].depth = min(self.sources[key].depth, depth)
         return self.sources[key].ref
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults:
@@ -327,6 +331,8 @@ class PublicSourceBackend:
                             link.title + " " + urlsplit(link.url).path
                         ):
                             navigation.append(ref.id)
+            elif ranked_links:
+                partial = True
             partial = partial or len(ranked_links) > 6 or self.truncated
             required = []
             for url in page.required_links:

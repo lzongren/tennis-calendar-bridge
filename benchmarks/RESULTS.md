@@ -1737,3 +1737,40 @@ mandatory coverage priority, read exhaustion, failure caching, shared tool limit
 and unchanged focused-source behavior. The temporary anonymous worker stopped.
 No saved profile, production runtime, model service or ingress changed. Original
 course recall and registration-entry traversal remain production blockers.
+
+## Shallower Source Rediscovery: 2026-11-03
+
+An anonymous component probe reproduced a depth-accounting defect along the real
+directory -> operator homepage -> registration entry path. The homepage retained
+depth one even when subsequently registered as a direct root. The entry therefore
+stayed at depth two and admitted none of its seven relevant links. After the fix,
+the same explicitly supplied root rediscovery made the entry depth one and admitted
+six links under the unchanged cap. This is a controlled live-page probe, not a
+claim that an unseeded search discovers that root. Existing observations and source
+IDs are retained; cached pages are not reread or retroactively expanded.
+
+Six regression tests initially produced five failures and one pass. All now pass,
+including two search/refinement variations of the original anonymous course-fact
+fixture. They cover source identity, capacity, nonincreasing depth, original dated
+facts and the unchanged two-hop ordinary-navigation limit. A separate defect also
+marked depth-truncated documents complete when fewer than seven links existed;
+those documents now report partial coverage.
+
+A fresh anonymous portal probe still received an explicit membership-required
+response and zero course cards. No saved profile was created. A native anonymous
+browser comparison encountered the provider's security block before reaching the
+catalog, so it cannot establish whether the relay affects that response. Both
+diagnostic browsers closed; no challenge bypass or authenticated fallback was used.
+
+The candidate's unseeded real-model search completed in **177.31s** with five
+courses, nine checked sources, 21 model requests, 18 tool operations, partial
+coverage and zero denied tool attempts. The original course identity, registration
+facts and source-evidence checks still failed. The queue check failed its nonempty
+match prerequisite, not because a personal position was inferred. The expected URL
+remained scorer-only. Different live search paths preclude a latency comparison.
+The run process was confirmed absent when the persisted report was read on November 4.
+
+Validation passed **906 tests**, including **137 benchmark cases**, mypy across
+**50 modules**, Ruff/format and wheel build. This is a source-registry correctness
+improvement, not a production recall pass. The anonymous discovery gate remains
+unmet; no production service, login profile, model service or ingress was changed.

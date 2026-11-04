@@ -90,6 +90,13 @@ not become required course evidence. Exhausted capacity can still return validat
 partial results. `tests/test_reference_priority.py` covers these boundaries,
 source ownership, shared tool budgets and unchanged focused-source behavior.
 
+`tests/test_source_depth.py` replays the original anonymous course facts through a
+directory, operator, registration entry and portal after direct search/refinement
+rediscovery of the operator. It verifies shortest-observed-path tracking without
+changing the two-hop ordinary-link limit, source identity or cached observations.
+Depth truncation remains explicit partial coverage. This controlled graph is not
+evidence that a live search returns the same roots or that a catalog admits guests.
+
 Use `--suite priority --search-mode area` to replay the original course evidence with
 three extra general-information links competing with its observed registration
 route. The suite includes direct registration navigation, a single facility
