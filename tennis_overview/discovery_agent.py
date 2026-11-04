@@ -119,6 +119,7 @@ class SourceDocument(EvidenceModel):
     links: tuple[SourceRef, ...] = Field(default=(), max_length=16)
     required_ids: tuple[SourceID, ...] = Field(default=(), max_length=8)
     navigation_ids: tuple[SourceID, ...] = Field(default=(), max_length=6)
+    reference_ids: tuple[SourceID, ...] = Field(default=(), max_length=6)
     records: tuple[SessionEvidence, ...] = Field(default=(), max_length=64)
     partial: bool = False
     evidence_unavailable: bool = False
@@ -132,6 +133,8 @@ class SourceDocument(EvidenceModel):
             raise ValueError("Required sources must be discovered links")
         if not set(self.navigation_ids) <= {link.id for link in self.links}:
             raise ValueError("Navigation sources must be discovered links")
+        if not set(self.reference_ids) <= {link.id for link in self.links}:
+            raise ValueError("Facility references must be discovered links")
         if self.evidence_unavailable and (self.records or not self.partial or not self.links):
             raise ValueError("Unavailable evidence may retain only partial navigation, not facts")
         if self.refinement_available and (
@@ -428,6 +431,12 @@ class ResearchState:
                     "navigation before optional sources. "
                     "Allowed source IDs: " + ", ".join(coverage)
                 )
+        elif references := self.unattempted_reference_ids():
+            if source_id not in references:
+                raise ModelRetry(
+                    "Read observed facility references before unrelated optional sources. "
+                    "Allowed source IDs: " + ", ".join(references)
+                )
         if self.read_attempts >= self.limits.reads:
             raise AgentDiscoveryError("Discovery read budget exceeded; narrow the search.")
         self.read_attempts += 1
@@ -550,6 +559,7 @@ class ResearchState:
                 "links": [link.model_dump() for link in document.links],
                 "required_ids": document.required_ids,
                 "navigation_ids": document.navigation_ids,
+                "reference_ids": document.reference_ids,
             }
         candidates = list(
             dict.fromkeys(
@@ -563,6 +573,7 @@ class ResearchState:
             "links": [link.model_dump() for link in document.links],
             "required_ids": document.required_ids,
             "navigation_ids": document.navigation_ids,
+            "reference_ids": document.reference_ids,
             "candidate_session_count": len({record.session_key for record in document.records}),
             "candidate_sessions": [
                 {
@@ -606,6 +617,12 @@ class ResearchState:
                 "Inspect a relevant newly discovered source from EACH search group before "
                 "finishing (one source ID per group): " + json.dumps(groups)
             )
+        if self.read_attempts < self.limits.reads:
+            if references := self.unattempted_reference_ids():
+                obligations.append(
+                    "Use remaining read budget to attempt observed facility references: "
+                    + ", ".join(references)
+                )
         if obligations:
             raise ModelRetry("; ".join(obligations))
         records = [record for doc in self.documents.values() for record in doc.records]
@@ -639,6 +656,13 @@ class ResearchState:
         discovered = {sid for doc in self.documents.values() for sid in doc.navigation_ids}
         return tuple(sorted(discovered - self.documents.keys() - self.failed_sources))
 
+    def unattempted_reference_ids(self) -> tuple[str, ...]:
+        """Identity references need bounded attempts, not successful verification."""
+        if self.request.search_mode != "area":
+            return ()
+        discovered = {sid for doc in self.documents.values() for sid in doc.reference_ids}
+        return tuple(sorted(discovered - self.documents.keys() - self.failed_sources))
+
     def unattempted_search_groups(self) -> tuple[tuple[str, ...], ...]:
         if self.request.search_mode != "area":
             return ()
@@ -669,18 +693,26 @@ class ResearchState:
     def available_read_ids(self) -> tuple[str, ...]:
         if self.read_attempts >= self.limits.reads:
             return ()
-        return self.coverage_read_ids() or tuple(
-            sorted(self.registry.keys() - self.documents.keys() - self.failed_sources)
+        return (
+            self.coverage_read_ids()
+            or self.unattempted_reference_ids()
+            or tuple(sorted(self.registry.keys() - self.documents.keys() - self.failed_sources))
         )
 
     async def advance_required_reads(self) -> list[dict[str, object]]:
-        """Execute only singleton mandatory choices through the normal read boundary."""
+        """Advance singleton coverage and known reference sets that fit the read budget."""
         completed = []
         while not self.required_search_options():
             # Do not let another mandatory branch hide a failed required detail.
             if self.required_source_ids() & self.failed_sources:
                 self.complete(Completion(outcome="sources_checked"))
             sources = self.coverage_read_ids()
+            if not sources:
+                references = self.unattempted_reference_ids()
+                if references and len(references) <= self.limits.reads - self.read_attempts:
+                    # Every known reference fits; preserve discovery order and recheck
+                    # higher-priority obligations after each budgeted read.
+                    sources = (next(sid for sid in self.registry if sid in references),)
             if len(sources) != 1:
                 break
             completed.append(await self.read_source(sources[0]))
@@ -693,6 +725,7 @@ class ResearchState:
             "nearby_searches_remaining": len(self.unsearched_nearby_cities()),
             "required_detail_ids": sorted(self.required_source_ids() - self.documents.keys()),
             "registration_navigation_ids": self.unattempted_navigation_ids(),
+            "facility_reference_ids": self.unattempted_reference_ids(),
             "unattempted_search_groups": self.unattempted_search_groups(),
             "unread_if_no_candidates": sorted(
                 self.registry.keys() - self.documents.keys() - self.failed_sources
@@ -726,6 +759,10 @@ class ResearchState:
             "schema, then cover unattempted search groups before optional linked navigation. "
             "Required detail IDs may be read immediately. After group coverage, prioritize "
             "registration_navigation_ids before other unread sources. "
+            "After mandatory coverage, use remaining read budget to attempt "
+            "facility_reference_ids before unrelated optional sources or completion. "
+            "These are untrusted identity references, not verified course facts. "
+            "Unread references may remain only when the read budget is exhausted. "
             "Attempt these navigation IDs even if other courses exist; "
             "an unavailable navigation source satisfies the attempt, not verification. "
             "Read at least one ID per unattempted search group before finish_discovery. "

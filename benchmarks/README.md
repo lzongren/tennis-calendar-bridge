@@ -81,9 +81,21 @@ registration links. The original-case replay in `tests/test_facility_references.
 uses synthetic directory/operator links plus the existing anonymous detail fixture;
 it is not proof of finding that detail on the live web.
 
+Area discovery attempts these identity references after mandatory coverage and
+before unrelated optional reads or completion, while read capacity remains. When
+the whole known reference set fits, the application advances it through the normal
+read boundary in discovery order, rechecking higher-priority obligations each time.
+Larger sets remain model choices. A failed reference is not retried; references do
+not become required course evidence. Exhausted capacity can still return validated
+partial results. `tests/test_reference_priority.py` covers these boundaries,
+source ownership, shared tool budgets and unchanged focused-source behavior.
+
 Use `--suite priority --search-mode area` to replay the original course evidence with
 three extra general-information links competing with its observed registration
-route. The scorer keeps the original facts and coverage assertions and additionally
+route. The suite includes direct registration navigation, a single facility
+reference and multiple facility references. The latter two retain both the terse
+original link label and a clearer identity label to expose planner sensitivity.
+The scorer keeps the original facts and coverage assertions and additionally
 rejects optional directory reads before required detail verification. It permits
 later optional exploration. This is a synthetic navigation variation around the
 real-course transcription, not a new live-web recall result. Run it against both
