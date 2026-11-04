@@ -47,8 +47,8 @@ def test_cached_progress_preserves_original_facts_and_navigation_gates(case):
     turns = iter(
         [
             "operator-overview",
-            "another-operator",
             "operator-overview",
+            "another-operator",
             "other-club",
             "registration-catalog",
             *(
@@ -71,7 +71,7 @@ def test_cached_progress_preserves_original_facts_and_navigation_gates(case):
                 if isinstance(part, ToolReturnPart) and part.tool_name == "read_source":
                     payload = json.loads(part.model_response_str())
                     if payload.get("cached"):
-                        assert payload["next_source_ids"] == ["other-club"]
+                        assert payload["next_source_ids"] == ["another-operator", "other-club"]
                         assert "collector.invalid" not in part.model_response_str()
                         seen_cache = True
         if source := next(turns, None):

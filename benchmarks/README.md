@@ -47,6 +47,20 @@ scorer rejects skipped navigation even when another course is already present.
 These are controlled transcripts, not proof of live-web discovery; the original
 unseeded clinic case remains a separate acceptance gate.
 
+Use `--suite priority --search-mode area` to replay the original course evidence with
+three extra general-information links competing with its observed registration
+route. The scorer keeps the original facts and coverage assertions and additionally
+rejects optional directory reads before required detail verification. It permits
+later optional exploration. This is a synthetic navigation variation around the
+real-course transcription, not a new live-web recall result. Run it against both
+baseline and candidate code with the same fixtures; do not present a scripted
+request-count reduction as a measured real-model speedup.
+
+Replay failures retain a bounded `error_types` chain alongside the outer
+`error_type`. It records exception classes, not provider bodies, validation inputs
+or exception messages. Keep failed batches when rerunning with diagnostics; a later
+successful run does not replace them or establish live-web recall.
+
 Each of five scenarios is repeated serially. The scorer checks exact facts,
 complete source IDs, retrieval, neighboring-city expansion, denied tool attempts
 and partial-result state. Facts are constructed by the same deterministic Python

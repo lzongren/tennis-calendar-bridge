@@ -29,31 +29,13 @@ from tennis_overview.discovery_sources import PublicSourceBackend
 from tennis_overview.private_model import PrivateModelConfig, private_model
 from tennis_overview.public_web import Page, page_from_html
 
-from .discovery_metrics import DiscoveryMetrics, MeasuredModel
+from .discovery_metrics import DiscoveryMetrics, MeasuredModel, error_types
 from .network_guard import install_model_only_guard
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 REPLAY_URL = "https://club.example.org/adults"
 BROWSER_URL = "https://app.courtreserve.com/Online/Events/Details/12345/EXAMPLE?resId=123&tab=dates"
 CAPTURE_TIME = datetime(2026, 11, 2, 18, tzinfo=timezone.utc)
-
-
-def error_types(error: BaseException) -> list[str]:
-    """Bounded structural diagnostics, never exception messages or response bodies."""
-    pending: list[BaseException] = [error]
-    seen: set[int] = set()
-    names: list[str] = []
-    while pending and len(seen) < 12:
-        current = pending.pop(0)
-        if id(current) in seen:
-            continue
-        seen.add(id(current))
-        names.append(type(current).__name__)
-        if isinstance(current, BaseExceptionGroup):
-            pending.extend(current.exceptions[:4])
-        if current.__context__ is not None:
-            pending.append(current.__context__)
-    return names
 
 
 async def empty_search(city: str, level: str, year: int, focus: str) -> list[dict[str, str]]:

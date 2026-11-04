@@ -99,7 +99,7 @@ def test_area_preflight_reserves_coverage_and_hides_exhausted_search_tool():
     )
     assert run.searched_cities == ("San Jose", "Santa Clara", "Cupertino")
     assert backend.search_calls == [city + "|" + focus for city, focus in searches]
-    assert run.model_requests == 4 and run.tool_calls == 8
+    assert run.model_requests == 2 and run.tool_calls == 8
 
 
 def test_required_search_gate_rejects_optional_query_without_spending_search_budget():

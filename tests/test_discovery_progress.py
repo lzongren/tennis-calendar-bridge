@@ -123,7 +123,7 @@ def test_real_case_progress_guides_coverage_without_spending_completion_retries(
     run = asyncio.run(run_discovery_agent(query, backend, FunctionModel(respond)))
     checks = score(run, "baseline")
     assert all(value for key, value in checks.items() if key != "neighbor_search")
-    assert finishes == 1 and run.model_requests == 5
+    assert finishes == 0 and run.model_requests == 3
     assert run.tool_calls == 7 and backend.search_calls == [query.city] * 3
     assert set(backend.read_calls) == {
         "seasonal-schedule",

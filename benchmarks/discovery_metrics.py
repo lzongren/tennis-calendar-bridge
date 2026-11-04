@@ -17,6 +17,26 @@ from pydantic_ai.settings import ModelSettings
 Stage = Literal["planner_model", "extractor_model", "source_read", "search"]
 
 
+def error_types(error: BaseException) -> list[str]:
+    """Bounded structural diagnostics, never exception messages or response bodies."""
+    pending: list[BaseException] = [error]
+    seen: set[int] = set()
+    names: list[str] = []
+    while pending and len(seen) < 12:
+        current = pending.pop(0)
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        names.append(type(current).__name__)
+        if isinstance(current, BaseExceptionGroup):
+            pending.extend(current.exceptions[:4])
+        if current.__context__ is not None:
+            pending.append(current.__context__)
+        if current.__cause__ is not None:
+            pending.append(current.__cause__)
+    return names
+
+
 @dataclass
 class Measurement:
     stage: Stage
