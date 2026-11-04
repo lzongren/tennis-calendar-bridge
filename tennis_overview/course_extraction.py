@@ -41,6 +41,11 @@ For a recurrence, quote its actual season endpoints and weekdays, not generated 
 Use date_start_text and date_end_text for single date phrases, not whole ranges.
 Require an explicit schedule year in the selected evidence; a footer copyright year is not
 schedule evidence. Leave unproven date fields empty and retain undated candidates.
+For a course description with no schedule facts in its selected span, return empty strings
+for year_text, date_start_text, date_end_text, start_time_text and end_time_text, and [] for
+weekdays. Required schema fields may be empty; do not borrow a year from another section.
+If only a weekday and clock times are published, retain those quotes but leave missing
+year and date fields empty. Python, not your answer, applies the user's calendar window.
 Retain any exclusion or cancellation text in the evidence. Do not fill omitted facts from
 general knowledge. Do not return authority, source IDs, signup URLs, availability or seats.
 """
@@ -243,8 +248,6 @@ class CourseExtractor:
                 {
                     "location": request.city,
                     "level": request.level,
-                    "window_start": request.start.isoformat(),
-                    "timezone": request.timezone,
                     "page_url": page.url,
                     "page_lines": list(enumerate(page.text.splitlines())),
                 }

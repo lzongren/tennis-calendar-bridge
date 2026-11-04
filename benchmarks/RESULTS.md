@@ -1309,3 +1309,45 @@ Known-link live anonymous verification passed **2/2** in **13.93s / 6.61s**, wit
 three model requests and two tool calls each. Original occurrence facts, source
 evidence, no personal queue inference and incomplete-series reporting all passed.
 This validates the supplied-detail path, not discovery of that link from a city query.
+
+## Source-Only Extraction Context: 2026-11-03
+
+A fresh replay of the captured public operator page reproduced an unsupported
+`year_text`, followed by a retry timeout. The course description did not contain
+a schedule year in its selected evidence. The candidate removes calendar-window
+metadata from the extractor's prompt and explicitly describes empty required fields
+for undated descriptions. Python still applies the requested window and timezone;
+evidence validation, request budgets, tool choice and retries are unchanged.
+
+The first wording passed **7/9**: operator and dated-course checks passed three
+times each, but the directory failed twice (request budget and transport timeout).
+That wording also unnecessarily asked for empty clock times on undated schedules.
+It was narrowed to descriptions with no schedule facts, preserving any published
+weekday and time quotes. Those two batches are separate candidates, not pooled.
+
+The final Qwen/Rapid-MLX replay used two previously captured public pages and a
+minimal dated transcription, with three repetitions per case:
+
+| Case | Passed | Seconds | Model requests per run |
+| --- | --- | --- | --- |
+| Operator catalog: retain compatible Live Ball, invent no dates | 3/3 | 8.13 / 2.24 / 2.21 | 1 |
+| Facility directory: do not turn opening hours into courses | 3/3 | 3.18 / 0.66 / 0.65 | 1 |
+| Dated clinic: preserve title, price, start and end | 3/3 | 2.97 / 2.55 / 2.55 | 1 |
+
+The process-local model-only guard recorded one model connection and zero blocked
+network, DNS or process attempts. Captures and raw reports remain outside Git.
+This is a small repeated extraction check, not statistical proof of serving
+reliability, complete catalog recall, or autonomous discovery of the original link.
+No authenticated browser profile, production service or ingress configuration changed.
+
+Local validation passed **780 tests**, **96 benchmark cases**, mypy across
+**50 modules**, Ruff/format, wheel build and Twine. Four new deterministic cases
+cover source-only prompt data, rejection of a borrowed year, undated candidates,
+and retention of weekday/time evidence without generating dated sessions.
+
+The subsequent unseeded anonymous real-web run still failed at **300.04s**:
+14 completed model requests, 30 registered sources and three checked sources.
+The trace contains 16 model attempts, including two cancelled extractions. The
+scorer-only original occurrence URL was not supplied to the agent. No original-course
+recall or bounded end-to-end completion was established. These live results remain
+an unmet production gate; the nine passing extraction replays do not supersede it.
