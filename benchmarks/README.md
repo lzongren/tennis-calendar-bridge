@@ -47,9 +47,62 @@ scorer rejects skipped navigation even when another course is already present.
 These are controlled transcripts, not proof of live-web discovery; the original
 unseeded clinic case remains a separate acceptance gate.
 
+Area planning uses a request-only state projection: the model receives the current
+read/refinement choices, bounded candidate summaries and a generic validation-retry
+indicator instead of replaying obsolete source IDs and tool exchanges. Eligible
+read choices retain discovery order, not opaque-ID sort order. Pydantic AI's
+framework transcript, the application's evidence and audit, coverage checks and
+budgets remain intact. `source_check` mode keeps its existing conversation path.
+The planner is asked for one advertised tool call per turn; this is a prompt, not
+a decoder guarantee or a replacement for tool validation.
+
+`tests/test_planner_frontier.py` checks outgoing context against the advertised
+read set, source ordering, preserved framework history, bounded summaries, retry
+feedback, unchanged request limits and original course facts. The navigation replay
+above still verifies source retrieval and membership/injection behavior. A compact
+request alone is not proof of improved live-model choices or successful discovery.
+
+At the read limit, area discovery stops offering unread source choices and applies
+the existing completion validator without another model request. Validated
+evidence can return with partial coverage; missing required details, registration
+navigation, search-group coverage or no-results coverage still fail closed. The
+limit is not expanded and a successful completion is not an original-course recall
+pass. `tests/test_read_budget_completion.py` exercises this boundary with the
+original facts, conflict and injection cases, automatic and planner-chosen reads,
+and incomplete mandatory/no-results coverage.
+
+Public HTML retrieval preserves bounded inline Schema.org `sameAs` references
+for a `SportsActivityLocation` or `LocalBusiness` whose `url` matches the page.
+Only the supported inline context/graph shapes are read; remote contexts are never
+fetched and scripts are never executed. These are untrusted navigation candidates,
+not official-source certification or course evidence. They share the existing
+public URL checks, link/depth/read budgets and rank after explicit schedules and
+registration links. The original-case replay in `tests/test_facility_references.py`
+uses synthetic directory/operator links plus the existing anonymous detail fixture;
+it is not proof of finding that detail on the live web.
+
+Area discovery attempts these identity references after mandatory coverage and
+before unrelated optional reads or completion, while read capacity remains. When
+the whole known reference set fits, the application advances it through the normal
+read boundary in discovery order, rechecking higher-priority obligations each time.
+Larger sets remain model choices. A failed reference is not retried; references do
+not become required course evidence. Exhausted capacity can still return validated
+partial results. `tests/test_reference_priority.py` covers these boundaries,
+source ownership, shared tool budgets and unchanged focused-source behavior.
+
+`tests/test_source_depth.py` replays the original anonymous course facts through a
+directory, operator, registration entry and portal after direct search/refinement
+rediscovery of the operator. It verifies shortest-observed-path tracking without
+changing the two-hop ordinary-link limit, source identity or cached observations.
+Depth truncation remains explicit partial coverage. This controlled graph is not
+evidence that a live search returns the same roots or that a catalog admits guests.
+
 Use `--suite priority --search-mode area` to replay the original course evidence with
 three extra general-information links competing with its observed registration
-route. The scorer keeps the original facts and coverage assertions and additionally
+route. The suite includes direct registration navigation, a single facility
+reference and multiple facility references. The latter two retain both the terse
+original link label and a clearer identity label to expose planner sensitivity.
+The scorer keeps the original facts and coverage assertions and additionally
 rejects optional directory reads before required detail verification. It permits
 later optional exploration. This is a synthetic navigation variation around the
 real-course transcription, not a new live-web recall result. Run it against both

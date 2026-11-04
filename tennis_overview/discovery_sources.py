@@ -55,7 +55,7 @@ def related_links(page: Page) -> tuple[PageLink, ...]:
         description = link.title + " " + path
         if link.url == page.url or re.search(r"pickleball|youth|junior|camp", description, re.I):
             continue
-        if not re.search(
+        if link.relation != "same_as" and not re.search(
             r"adult|tennis|clinic|schedule|timetable|calendar|register|registration|portal|bookclass|bookcourse|csc",
             description,
             re.I,
@@ -69,8 +69,10 @@ def related_links(page: Page) -> tuple[PageLink, ...]:
             and not re.search(r"rating|rules|policy|policies", description, re.I)
         ):
             rank = 1
-        else:
+        elif link.relation == "same_as":
             rank = 2
+        else:
+            rank = 3
         selected.append((rank, link))
     return tuple(link for _, link in sorted(selected, key=lambda item: item[0]))
 
@@ -110,6 +112,10 @@ class PublicSourceBackend:
             self.sources[key] = PublicSource(
                 SourceRef(id=key, title=title[:240], url=url), url, depth
             )
+        else:
+            # Search rediscovery can make a previously linked page a new root.
+            # Keep its identity/evidence; use the shortest observed path on future reads.
+            self.sources[key].depth = min(self.sources[key].depth, depth)
         return self.sources[key].ref
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults:
@@ -308,6 +314,7 @@ class PublicSourceBackend:
                     self.details[key] = course
             linked: dict[str, SourceRef] = {}
             navigation = []
+            references = []
             ranked_links = related_links(page)
             if source.depth < 2:
                 for link in ranked_links[:6]:
@@ -316,12 +323,16 @@ class PublicSourceBackend:
                     )
                     if ref:
                         linked[ref.id] = ref
+                        if link.relation == "same_as":
+                            references.append(ref.id)
                         # A general signup route needs an area-search attempt, not
                         # successful course verification or an authenticated fallback.
                         if not registration and REGISTRATION_LINK.search(
                             link.title + " " + urlsplit(link.url).path
                         ):
                             navigation.append(ref.id)
+            elif ranked_links:
+                partial = True
             partial = partial or len(ranked_links) > 6 or self.truncated
             required = []
             for url in page.required_links:
@@ -361,6 +372,7 @@ class PublicSourceBackend:
                 links=tuple(linked.values()),
                 required_ids=tuple(dict.fromkeys(required)),
                 navigation_ids=tuple(dict.fromkeys(navigation)),
+                reference_ids=tuple(dict.fromkeys(references)),
                 partial=partial,
                 evidence_unavailable=evidence_unavailable,
                 refinement_available=bool(source.refinement_subject),

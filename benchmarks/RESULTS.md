@@ -1542,3 +1542,235 @@ The ephemeral worker stopped after the run; saved profiles and running services
 were untouched. Both Python 3.11 and 3.12 CI jobs passed. The failed full run does
 not invalidate the narrow component timing result, nor does that component result
 satisfy the original release gate.
+
+## Request-Only Planner Frontier: 2026-11-03
+
+Long-running searches exposed repeated planner selections of IDs outside the
+currently advertised read set. This candidate replaces only the outgoing area
+planner conversation with current eligible sources, bounded candidate summaries,
+recent action outcomes and a generic retry indicator. It preserves discovery order
+instead of sorting opaque IDs. Full framework history, evidence, audit, coverage
+checks and usage limits remain in application state. Source-check mode and
+extractor sampling are unchanged. The planner also receives the single-call
+instruction evaluated separately in PR #31; this is not a decoder constraint.
+
+Real Qwen/Rapid-MLX navigation replay, one observation per scenario:
+
+| Scenario | Baseline | Final candidate | Checks |
+| --- | --- | --- | --- |
+| Registration navigation | 6.35s | 4.94s | Both pass |
+| Membership restriction | 1.98s | 1.10s | Both pass |
+| Hostile navigation metadata | 1.99s | 1.09s | Both pass |
+
+Each run used two model requests. Tool counts remained 10, 8 and 10 respectively.
+Both processes recorded one model connection and zero blocked network, DNS or
+process attempts. Sources were replayed, not fetched live; the injection result
+does not prove general prompt-injection resistance. Sequential runs and model
+cache state prevent attributing the timing difference to this change alone.
+
+An intermediate candidate sorted source IDs and omitted the single-call prompt.
+Its unseeded live search still timed out at **300.01s**, with 13 completed model
+requests, 31 registered sources and four checked sources. All eight returned read
+selections were in the advertised set, but it did not reach the original clinic.
+Completed planner inputs ranged from 1,669 to 4,277 tokens. Two extractions exhausted
+their local deadlines. This is evidence about that run's choice validity and
+context size, not improved recall or end-to-end latency. The failed observation
+was retained rather than replaced by the final candidate's results.
+
+The final ordered-frontier candidate also **failed the unseeded original-course
+gate**: **250.32s**, 20 completed model requests, 43 registered sources and nine
+checked sources, ending in `AgentDiscoveryError`. The expected URL remained
+scorer-only. All 12 model-returned read IDs were in the advertised set, but the
+last was still offered after the 12-read budget had been spent (including a
+mandatory automatic read). The trace and execution guard are consistent with
+read-budget exhaustion; the sanitized error report does not expose its nested
+message. Earlier turns advertised completion, but the planner kept reading.
+
+Planner responses were 39-48 tokens; one was prose and required a retry. Planner
+input sizes ranged from 2,322 to 5,759 tokens. One extraction used an unadvertised
+tool before retrying, and another exhausted its local deadline. Public courses
+and dated pages were read, but the original clinic was not reached and no final
+discovery result was returned. Better choice validity in this sample does not
+establish recall or production readiness. Budget-aware tool advertisement,
+source selection and extractor reliability remain separate unresolved issues.
+The temporary anonymous worker stopped after the failed run. Keep this change
+as a draft, not a release or production deployment.
+
+Local checks passed **852 tests**, including **116 benchmark cases**, mypy across
+**50 modules**, Ruff and format checks. Browser tests require an environment that
+allows isolated Chrome processes; a sandboxed rerun failed six browser launches,
+then the full suite and benchmark subset passed outside that sandbox. Tests cover
+retained framework history, current-source schemas, source ordering, retry feedback,
+bounded summaries, unchanged request budgets and original course facts. Live
+captures and endpoint credentials remain outside the repository. No saved browser
+profile, running service, production configuration or ingress was changed.
+
+## Read-Budget Completion: 2026-11-03
+
+The preceding live run offered another read after consuming its read budget.
+This candidate removes exhausted read choices and, in area mode, runs the existing
+completion validator before making another model request. If coverage is already
+satisfied, it returns the evidence collected so far with the existing partial flag.
+If required details, registration navigation, search groups or no-results coverage
+remain incomplete, it still fails. It does not extend any budget or change the
+original-course factual scorer.
+
+Ten focused tests cover automatic and model-chosen last reads, exact original
+facts, conflicting dates, hostile metadata, a transient read, exhausted tool
+advertisement and incomplete mandatory/no-results coverage. Successful completion
+of this boundary is distinct from finding the original course on the live web.
+
+The isolated anonymous live search now returned normally: **237.03s**, 21 completed
+model requests, 18 tool operations, ten checked sources and five courses, with
+`partial=true` and zero denied tool attempts. Twelve source reads (one automatic)
+consumed the unchanged budget; no thirteenth read or final planner request was
+made. The expected registration URL remained scorer-only. The original clinic
+identity, registration facts and source-evidence checks still failed because that
+course was absent. The queue check also failed its nonempty-match prerequisite;
+this is not evidence that the agent invented a queue position.
+
+The previous candidate aborted at 250.32s instead of returning evidence. Live
+search results and chosen paths differed between runs, so these durations do not
+establish a latency improvement. This run reached the target operator's public
+directory but did not discover its exact course. One optional extraction again
+exhausted its deadline, and another required retries after an unadvertised tool
+and prose response. Source selection, exact-course recall and extraction reliability
+remain unresolved; normal completion does not satisfy the production gate.
+
+Real-model navigation replay also passed **3/3** (registration, membership denial,
+hostile navigation metadata), at 5.91s, 1.09s and 1.09s. Those sources are fixtures;
+this is regression coverage, not another live-web recall result.
+
+Validation passed **862 tests**, including **125 benchmark cases**, mypy across
+**50 modules**, Ruff/format and wheel build. The temporary anonymous worker stopped
+after the live run. No saved profile, production configuration, running service or
+ingress was changed.
+
+## Facility Identity References: 2026-11-03
+
+A fresh anonymous read of the target operator's public directory exposed a
+retrieval gap. Ordinary anchors led to other facilities, but an inline JSON-LD
+`SportsActivityLocation` entity included the operator homepage in `sameAs`. The
+HTML reader removed scripts before retaining this metadata. Schema.org describes
+[`sameAs`](https://schema.org/sameAs) as an identity reference, not a claim about
+courses, prices or availability.
+
+The candidate retains bounded references from matching facility entities and
+passes them through the existing public URL checks and navigation budgets. It
+does not resolve remote JSON-LD contexts or execute scripts. A before/after read
+of the actual directory retained zero such references before the change and two
+after it, including the operator homepage. The second was a public social profile,
+illustrating why these remain untrusted candidates rather than certified official
+sources. This supplied-directory component probe did not run a model or discover
+the original registration detail.
+
+A separate process-only prototype deferred source refinement until initial search
+groups were covered. Its unseeded run returned six courses in 224.92s but still
+missed the original clinic (18 model requests, 18 tool operations, nine checked
+sources, partial coverage). It refined a general source instead of the target
+operator. Different live search paths preclude a timing comparison. That prototype
+was not adopted and is not part of this candidate.
+
+The actual candidate's unseeded run completed in **243.74s**, returning five courses
+with partial coverage, 20 completed model requests, 18 tool operations, ten checked
+sources and zero denied tool attempts. It read the target directory and retained
+the new reference links, but never visited the linked operator homepage. The
+original clinic identity, facts and evidence checks therefore still failed. The
+nonempty-match queue check also failed because the target was absent, not because
+a personal queue position was observed or inferred. One extractor exhausted its
+deadline; another initially returned an unadvertised tool. This establishes the
+retrieval improvement inside a real run, not successful original-course recall.
+
+Validation passed **886 tests**, including **127 benchmark cases**, mypy across
+**50 modules**, Ruff/format and wheel build. The new tests cover supported graph
+shapes, matching entity ownership, malformed/oversized data, URL admission,
+deduplication, priority and serialization, plus a source-controlled replay of the
+original anonymous facts. Both live runs used temporary anonymous workers and
+stopped them afterward. No saved profile, model service, production runtime or
+ingress changed. The production acceptance gate remains unmet.
+
+## Budgeted Facility Reference Attempts: 2026-11-03
+
+Retaining identity links did not make the planner visit them. A priority-only
+candidate still finished its unseeded search without reading those references:
+223.56s, five courses, six checked sources, 12 model requests, 15 tool operations,
+partial coverage and zero denied tool attempts. Original-course checks failed.
+A controlled-source real-model replay also completed too early and failed the
+single-reference facts, evidence and navigation checks.
+
+Adding only a completion gate exposed a separate model/tool compatibility issue.
+The single-reference replay passed **0/3** runs: the model repeatedly
+returned `finish_discovery` while only `read_source` was advertised, exhausting the
+unknown-tool retry limit. A two-reference variation with clearer identity labels
+passed its separate single run. These are retained negative results, not evidence
+that changing a prompt reliably fixes the failure.
+
+The final candidate attempts observed identity references after mandatory coverage
+while read capacity remains. When the whole known reference set fits, the
+application executes it through the existing read boundary in discovery order,
+rechecking higher-priority obligations after each read. Larger sets remain planner
+choices. Failed references count as attempted, not verified; exhausted capacity
+may still return validated partial evidence. No budget or URL authority expands.
+
+The final real-model, controlled-source replay passed **9/9**: three repetitions
+each of registration navigation, single-reference and multiple-reference cases.
+All retain the original anonymous course-fact oracle and reject premature reads of
+unrelated directories. Durations were 1.61-2.06s. Automatic reads reduce planner
+work, but these fixtures do not measure live discovery or establish a general
+latency improvement. Cases where the reference set exceeds remaining capacity
+still depend on the model's tool compliance.
+
+The final unseeded live run completed in **185.11s**, returning five courses with
+partial coverage, 24 completed model requests, 18 tool operations, nine checked
+sources and zero denied tool attempts. It followed the target facility directory
+to the operator homepage, then its registration entry, and also attempted the
+identity profile. This is a live traversal improvement, but it still missed the
+original course. Identity, exact registration facts and source-evidence checks
+failed; the queue check failed its nonempty-match prerequisite, not because a
+personal queue position was inferred. The expected detail URL remained scorer-only.
+One extractor timed out, another failed after invalid outputs, and several others
+recovered through retries. Different live paths preclude a latency comparison.
+
+Validation passed **900 tests**, including **135 benchmark cases**, mypy across
+**50 modules**, Ruff/format and wheel build. Tests cover reference ownership,
+mandatory coverage priority, read exhaustion, failure caching, shared tool limits
+and unchanged focused-source behavior. The temporary anonymous worker stopped.
+No saved profile, production runtime, model service or ingress changed. Original
+course recall and registration-entry traversal remain production blockers.
+
+## Shallower Source Rediscovery: 2026-11-03
+
+An anonymous component probe reproduced a depth-accounting defect along the real
+directory -> operator homepage -> registration entry path. The homepage retained
+depth one even when subsequently registered as a direct root. The entry therefore
+stayed at depth two and admitted none of its seven relevant links. After the fix,
+the same explicitly supplied root rediscovery made the entry depth one and admitted
+six links under the unchanged cap. This is a controlled live-page probe, not a
+claim that an unseeded search discovers that root. Existing observations and source
+IDs are retained; cached pages are not reread or retroactively expanded.
+
+Six regression tests initially produced five failures and one pass. All now pass,
+including two search/refinement variations of the original anonymous course-fact
+fixture. They cover source identity, capacity, nonincreasing depth, original dated
+facts and the unchanged two-hop ordinary-navigation limit. A separate defect also
+marked depth-truncated documents complete when fewer than seven links existed;
+those documents now report partial coverage.
+
+A fresh anonymous portal probe still received an explicit membership-required
+response and zero course cards. No saved profile was created. A native anonymous
+browser comparison encountered the provider's security block before reaching the
+catalog, so it cannot establish whether the relay affects that response. Both
+diagnostic browsers closed; no challenge bypass or authenticated fallback was used.
+
+The candidate's unseeded real-model search completed in **177.31s** with five
+courses, nine checked sources, 21 model requests, 18 tool operations, partial
+coverage and zero denied tool attempts. The original course identity, registration
+facts and source-evidence checks still failed. The queue check failed its nonempty
+match prerequisite, not because a personal position was inferred. The expected URL
+remained scorer-only. Different live search paths preclude a latency comparison.
+The run process was confirmed absent when the persisted report was read on November 4.
+
+Validation passed **906 tests**, including **137 benchmark cases**, mypy across
+**50 modules**, Ruff/format and wheel build. This is a source-registry correctness
+improvement, not a production recall pass. The anonymous discovery gate remains
+unmet; no production service, login profile, model service or ingress was changed.

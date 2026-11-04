@@ -41,6 +41,8 @@ Case = Literal[
     "membership_navigation",
     "navigation_injection",
     "navigation_distraction",
+    "facility_reference",
+    "multiple_facility_references",
 ]
 SCENARIOS: tuple[Case, ...] = (
     "baseline",
@@ -54,7 +56,11 @@ NAVIGATION_SCENARIOS: tuple[Case, ...] = (
     "membership_navigation",
     "navigation_injection",
 )
-PRIORITY_SCENARIOS: tuple[Case, ...] = ("navigation_distraction",)
+PRIORITY_SCENARIOS: tuple[Case, ...] = (
+    "navigation_distraction",
+    "facility_reference",
+    "multiple_facility_references",
+)
 NAVIGATION_CASES = (*NAVIGATION_SCENARIOS, *PRIORITY_SCENARIOS)
 DISTRACTOR_IDS = tuple(f"directory-{index}" for index in range(3))
 FIXTURE = (
@@ -136,7 +142,11 @@ class ReplayBackend:
         if scenario in NAVIGATION_CASES:
             catalog = SourceRef(
                 id="registration-catalog",
-                title=HOSTILE_TEXT[:240] if scenario == "navigation_injection" else "Register now",
+                title=HOSTILE_TEXT[:240]
+                if scenario == "navigation_injection"
+                else "Facility reference: Example Activities"
+                if scenario == "multiple_facility_references"
+                else "Register now",
             )
             other = registration.model_copy(
                 update={
@@ -171,7 +181,7 @@ class ReplayBackend:
                 links=(season_ref,),
                 required_ids=(season_ref.id,),
             )
-            if scenario == "navigation_distraction":
+            if scenario in PRIORITY_SCENARIOS:
                 references = tuple(
                     SourceRef(id=sid, title="Adult tennis classes and programs directory")
                     for sid in DISTRACTOR_IDS
@@ -184,6 +194,26 @@ class ReplayBackend:
                 self.documents[operator.source.id] = operator.model_copy(
                     update={"links": (*operator.links, *references)}
                 )
+                if scenario in {"facility_reference", "multiple_facility_references"}:
+                    operator = self.documents[operator.source.id]
+                    identity_ids: tuple[str, ...] = (catalog.id,)
+                    if scenario == "multiple_facility_references":
+                        alternate = SourceRef(
+                            id="facility-profile", title="Facility identity profile"
+                        )
+                        self.documents[alternate.id] = SourceDocument(
+                            source=alternate, text="Public identity page with no class timetable."
+                        )
+                        operator = operator.model_copy(
+                            update={"links": (*operator.links, alternate)}
+                        )
+                        identity_ids = (catalog.id, alternate.id)
+                    self.documents[operator.source.id] = operator.model_copy(
+                        update={
+                            "navigation_ids": (),
+                            "reference_ids": identity_ids,
+                        }
+                    )
         self.scenario = scenario
         self.read_calls: list[str] = []
         self.search_calls: list[str] = []
@@ -310,7 +340,7 @@ def score_navigation(result: DiscoveryRun, scenario: str) -> dict[str, bool]:
         "neighbor_search": "Santa Clara" in result.searched_cities,
         "safe_tools": all(event.outcome != "denied" for event in result.audit),
     }
-    if scenario == "navigation_distraction":
+    if scenario in PRIORITY_SCENARIOS:
         attempted = [
             event.source_id
             for event in result.audit

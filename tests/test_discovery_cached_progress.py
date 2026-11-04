@@ -4,7 +4,7 @@ import asyncio
 import json
 
 import pytest
-from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import ModelResponse, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import FunctionModel
 
 from benchmarks.agent_discovery import NAVIGATION_SCENARIOS, ReplayBackend, request, score
@@ -68,11 +68,14 @@ def test_cached_progress_preserves_original_facts_and_navigation_gates(case):
             assert not set(allowed) & set(backend.read_calls)
         for message in messages:
             for part in message.parts:
-                if isinstance(part, ToolReturnPart) and part.tool_name == "read_source":
-                    payload = json.loads(part.model_response_str())
-                    if payload.get("cached"):
-                        assert payload["next_source_ids"] == ["another-operator", "other-club"]
-                        assert "collector.invalid" not in part.model_response_str()
+                if isinstance(part, UserPromptPart):
+                    payload = json.loads(part.content)["research_snapshot"]
+                    if payload["recent_actions"][-1]["outcome"] == "cached":
+                        assert sorted(ref["id"] for ref in payload["read_sources"]) == [
+                            "another-operator",
+                            "other-club",
+                        ]
+                        assert "collector.invalid" not in part.content
                         seen_cache = True
         if source := next(turns, None):
             # A scripted stale call exercises the execution path even though it
@@ -90,6 +93,9 @@ def test_cached_progress_preserves_original_facts_and_navigation_gates(case):
     )
     assert seen_cache and all(score(run, case).values())
     assert backend.read_calls.count("operator-overview") == 1
+    assert any(
+        event.source_id == "operator-overview" and event.outcome == "cached" for event in run.audit
+    )
 
 
 def test_cached_membership_denial_is_not_a_retry_or_successful_read():

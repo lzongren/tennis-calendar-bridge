@@ -57,12 +57,13 @@ def test_area_preflight_preserves_real_case_without_model_search_turns(case):
             if isinstance(part, UserPromptPart)
         )
         payload = json.loads(prompt)
-        completed = payload["completed_searches"]
-        assert [(item["city"], item["focus"]) for item in completed] == EXPECTED_QUERIES
-        assert completed[-1]["result"]["sources"][0]["id"] == reads[0]
+        current = payload["research_snapshot"]
+        assert current["request"]["search_mode"] == "area"
+        assert not {ref["id"] for ref in current["read_sources"]} & set(sources.read_calls)
         assert "Seasonal adult clinics" not in info.instructions
         tool = next(tool for tool in info.function_tools if tool.name == "read_source")
         source = tool.parameters_json_schema["properties"]["source_id"]["enum"][0]
+        assert source in {ref["id"] for ref in current["read_sources"]}
         return ModelResponse([ToolCallPart("read_source", {"source_id": source})])
 
     run = asyncio.run(
