@@ -96,9 +96,10 @@ def test_registration_source_labels_survive_backend_without_becoming_course_fact
 
 
 @pytest.mark.benchmark
+@pytest.mark.parametrize("case,read_count", [("location-navigation", 8), ("branch-navigation", 10)])
 @pytest.mark.parametrize("correct_location,refine", [(True, False), (False, False), (True, True)])
 def test_location_navigation_benchmark_checks_original_facts_not_just_label(
-    correct_location, refine, monkeypatch
+    correct_location, refine, case, read_count, monkeypatch
 ):
     from benchmarks import source_discovery
 
@@ -130,11 +131,10 @@ def test_location_navigation_benchmark_checks_original_facts_not_just_label(
 
     monkeypatch.setattr(source_discovery, "private_model", model)
     monkeypatch.setattr(source_discovery, "empty_refinement", refiner)
-    rows = asyncio.run(
-        source_discovery.evaluate(None, live=False, repeats=1, case="location-navigation")
-    )
-    assert rows[0]["checks"]["location_selected_first"] is correct_location
+    rows = asyncio.run(source_discovery.evaluate(None, live=False, repeats=1, case=case))
+    selected_first = correct_location or case == "branch-navigation"
+    assert rows[0]["checks"]["location_selected_first"] is selected_first
     assert rows[0]["checks"]["original_registration_facts"]
-    assert all(rows[0]["checks"].values()) is correct_location
-    assert rows[0]["read_sources"] == 8
+    assert all(rows[0]["checks"].values()) is selected_first
+    assert rows[0]["read_sources"] == read_count
     assert refiner.await_count == int(refine)

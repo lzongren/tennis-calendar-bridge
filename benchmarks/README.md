@@ -207,6 +207,24 @@ also require an unavailable portal to remain a failed run, not a successful empt
 calendar. Public retrieval is blocked by the replay's model-only network guard;
 use the separate unseeded `clinic-search` case for live recall.
 
+`branch-navigation` adds a multi-location registration page after the directory,
+operator homepage and registration-entry chain. The directory names a neighboring
+city rather than the user's primary city. The application uses bounded observed
+ancestry to order already-required registration reads when one label has uniquely
+stronger lexical agreement. Ambiguous choices remain with the planner:
+
+```bash
+python -m benchmarks.source_discovery --case branch-navigation --require-read-tool --repeats 3 --output /tmp/branch-navigation.json
+```
+
+This is a controlled replay with the real planner, synthetic navigation and fixed
+empty navigation extraction. The branch ordering itself is deterministic, not a
+model reasoning improvement. It checks that the branch's location is selected first,
+plus the original clinic's exact occurrence facts and evidence. Eventual retrieval
+after visiting every location does not pass the first-selection check. It does not
+prove that the real anonymous catalog exposes that clinic or that city-wide search
+can discover it. Use the separate live `clinic-search` gate for those claims.
+
 The `extraction-deadline` replay injects a non-completing extractor into an optional
 overview page that links to the anonymous November clinic transcription:
 
