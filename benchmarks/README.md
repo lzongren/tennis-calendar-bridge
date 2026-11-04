@@ -62,6 +62,15 @@ feedback, unchanged request limits and original course facts. The navigation rep
 above still verifies source retrieval and membership/injection behavior. A compact
 request alone is not proof of improved live-model choices or successful discovery.
 
+At the read limit, area discovery stops offering unread source choices and applies
+the existing completion validator without another model request. Validated
+evidence can return with partial coverage; missing required details, registration
+navigation, search-group coverage or no-results coverage still fail closed. The
+limit is not expanded and a successful completion is not an original-course recall
+pass. `tests/test_read_budget_completion.py` exercises this boundary with the
+original facts, conflict and injection cases, automatic and planner-chosen reads,
+and incomplete mandatory/no-results coverage.
+
 Use `--suite priority --search-mode area` to replay the original course evidence with
 three extra general-information links competing with its observed registration
 route. The scorer keeps the original facts and coverage assertions and additionally
