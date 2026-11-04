@@ -257,6 +257,11 @@ The model selects inclusive start/end evidence lines; Python retains the full bo
 span, including intervening exclusion text. Core quoted fields are checked against
 that span before date expansion; unsupported optional club/venue/level labels are
 omitted rather than borrowed from other courses or the requested level.
+The extractor receives location, level and numbered source lines, not the requested
+calendar start or timezone. Python applies that window and timezone after grounding.
+Required date fields may contain empty strings: an undated description stays undated,
+while published weekday/time quotes remain evidence without inventing a year. A year
+found only outside the selected span is still rejected, not silently removed to avoid a retry.
 A valid JSON object is not a sufficient gate:
 live replay and live-web extraction must pass separately. A fixed minimal transcription
 cannot establish dynamic registration recall, occupancy or geographic completeness.
