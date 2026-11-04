@@ -169,6 +169,14 @@ Live public retrieval requires subprocesses and public connections, so this mode
 does **not** apply or claim the model-only network guard. It is not a full-city
 recall test or a verification of current seats.
 
+`tests/test_extraction_task.py` checks the SDK wire contract for navigation-only,
+dated and undated evidence, plus bounded rejection of an unavailable navigation
+tool. It uses synthetic responses, not real-model accuracy measurements. The
+captured-public-page experiments in `RESULTS.md` separately retain cases where the
+local model emitted unavailable tools or discarded valid undated descriptions.
+An empty successful report on navigation pages is not sufficient acceptance if
+actual course descriptions disappear.
+
 The `extraction-deadline` replay injects a non-completing extractor into an optional
 overview page that links to the anonymous November clinic transcription:
 
