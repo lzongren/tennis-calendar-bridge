@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
@@ -508,6 +509,30 @@ class ResearchState:
             response.update(self.source_failure(source_id))
         return response
 
+    def navigation_context(self, source_id: str) -> list[dict[str, str]]:
+        """Retain bounded observed ancestry without replaying page bodies or tool history."""
+        if source_id not in self.registry:
+            return []
+        frontier = {source_id}
+        visited = {source_id}
+        context = []
+        for _ in range(3):
+            parents = []
+            for parent_id, document in self.documents.items():
+                if parent_id in visited or parent_id not in self.registry:
+                    continue
+                if any(link.id in frontier for link in document.links):
+                    ref = self.registry[parent_id]
+                    context.append({"id": ref.id, "title": ref.title})
+                    visited.add(parent_id)
+                    parents.append(parent_id)
+                    if len(context) == 4:
+                        return context
+            if not parents:
+                break
+            frontier = set(parents)
+        return context
+
     def planner_snapshot(self) -> dict[str, object]:
         """Expose current choices without replaying obsolete tool arguments or page text."""
         available = set(self.available_read_ids())
@@ -701,12 +726,20 @@ class ResearchState:
 
     async def advance_required_reads(self) -> list[dict[str, object]]:
         """Advance singleton coverage and known reference sets that fit the read budget."""
-        completed = []
+        completed: list[dict[str, object]] = []
+        if self.request.search_mode != "area":
+            return completed
         while not self.required_search_options():
             # Do not let another mandatory branch hide a failed required detail.
             if self.required_source_ids() & self.failed_sources:
                 self.complete(Completion(outcome="sources_checked"))
             sources = self.coverage_read_ids()
+            details = self.required_source_ids() - self.documents.keys() - self.failed_sources
+            if len(details) == 1:
+                sources = tuple(details)
+            elif sources and set(sources) == set(self.unattempted_navigation_ids()):
+                if preferred := self.preferred_registration_id(sources):
+                    sources = (preferred,)
             if not sources:
                 references = self.unattempted_reference_ids()
                 if references and len(references) <= self.limits.reads - self.read_attempts:
@@ -717,6 +750,26 @@ class ResearchState:
                 break
             completed.append(await self.read_source(sources[0]))
         return completed
+
+    def preferred_registration_id(self, sources: tuple[str, ...]) -> str | None:
+        """Order already-required reads by unique lexical agreement with observed ancestry."""
+        if len(sources) < 2:
+            return None
+        labels = {
+            sid: set(re.findall(r"[^\W_]{2,}", self.registry[sid].title.casefold()))
+            for sid in sources
+        }
+        common = set.intersection(*labels.values())
+        scores = {}
+        for sid, words in labels.items():
+            ancestors = self.navigation_context(sid)
+            context = set(
+                re.findall(r"[^\W_]{2,}", " ".join(item["title"] for item in ancestors).casefold())
+            )
+            scores[sid] = len((words - common) & context)
+        highest = max(scores.values())
+        matches = [sid for sid, score in scores.items() if highest and score == highest]
+        return matches[0] if len(matches) == 1 else None
 
     def progress_instructions(self) -> str:
         # Only bounded application state enters instructions, never page text or titles.

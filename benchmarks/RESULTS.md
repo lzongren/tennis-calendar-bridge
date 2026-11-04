@@ -2071,3 +2071,85 @@ an extraction or production-readiness claim. The candidate runtime was not adopt
 The temporary model was stopped, its key removed and its listener verified closed.
 The original service was restored from its unchanged LaunchAgent configuration;
 actual generation returned 200 with content in **0.51s**, still on loopback.
+
+## Observed Registration Branch Ordering: 2026-11-04
+
+A preliminary extraction-prompt probe asked the model to retain all adult group
+courses and leave level filtering to Python. On the unchanged serving runtime,
+the baseline passed the captured undated and dated cases in **8.16s / 3.02s**.
+The candidate then timed out on both cases in **65.00s / 63.23s**. Its next undated
+attempt passed with six candidates in **23.17s**, using two model requests. The
+batch was stopped after the consecutive timeouts; it is not a completed balanced
+comparison. The candidate prompt was not adopted. A subsequent actual generation
+returned 200 with content in **0.49s**, without restarting the service. These
+observations do not establish a persistent server deadlock or a prompt improvement.
+
+An unseeded anonymous run of the existing application then failed after
+**207.16s**, with **16 completed model requests**, **43 registered sources** and
+**10 completed reads**. The trace contains twelve read attempts: an unrelated
+extraction exhausted its local deadline, and a registration portal was unavailable.
+The target operator's directory, homepage and registration entry were reached,
+but the planner selected a different location's portal before the read budget ran
+out. The original occurrence URL remained scorer-only. The worker stopped cleanly.
+
+The compact planner frontier retained current link labels but discarded their
+observed ancestry. On a multi-location operator site, the requested primary city
+need not match the neighboring city named by the directory that led to the site.
+The first candidate added up to four ancestor titles, within three observed link hops,
+to each readable source. This was untrusted navigation context, not course evidence,
+additional read permission or a replay of page bodies. Cycles, context size,
+unrelated sources, unavailable-evidence navigation and unchanged evidence/audit
+state have deterministic coverage. Four new checks failed before implementation.
+
+The new `branch-navigation` replay uses a synthetic directory-to-registration
+chain, six location-labelled portals and the existing anonymous clinic fixture.
+Navigation extraction is fixed empty; the private model handles planner choices. The
+oracle requires the directory's location and its detail to be visited first,
+while preserving the original occurrence, price, full status, provenance and no
+personal-queue inference. It does not claim that the real anonymous portal lists
+the detail. The unchanged application passed the fact checks **3/3**, but first
+branch selection **0/3**, taking **41.92s / 42.23s / 43.60s** and nine model
+requests per run. Adding ancestry to the planner prompt still passed **0/3**,
+taking **56.04s / 48.14s / 48.30s**, with nine requests per run. That prompt-only
+variant was not retained.
+
+The final candidate keeps ancestry local instead. When the available coverage
+choices are already-required registration links, it removes shared label words
+and compares remaining words with their bounded observed ancestor titles. Only a
+unique positive highest score selects an automatic read; ties and missing context
+stay with the planner. This is a lexical navigation heuristic, not geographic
+verification. A single known required detail is also read before other branches.
+Every automatic read uses the existing audited read method, deadlines and budgets;
+other required links remain obligations. Focused source checks retain their model
+flow. No operator names, locations, domains or portal IDs are hard-coded.
+
+The final ordering candidate passed **3/3** with all original fact checks intact,
+taking **29.65s / 23.02s / 25.85s**, with seven model requests per run. Each variant
+read ten replay sources and used sixteen tool operations. Ordering the branch and
+its known detail is deterministic; this is not evidence of better model reasoning
+or real anonymous catalog availability. The three variant batches ran sequentially,
+not counterbalanced, so timings do not establish a general speedup. Each model-only
+audit recorded one model connection and zero blocked network, DNS or process attempts.
+
+Local validation passed **962 tests**, including **161 benchmark cases**, mypy
+across **52 modules**, lint/format and wheel build. Coverage includes ambiguous or
+missing lineage, cycles, three-hop/four-source
+caps, unrelated-source exclusion, focused mode, pending search coverage, read
+budgets and required-detail priority. Existing tests changed only expected model
+call counts for automatic detail reads; their original fact checks are unchanged.
+
+The final unseeded anonymous run completed in **145.21s**, using **17 model
+requests** and **18 tool operations**, and returned **seven partial-coverage course
+candidates** from ten completed reads. It still **failed the original-course
+recall oracle**. The search results and chosen sources differed from the preceding
+run; this path did not reach the original operator, so it cannot validate the new
+ordering on that real site or establish a causal timing improvement. The worker
+stopped cleanly. No login fallback, production application deployment, inference
+runtime change or routing change was made. Production promotion remains gated on
+unseeded original-course recall and reliable extraction/source selection.
+
+A fresh known-link anonymous check passed **1/1** in **14.55s**, using three model
+requests and two tool operations. The original occurrence facts, evidence,
+incomplete-series reporting and absence of personal queue inference all passed.
+Its temporary worker also stopped cleanly. This confirms the supplied-detail path
+on the final candidate, not autonomous discovery of that link.
