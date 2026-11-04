@@ -1390,3 +1390,48 @@ Local validation passed **792 tests**, **100 benchmark cases**, mypy across
 course through a timed-out optional source, required-source failure, link/depth/
 registry limits, cached failure, external and enclosing cancellation, expired
 deadlines, transport timeouts and late results after suppressed cancellation.
+
+## USTA Public Course Entry Policy: 2026-11-03
+
+Two required links in the failed unseeded run were public USTA course entries,
+not login pages. Anonymous GETs on the Mac showed a `Coaching/Book/<uuid>` entry
+redirecting to `Coaching/Course/<uuid>`, and a legacy `BookCourse/<uuid>` entry
+redirecting through that same display route. The VPS public reader failed before
+returning a document. Its browser fallback then rejected the `Book` segment,
+either at request validation or while validating the legacy entry's redirect.
+The VPS failure alone did not establish a membership requirement.
+
+The candidate recognizes only the exact `playtennis.usta.com` host and bounded
+`/<club>/Coaching/Book/<uuid>` path without query parameters. Only the `Book`
+segment is exempted from the action-name filter; the slug remains checked.
+Request methods, DNS, redirects, private destinations and authenticated-context
+boundaries are unchanged. No POST, registration click or saved profile is enabled.
+
+On the browser host, a separate process loaded the candidate protocol module
+before importing the installed reader. The running worker and its installed files
+were not changed. Each of the two real URLs was read twice with the installed
+baseline, then twice with the candidate:
+
+| Entry shape | Baseline | Candidate | Candidate durations |
+| --- | --- | --- | --- |
+| Course entry | 0/2, request validation rejected | 2/2 | 4.05s / 3.83s |
+| Legacy entry | 0/2, browser redirect rejected | 2/2 | 3.77s / 3.85s |
+
+Checks required the final course-display path, matching adult clinic title and
+7:00-8:30 PM time. The first page also had the November 3 date, $45 price and full
+status. The second had November 17 and December 8 dates and $120 price. Both
+were anonymous; the supplied profile path was never created. These observations
+are retrieval checks of the two known failing links, not extraction accuracy,
+live model planning, exhaustive recall or confirmation of booking eligibility.
+The original November 2 CourtReserve oracle is unchanged and remains a separate
+release gate. Full unseeded search was not rerun with this candidate.
+
+The sanitized browser regression reproduces both redirect shapes and blocks POST,
+checkout redirects and private destinations. Run it with
+`pytest -q tests/test_usta_read_pages.py`; four cases also run under
+`pytest -q -m benchmark`. Additional policy cases cover other hosts, malformed IDs,
+extra path segments, action-bearing slugs and query parameters.
+
+Local validation passed **810 tests**, **104 benchmark cases**, mypy across
+**50 modules**, and Ruff/format. Fixtures contain synthetic URLs and course text;
+the live URLs, captured HTML and machine-specific probe stayed outside the repo.
