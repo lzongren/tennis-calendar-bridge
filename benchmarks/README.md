@@ -230,3 +230,30 @@ unknown anonymous queue and evidence checks. No target URL is supplied in the
 request; the fixture owns it. Outbound traffic is restricted to the private model.
 This measures tool planning and reconciliation, not live web retrieval or city-wide
 recall. `--live-web` is deliberately rejected for this replay case.
+
+## Extraction Sampling Experiments
+
+The source benchmark defaults to `--extractor-sampling baseline`, preserving
+production settings. `--extractor-sampling qwen3-coder` opts only the extractor
+into temperature 0.7, top-p 0.8, top-k 20 and repetition penalty 1.05, following
+the [Qwen3-Coder model card](https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct#best-practices).
+The output cap stays at 3072 tokens; this experiment does not adopt the model
+card's much larger general-purpose output budget. Planner sampling, schemas,
+grounding, retries, deadlines and request budgets stay unchanged. The selected
+profile is recorded in the report and is never inferred from a model alias.
+
+```sh
+python -m benchmarks.source_discovery --case quoted --repeats 3 \
+  --extractor-sampling qwen3-coder --output /tmp/quoted-sampling.json
+python -m benchmarks.source_discovery --live-web --case clinic-search \
+  --expected-source-url "$PUBLIC_DETAIL_URL" --repeats 1 \
+  --extractor-sampling qwen3-coder --output /tmp/search-sampling.json
+```
+
+The two nonstandard numeric fields travel in the private chat request body. This
+profile requires a compatible server; no cloud/provider fallback or silent retry
+with different settings is added. Compare repeated fixed inputs before a live
+run, keep baseline and candidate reports separate, and do not infer a recall or
+latency improvement from different web results or warmed serving state. A passing
+quoted extraction does not satisfy the original anonymous registration or unseeded
+discovery gate. This option is a benchmark experiment, not a deployment setting.

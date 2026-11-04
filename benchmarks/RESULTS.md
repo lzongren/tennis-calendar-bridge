@@ -1484,3 +1484,57 @@ budgets, bounded retries, timeout cancellation, caller cancellation, worker disp
 and backward-compatible ordinary search payloads. Evaluation used an isolated
 installation and ephemeral anonymous worker; running services, saved profiles,
 production configuration and ingress were not changed.
+
+## Extraction Sampling Probe: 2026-11-03
+
+The previous live run lost time both to extraction and planning. Before changing
+defaults, a fixed-input probe compared the current extraction request with the
+[Qwen3-Coder recommended sampler](https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct#best-practices):
+temperature 0.7, top-p 0.8, top-k 20 and repetition penalty 1.05. Both used the same
+3072-token cap, tool schema, source-only prompt, grounding validator and 60-second
+HTTP timeout. The probe scored first attempts, without the application's correction
+retry. Two anonymous public pages were captured once; the third input was the
+minimal original dated-clinic transcription. Each case ran twice, reversing variant
+order on the second repetition. No running model/browser service was modified.
+
+| Fixed input | Baseline oracle | Candidate oracle | Candidate seconds |
+| --- | --- | --- | --- |
+| Operator overview: retain Live Ball without inventing dates | 0/2 | 2/2 | 2.54 / 2.38 |
+| Facility directory: do not turn opening hours into courses | 2/2 | 2/2 | 0.56 / 0.57 |
+| Dated clinic: exact title, $54 and 18:30-19:50 Pacific | 2/2 | 2/2 | 2.55 / 2.67 |
+
+One baseline operator request timed out at 60 seconds. The other produced a grounded
+Drill Class candidate but omitted the target Live Ball description, so its recall
+oracle failed; it was not a fabricated-date failure. The baseline total was **4/6**
+and the candidate **6/6**. This small exploratory probe is not a reliability estimate,
+an exhaustive catalog check or proof of a serving/cache defect. Request capture
+confirmed extraction-only tools and system/user messages, with no planner history.
+The model-only guard reported two model connections (one reopened after timeout),
+zero blocked connections, DNS or process attempts. Raw captures stayed outside Git.
+
+The separate unseeded anonymous trial with extraction-only sampling still failed at
+**300.01s**, with 16 completed model requests, 44 registered sources and four checked
+sources. The operator overview was read and extracted in **9.14s**, but another page
+returned an unadvertised planner tool, then exhausted its local extraction deadline.
+A source refinement ran, without recovering the original detail. The operator portal
+remained unavailable. Search results and serving state differed from the baseline;
+the checked-source count and per-page time do not establish a causal recall or latency
+improvement. No original-course success or end-to-end completion was established.
+
+The retained change is therefore **benchmark-only**, not a production sampler change.
+`source_discovery --extractor-sampling qwen3-coder` records the selection explicitly
+and leaves planner settings, retry limits, evidence validation and budgets untouched.
+The new CLI's quoted-course replay passed **3/3** with the real private model:
+**10.45s / 4.82s / 4.83s**, four model requests and two tools each. It checks the
+source-grounded original time and price, not live availability or discovery recall.
+
+Tests cover the actual private wire parameters, unchanged planner/production settings,
+settings isolation, unsupported profile inputs and both profiles against the same
+original quoted-course oracle. The overall production gate remains unmet. This
+experiment should not be deployed as a fix for the missed course.
+
+Local validation passed **844 tests**, including **108 benchmark cases**, mypy
+across **50 modules**, and Ruff/format. The new CLI was exercised against the
+private model without the temporary sampler override used for the earlier live
+probe. Only benchmark code, tests and documentation changed; production source
+files and configuration are unchanged.
