@@ -87,6 +87,7 @@ def load_config(path: str | None = None) -> Config:
         discovery_agent_enabled=_bool_from_env("TENNIS_DISCOVERY_AGENT_ENABLED", False),
         discovery_api_url=os.getenv("TENNIS_DISCOVERY_API_URL", ""),
         discovery_model=os.getenv("TENNIS_DISCOVERY_MODEL", "tennis-discovery"),
+        discovery_require_read_tool=_bool_from_env("TENNIS_DISCOVERY_REQUIRE_READ_TOOL", False),
         discovery_api_key=os.getenv("TENNIS_DISCOVERY_API_KEY", ""),
         discovery_browser_url=os.getenv("TENNIS_DISCOVERY_BROWSER_URL", ""),
         discovery_browser_key=os.getenv("TENNIS_DISCOVERY_BROWSER_KEY", ""),

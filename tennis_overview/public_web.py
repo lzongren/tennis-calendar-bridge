@@ -5,13 +5,15 @@ from __future__ import annotations
 import http.client
 import ipaddress
 import json
+import re
 import socket
 import ssl
 from dataclasses import dataclass
+from itertools import islice
 from typing import Literal
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 MAX_BYTES = 4_000_000
 
@@ -246,6 +248,51 @@ def facility_references(soup: BeautifulSoup, url: str) -> tuple[PageLink, ...]:
     return tuple(links.values())
 
 
+def anchor_title(anchor: Tag) -> str:
+    """Keep a generic button's local heading without borrowing another card's title."""
+    label = anchor.get_text(" ", strip=True)[:240]
+    if not re.fullmatch(
+        r"register(?: now)?|reserve\s*/\s*register|sign up|enroll(?: now)?|"
+        r"book now|learn more|view (?:details|schedules?)",
+        label,
+        re.I,
+    ):
+        return label
+    child = anchor
+    for _ in range(3):
+        parent = child.parent
+        if not isinstance(parent, Tag) or parent.name in {"html", "body", "[document]"}:
+            break
+        children = list(islice(parent.children, 33))
+        if len(children) > 32:
+            break
+        headings = [
+            node
+            for node in children
+            if isinstance(node, Tag) and node.name in {"h1", "h2", "h3", "h4", "h5", "h6"}
+        ]
+        if headings:
+            heading = headings[0]
+            preceding = []
+            for sibling in children:
+                if sibling is child:
+                    break
+                preceding.append(sibling)
+            if (
+                len(headings) != 1
+                or heading.name == "h1"
+                or not any(node is heading for node in preceding)
+                or len(parent.get_text(" ", strip=True)) > 500
+            ):
+                break
+            context = heading.get_text(" ", strip=True)
+            if context:
+                return context[: 238 - len(label)] + ": " + label
+            break
+        child = parent
+    return label
+
+
 def page_from_html(url: str, body: bytes) -> Page:
     soup = BeautifulSoup(body, "html.parser")
     schedules = schedule_blocks(soup, url)
@@ -261,7 +308,7 @@ def page_from_html(url: str, body: bytes) -> Page:
         try:
             link = public_url(urljoin(url, str(anchor["href"])))
             if link not in links:
-                links[link] = PageLink(link, anchor.get_text(" ", strip=True)[:240])
+                links[link] = PageLink(link, anchor_title(anchor))
         except ValueError:
             pass
     text = "\n".join(line.strip() for line in soup.get_text("\n").splitlines() if line.strip())

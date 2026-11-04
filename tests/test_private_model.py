@@ -21,7 +21,10 @@ ENDPOINT = "https://model.example.ts.net/v1"
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("recovers", [True, False])
-def test_private_tool_output_is_locally_enforced_without_server_tool_forcing(recovers):
+@pytest.mark.parametrize("require_read_tool", [False, True])
+def test_private_tool_output_is_locally_enforced_without_server_tool_forcing(
+    recovers, require_read_tool
+):
     async def check():
         calls = []
 
@@ -63,7 +66,9 @@ def test_private_tool_output_is_locally_enforced_without_server_tool_forcing(rec
                 },
             )
 
-        config = PrivateModelConfig(base_url=ENDPOINT, model="local-alias", api_key=KEY)
+        config = PrivateModelConfig(
+            base_url=ENDPOINT, model="local-alias", api_key=KEY, require_read_tool=require_read_tool
+        )
         async with private_model(config, transport=httpx.MockTransport(handler)) as model:
             agent = Agent(
                 model, output_type=ToolOutput(ExtractionReport, name="extract_courses"), retries=1

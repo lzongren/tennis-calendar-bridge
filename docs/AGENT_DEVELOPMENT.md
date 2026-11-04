@@ -74,9 +74,14 @@ The source registry retains the shortest observed depth for each URL. A direct
 search result can therefore become depth zero even if first seen as a linked page.
 This changes future link admission, not the source ID, existing evidence or cached
 observations. It does not reread cached pages or retroactively expand their links.
-Ordinary navigation still stops after two hops; discarded links mark the document
-partial even when fewer than six were present. Required course-detail handling and
-the shared read, source and tool budgets remain unchanged.
+Ordinary navigation still stops after two hops. Area search additionally admits
+registration links observed at depth two, allowing a public directory -> operator
+-> signup entry -> portal path. That exception ends at depth three and does not
+apply to ordinary links or focused `source_check` requests. The existing six-link
+cap, public URL checks, source/read/tool budgets and required-detail handling stay
+unchanged. Discarded links mark the document partial even when fewer than six were
+present. A registration link is a read-only navigation candidate, not permission
+to authenticate, enroll, or infer booking status.
 
 In area mode, `refine_source(source_id)` can follow an operator named on a checked
 directory that has no course records or direct registration links. The tool accepts
@@ -137,6 +142,21 @@ titles, do not charge tool calls, and do not relax the required `outcome` field.
 The planner must use the current tool schema rather than replaying a tool that was
 available earlier in the conversation.
 Focused `source_check` retains its existing instructions and `Agent.run` path.
+
+`TENNIS_DISCOVERY_REQUIRE_READ_TOOL` defaults to `false`. On a validated private
+endpoint, setting it to `true` lets the area planner request required tool choice
+only when `read_source` is the sole advertised tool. The pinned Pydantic AI SDK
+serializes this as `tool_choice="required"`. Multi-tool decisions and typed
+extraction outputs retain `auto`; enabling the capability globally would also
+force extraction tools, which this implementation deliberately avoids.
+
+The private model adapter uses the SDK's conditional `_supports_tool_forcing`
+hook. Wire-level regression tests cover that protected extension point, so SDK
+upgrades must run them. This is a provider hint, not a decoder constraint or
+security boundary: unknown tools and source IDs remain rejected, provider errors
+remain failures, and no tool-name repair or additional retries are introduced.
+The live check covers non-streaming requests only. Keep the flag off on other
+endpoints until tested; a compatibility pass does not establish course recall.
 
 Area mode drives the Pydantic AI graph with `Agent.iter`. Before a model request,
 the application executes mandatory reads only while the allowed priority set has
@@ -288,6 +308,15 @@ need not understand reference-based tool schemas under a private model alias. Th
 client explicitly uses Pydantic AI's built-in definition inliner. Wire-level tests
 verify that required fields and `additionalProperties: false` survive that conversion.
 Missing course lists or evidence fields cannot default to a successful empty result.
+
+Generic registration buttons retain an unambiguous local heading in their source
+label, so identically worded links from different location cards stay distinguishable.
+The HTML parser checks at most three ancestor levels and 32 direct children per
+container, accepting one preceding heading in a container of at most 500 text
+characters. Global, following and ambiguous headings are not borrowed. Labels stay
+bounded to 240 characters and remain untrusted navigation hints, not course facts
+or permission to visit a URL. Existing URL policy, source limits and traversal depth
+are unchanged.
 
 The model selects inclusive start/end evidence lines; Python retains the full bounded
 span, including intervening exclusion text. Core quoted fields are checked against

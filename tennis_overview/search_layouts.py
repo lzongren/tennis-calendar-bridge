@@ -2,32 +2,57 @@
 
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from ddgs.engines.yahoo import Yahoo
 from ddgs.exceptions import DDGSException
 from ddgs.results import TextResult
+
+
+def _is_result_card(tag: Tag) -> bool:
+    classes = tag.get_attribute_list("class")
+    return (tag.name == "div" and "relsrch" in classes) or (
+        tag.name == "section" and "algo" in classes
+    )
+
+
+def _owned_text(element: Tag, card: Tag) -> str:
+    return " ".join(
+        text.strip()
+        for text in element.strings
+        if text.strip() and text.find_parent(_is_result_card) is card
+    )
 
 
 class LayoutAwareYahoo(Yahoo):
     def extract_results(self, html_text: str) -> list[TextResult]:
         if len(html_text.encode()) > 4_000_000:
             raise ValueError("Search page exceeds size limit")
-        results = [row for row in super().extract_results(html_text) if row.title and row.href]
-        if results:
-            return results
+        results: list[TextResult] = []
         soup = BeautifulSoup(html_text, "html.parser")
-        # The alternate layout uses section.algo instead of div.relsrch.
-        # Keep related-query suggestions and account/navigation links out.
-        for card in soup.select("section.algo"):
-            heading = card.select_one(".compTitle h3")
-            if heading is None:
-                continue
-            anchor = heading.select_one("a[href]") or heading.find_parent("a", href=True)
-            if anchor is None:
-                continue
-            title = heading.get_text(" ", strip=True)
-            if title:
-                results.append(TextResult(title=title, href=str(anchor["href"])))
+        # Missing closing tags can nest subsequent cards. Descendant-wide XPath
+        # joins then concatenate their titles and URLs into a single false result.
+        for card in soup.select("div.relsrch, section.algo"):
+            for heading in card.select(".compTitle h3"):
+                if heading.find_parent(_is_result_card) is not card:
+                    continue
+                anchor = heading.select_one("a[href]") or heading.find_parent("a", href=True)
+                if anchor is None or anchor.find_parent(_is_result_card) is not card:
+                    continue
+                title = _owned_text(heading, card)
+                href = str(anchor["href"]).strip()
+                if not title or not href:
+                    continue
+                snippet = next(
+                    (
+                        node
+                        for node in card.select(".compText")
+                        if node.find_parent(_is_result_card) is card
+                    ),
+                    None,
+                )
+                body = _owned_text(snippet, card) if snippet is not None else ""
+                results.append(TextResult(title=title, href=href, body=body))
+                break
         return results
 
 

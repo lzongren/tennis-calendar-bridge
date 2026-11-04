@@ -316,23 +316,29 @@ class PublicSourceBackend:
             navigation = []
             references = []
             ranked_links = related_links(page)
-            if source.depth < 2:
-                for link in ranked_links[:6]:
-                    ref = self.register(
-                        link.url, link.title or "Linked course source", source.depth + 1
-                    )
-                    if ref:
-                        linked[ref.id] = ref
-                        if link.relation == "same_as":
-                            references.append(ref.id)
-                        # A general signup route needs an area-search attempt, not
-                        # successful course verification or an authenticated fallback.
-                        if not registration and REGISTRATION_LINK.search(
-                            link.title + " " + urlsplit(link.url).path
-                        ):
-                            navigation.append(ref.id)
-            elif ranked_links:
-                partial = True
+            for link in ranked_links[:6]:
+                is_registration = bool(
+                    REGISTRATION_LINK.search(link.title + " " + urlsplit(link.url).path)
+                )
+                # Public directories can add a hop before the operator's signup
+                # entry. Allow that final registration hop, not arbitrary crawling.
+                extra_registration_hop = (
+                    request.search_mode == "area" and source.depth == 2 and is_registration
+                )
+                if source.depth >= 2 and not extra_registration_hop:
+                    partial = True
+                    continue
+                ref = self.register(
+                    link.url, link.title or "Linked course source", source.depth + 1
+                )
+                if ref:
+                    linked[ref.id] = ref
+                    if link.relation == "same_as":
+                        references.append(ref.id)
+                    # A general signup route needs an area-search attempt, not
+                    # successful course verification or an authenticated fallback.
+                    if not registration and is_registration:
+                        navigation.append(ref.id)
             partial = partial or len(ranked_links) > 6 or self.truncated
             required = []
             for url in page.required_links:

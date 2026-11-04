@@ -80,7 +80,7 @@ def test_area_preflight_reserves_coverage_and_hides_exhausted_search_tool():
         ("Santa Clara", "overview"),
         ("Cupertino", "overview"),
     ]
-    reads = iter(("seasonal-schedule", "dated-registration", "schedule-index"))
+    reads = iter(("seasonal-schedule",))
 
     def respond(messages, info):
         tools = {tool.name: tool for tool in info.function_tools}
@@ -99,7 +99,8 @@ def test_area_preflight_reserves_coverage_and_hides_exhausted_search_tool():
     )
     assert run.searched_cities == ("San Jose", "Santa Clara", "Cupertino")
     assert backend.search_calls == [city + "|" + focus for city, focus in searches]
-    assert run.model_requests == 2 and run.tool_calls == 8
+    assert run.model_requests == 1 and run.tool_calls == 8
+    assert backend.read_calls == ["seasonal-schedule", "dated-registration", "schedule-index"]
 
 
 def test_required_search_gate_rejects_optional_query_without_spending_search_budget():

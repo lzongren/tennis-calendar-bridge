@@ -159,6 +159,13 @@ python -m benchmarks.source_discovery --case quoted --repeats 2 --output /tmp/so
 python -m benchmarks.source_discovery --live-web --repeats 2 --output /tmp/source-live.json
 ```
 
+The optional `--require-read-tool` flag tests required tool choice when the area
+planner advertises only `read_source`. It defaults off, does not force multi-tool
+decisions or extractor outputs, and does not weaken local argument validation.
+For example, add it to the `location-navigation` replay to test compatibility
+without public web retrieval. Original course facts and requested-location-first
+selection remain separate gates; successful completion alone is not a pass.
+
 Replay uses a sanitized ongoing timetable or a minimal dated course transcription.
 The latter checks generic extraction of the November 2 time and $54 price, but
 deliberately has no availability assertion: it is not a replacement for the anchor
@@ -168,6 +175,55 @@ seed URL, then checks the operator's Wednesday/Thursday timetable and provenance
 Live public retrieval requires subprocesses and public connections, so this mode
 does **not** apply or claim the model-only network guard. It is not a full-city
 recall test or a verification of current seats.
+
+The `location-navigation` replay starts with six location cards whose registration
+buttons have identical text and opaque destination URLs:
+
+```sh
+python -m benchmarks.source_discovery --case location-navigation --repeats 3 --output /tmp/location-navigation.json
+```
+
+It checks that the planner reads the requested location first, then verifies the
+original anonymous November 2 course facts. Navigation pages have fixed empty
+course extraction; only the planner uses the real model. Every search, refinement
+and page response stays inside the fixture corpus under the model-only network
+guard. This tests label ownership and selection order, not live catalog access or
+unseeded search recall. Other registration links still retain their existing
+coverage obligations; this case does not increase or waive runtime budgets.
+
+The `registration-hop` replay covers an additional public directory hop before
+the signup entry. Search returns only the synthetic directory; subsequent URLs
+must come from observed links. Empty directory extraction is fixed, while the
+planner uses the configured model and the final anonymous detail uses the original
+November 2 fixture and fact oracle:
+
+```sh
+python -m benchmarks.source_discovery --case registration-hop --require-read-tool --repeats 3 --output /tmp/registration-hop.json
+```
+
+The check requires all five pages in order and the original course facts. It does
+not establish that a real portal exposes that detail without login. Offline tests
+also require an unavailable portal to remain a failed run, not a successful empty
+calendar. Public retrieval is blocked by the replay's model-only network guard;
+use the separate unseeded `clinic-search` case for live recall.
+
+`branch-navigation` adds a multi-location registration page after the directory,
+operator homepage and registration-entry chain. The directory names a neighboring
+city rather than the user's primary city. The application uses bounded observed
+ancestry to order already-required registration reads when one label has uniquely
+stronger lexical agreement. Ambiguous choices remain with the planner:
+
+```bash
+python -m benchmarks.source_discovery --case branch-navigation --require-read-tool --repeats 3 --output /tmp/branch-navigation.json
+```
+
+This is a controlled replay with the real planner, synthetic navigation and fixed
+empty navigation extraction. The branch ordering itself is deterministic, not a
+model reasoning improvement. It checks that the branch's location is selected first,
+plus the original clinic's exact occurrence facts and evidence. Eventual retrieval
+after visiting every location does not pass the first-selection check. It does not
+prove that the real anonymous catalog exposes that clinic or that city-wide search
+can discover it. Use the separate live `clinic-search` gate for those claims.
 
 The `extraction-deadline` replay injects a non-completing extractor into an optional
 overview page that links to the anonymous November clinic transcription:

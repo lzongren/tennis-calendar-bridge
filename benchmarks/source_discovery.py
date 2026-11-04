@@ -36,6 +36,9 @@ FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 REPLAY_URL = "https://club.example.org/adults"
 BROWSER_URL = "https://app.courtreserve.com/Online/Events/Details/12345/EXAMPLE?resId=123&tab=dates"
 CAPTURE_TIME = datetime(2026, 11, 2, 18, tzinfo=timezone.utc)
+LOCATION_PORTAL = "https://portal.example.org/303"
+HOP_OPERATOR = "https://operator.example.org/"
+HOP_ENTRY = "https://operator.example.org/register"
 
 
 class StalledExtractor(CourseExtractor):
@@ -58,6 +61,10 @@ class EmptyDirectoryExtractor(CourseExtractor):
 
 
 async def empty_search(city: str, level: str, year: int, focus: str) -> list[dict[str, str]]:
+    return []
+
+
+async def empty_refinement(subject: str, city: str, year: int) -> list[dict[str, str]]:
     return []
 
 
@@ -126,7 +133,13 @@ async def evaluate(
                 timezone="America/Los_Angeles",
                 start=date(2026, 11, 3) if case == "anonymous-series" else date(2026, 11, 1),
                 search_mode="area"
-                if case == "source-refinement"
+                if case
+                in {
+                    "source-refinement",
+                    "location-navigation",
+                    "registration-hop",
+                    "branch-navigation",
+                }
                 or live
                 and case not in {"anonymous", "anonymous-series"}
                 else "source_check",
@@ -152,6 +165,8 @@ async def evaluate(
                 else:
                     backend.searcher = client.search
             if not live:
+                backend.refiner = empty_refinement
+                replay_reads: list[str] = []
                 replay_url = (
                     BROWSER_URL
                     if case in {"browser", "anonymous", "anonymous-series"}
@@ -177,6 +192,27 @@ async def evaluate(
                         "No dated courses on this public directory.",
                         (),
                         heading="Example Activities: Example City",
+                    )
+                    backend.extractor = EmptyDirectoryExtractor(
+                        extractor, usage, limits.model_requests
+                    )
+                    backend.clock = lambda: CAPTURE_TIME
+                if case == "location-navigation":
+                    page = page_from_html(
+                        REPLAY_URL,
+                        (FIXTURES / "discovery_benchmark/location_registration.html").read_bytes(),
+                    )
+                    backend.extractor = EmptyDirectoryExtractor(
+                        extractor, usage, limits.model_requests
+                    )
+                    backend.clock = lambda: CAPTURE_TIME
+                if case in {"registration-hop", "branch-navigation"}:
+                    page = Page(
+                        REPLAY_URL,
+                        "Facility directory",
+                        "Public adult tennis facility listing.",
+                        (HOP_OPERATOR,),
+                        link_details=(PageLink(HOP_OPERATOR, "Facility reference", "same_as"),),
                     )
                     backend.extractor = EmptyDirectoryExtractor(
                         extractor, usage, limits.model_requests
@@ -218,7 +254,18 @@ async def evaluate(
                     backend.clock = lambda: capture_time
 
                 async def replay_read(url: str) -> Page | BrowserDocument:
-                    if case in {"extraction-deadline", "source-refinement"} and url == BROWSER_URL:
+                    replay_reads.append(url)
+                    if (
+                        case
+                        in {
+                            "extraction-deadline",
+                            "source-refinement",
+                            "location-navigation",
+                            "registration-hop",
+                            "branch-navigation",
+                        }
+                        and url == BROWSER_URL
+                    ):
                         return BrowserDocument(
                             BROWSER_URL,
                             "Anonymous clinic",
@@ -226,6 +273,50 @@ async def evaluate(
                                 FIXTURES / "discovery_benchmark/courtreserve_anonymous_detail.html"
                             ).read_text(),
                             CAPTURE_TIME,
+                        )
+                    if case == "branch-navigation":
+                        locations = page_from_html(
+                            HOP_ENTRY,
+                            (FIXTURES / "discovery_benchmark/location_registration.html")
+                            .read_text()
+                            .replace("Example City", "Neighbor City")
+                            .encode(),
+                        )
+                        if url == HOP_ENTRY:
+                            return locations
+                        if url in locations.links and url != LOCATION_PORTAL:
+                            return Page(url, "Other location", "No matching adult courses here", ())
+                    if case in {"registration-hop", "branch-navigation"}:
+                        hops = {
+                            HOP_OPERATOR: ("Adult tennis", HOP_ENTRY, "Register now"),
+                            HOP_ENTRY: ("Registration", LOCATION_PORTAL, "Registration portal"),
+                            LOCATION_PORTAL: ("Adult classes", BROWSER_URL, "Dated clinic"),
+                        }
+                        if url in hops:
+                            title, target_url, label = hops[url]
+                            return Page(
+                                url,
+                                title,
+                                "Published adult tennis registration navigation.",
+                                (target_url,),
+                                link_details=(PageLink(target_url, label),),
+                                required_links=(target_url,) if url == LOCATION_PORTAL else (),
+                            )
+                    if (
+                        case == "location-navigation"
+                        and isinstance(page, Page)
+                        and url in page.links
+                    ):
+                        if url == LOCATION_PORTAL:
+                            return Page(
+                                url,
+                                "Adult clinics",
+                                "Observed dated clinic registration",
+                                (BROWSER_URL,),
+                                required_links=(BROWSER_URL,),
+                            )
+                        return Page(
+                            url, "Other location", "No matching adult courses at this location", ()
                         )
                     if case == "source-refinement" and url == "https://operator.example.org/adults":
                         return Page(
@@ -242,12 +333,24 @@ async def evaluate(
                 backend.reader = replay_read
                 backend.searcher = empty_search
                 backend.initial_urls = (replay_url,)
-                if case == "extraction-deadline":
+                if case in {
+                    "extraction-deadline",
+                    "location-navigation",
+                    "registration-hop",
+                    "branch-navigation",
+                }:
 
                     async def replay_search(
                         city: str, level: str, year: int, focus: str
                     ) -> list[dict[str, str]]:
-                        return [{"url": REPLAY_URL, "title": "Adult tennis courses"}]
+                        return [
+                            {
+                                "url": REPLAY_URL,
+                                "title": "Example Tennis: Neighbor City"
+                                if case == "branch-navigation"
+                                else "Adult tennis courses",
+                            }
+                        ]
 
                     backend.searcher = replay_search
                     backend.initial_urls = ()  # Optional overview, not a required detail.
@@ -308,6 +411,9 @@ async def evaluate(
                     "clinic-search",
                     "extraction-deadline",
                     "source-refinement",
+                    "location-navigation",
+                    "registration-hop",
+                    "branch-navigation",
                 }:
                     target = "app.courtreserve.com"
                 matching = [
@@ -346,6 +452,9 @@ async def evaluate(
                     "clinic-search",
                     "extraction-deadline",
                     "source-refinement",
+                    "location-navigation",
+                    "registration-hop",
+                    "branch-navigation",
                 }:
                     expected = json.loads(
                         (FIXTURES / "discovery_benchmark" / "nov2_registration.json").read_text()
@@ -388,6 +497,9 @@ async def evaluate(
                         "clinic-search",
                         "extraction-deadline",
                         "source-refinement",
+                        "location-navigation",
+                        "registration-hop",
+                        "branch-navigation",
                     }:
                         checks["clinic_identity"] = len(matching) == 1 and bool(
                             re.search(
@@ -403,6 +515,27 @@ async def evaluate(
                             )
                             == 1
                         )
+                    if case == "location-navigation":
+                        checks["location_selected_first"] = replay_reads[:2] == [
+                            REPLAY_URL,
+                            LOCATION_PORTAL,
+                        ]
+                    if case == "registration-hop":
+                        checks["observed_registration_path"] = replay_reads == [
+                            REPLAY_URL,
+                            HOP_OPERATOR,
+                            HOP_ENTRY,
+                            LOCATION_PORTAL,
+                            BROWSER_URL,
+                        ]
+                    if case == "branch-navigation":
+                        checks["location_selected_first"] = replay_reads[:5] == [
+                            REPLAY_URL,
+                            HOP_OPERATOR,
+                            HOP_ENTRY,
+                            LOCATION_PORTAL,
+                            BROWSER_URL,
+                        ]
                     if case == "extraction-deadline":
                         checks["deadline_navigation_retained"] = any(
                             source["url"] == REPLAY_URL
@@ -453,6 +586,7 @@ async def evaluate(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live-web", action="store_true")
+    parser.add_argument("--require-read-tool", action="store_true")
     parser.add_argument(
         "--case",
         choices=(
@@ -464,6 +598,9 @@ def main() -> None:
             "clinic-search",
             "extraction-deadline",
             "source-refinement",
+            "location-navigation",
+            "registration-hop",
+            "branch-navigation",
         ),
         default="ongoing",
     )
@@ -501,6 +638,7 @@ def main() -> None:
         base_url=os.environ["TENNIS_DISCOVERY_API_URL"],
         model=os.environ["TENNIS_DISCOVERY_MODEL"],
         api_key=SecretStr(os.environ["TENNIS_DISCOVERY_API_KEY"]),
+        require_read_tool=args.require_read_tool,
     )
     os.umask(0o077)
     audit = install_model_only_guard(config.base_url) if not args.live_web else None

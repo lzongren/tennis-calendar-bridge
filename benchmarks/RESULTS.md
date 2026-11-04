@@ -1774,3 +1774,429 @@ Validation passed **906 tests**, including **137 benchmark cases**, mypy across
 **50 modules**, Ruff/format and wheel build. This is a source-registry correctness
 improvement, not a production recall pass. The anonymous discovery gate remains
 unmet; no production service, login profile, model service or ingress was changed.
+
+## Location-Owned Registration Labels: 2026-11-04
+
+A live public multi-location registration page displayed six city headings beside
+nearly identical registration buttons. The HTML adapter retained the button text
+but discarded the local heading association, leaving opaque portal URLs with
+indistinguishable labels. The candidate retains one preceding heading from a small
+local container. A fresh anonymous fetch verified six distinct location-owned
+labels. No venue names, portal IDs or provider-specific selectors are hardcoded.
+
+The new `location-navigation` replay follows this page structure using synthetic
+cities and URLs, then the existing anonymous original-course fixture. It scores
+requested-location-first selection separately from the original date, time, price,
+availability and evidence checks. A deliberately wrong-first planner fails the
+selection check even when it eventually retrieves the correct course. Navigation
+extraction is fixed empty so this replay measures the planner, not model extraction.
+
+The first real-model comparison exposed a harness isolation omission: optional
+source refinement still used the public search implementation. The model-only guard
+blocked six subprocess attempts before any public retrieval. Those six aborted
+runs are invalid for comparing parser effectiveness. All replay modes now default
+to an empty fixture refiner, with explicit fixture refiners overriding it where
+needed; a regression exercises that path without public access.
+
+After correcting the harness, alternating original and contextual labels across
+three repetitions each produced **0/3 complete passes for both variants**. Every
+run ended with an unavailable-tool error after ten model requests and five checked
+sources. The corrected model-only audit recorded six model connections and zero
+blocked connections, DNS requests or subprocesses. This does not demonstrate an
+agent success-rate improvement, despite the independently verified parser fix.
+
+A follow-up tool-name-only trace localized the failure: after seven valid read or
+refinement calls, the server returned `searchread_source` three times while only
+`read_source` was advertised. The SDK rejected the nonexistent tool. No automatic
+tool-name remapping was added. The trace used one model connection with no blocked
+network or process attempts and does not establish whether generation or serving
+caused the malformed name.
+
+Local validation passed **922 tests**, including **142 benchmark cases**, mypy
+across **50 modules**, Ruff/format,
+whitespace checks and wheel build. Parser tests cover bounded heading ownership,
+ambiguous and neighboring cards, unsafe targets and unchanged descriptive anchors.
+
+The branch remains a **draft** pending the model/tool-selection failure. It does
+not include the separate extraction-prefix experiment. Full unseeded live search
+was not repeated after the controlled workflow failed; original-course discovery
+and production readiness remain unmet. Only the isolated evaluation environment
+changed. No saved profile, login fallback, running model service, production
+deployment or ingress configuration changed.
+
+## Opt-In Required Read Choice: 2026-11-04
+
+The location replay's failing request advertised only `read_source`, but the local
+runtime repeatedly returned `searchread_source`. Replaying that exact request with
+unchanged messages, schema and sampling settings isolated the tool-choice hint:
+
+| Wire choice | Valid name and allowed source argument |
+| --- | --- |
+| `auto` | 0/2 |
+| `required` | 2/2 |
+| Named `read_source` | 2/2 |
+
+Variant order was reversed for the second repetition. No tool was executed by
+this diagnostic, and no invalid name was repaired. Inspection of the installed
+runtime showed prompt guidance and post-generation validation, not a constrained
+decoder. These six responses are narrow compatibility evidence, not a general
+model reliability estimate.
+
+An initial full-workflow probe changed only singleton-read HTTP requests to named
+choice and completed three times. The candidate instead uses Pydantic AI's native
+tool-choice setting; the pinned SDK maps a choice covering the sole advertised
+tool to `required`. A second three-run check used the installed candidate wheel,
+without HTTP payload mutation. All three recovered the original course identity,
+registration facts and evidence, with no invented personal queue information.
+Each used nine model requests, 14 tool operations, eight source reads and two
+required-choice requests, finishing in **30.54s, 30.66s and 31.59s**. Each returned
+one course with partial coverage and zero denied tool attempts. The model-only
+audit recorded three connections and no blocked network, DNS or process attempts.
+
+The requested-location-first check still failed **3/3**. Therefore the full
+`location-navigation` benchmark remains failed, despite workflow completion and
+fact recovery improving from 0/3 to 3/3. Its oracle is unchanged. These are replay
+results with a real planner and fixture retrieval, not anonymous live-web recall.
+
+A fresh unseeded anonymous `clinic-search` run with the flag enabled completed
+in **238.53s**, returning five courses with nine checked sources, 20 model
+requests, 18 tool operations, partial coverage and zero denied tool attempts.
+The original course identity, registration facts and evidence checks still failed.
+The queue check failed its nonempty-match prerequisite, not because a position
+was invented. The expected occurrence URL was used only by the scorer.
+
+The trace reached the operator homepage and registration entry, but admitted no
+further entry links on that path. Two extraction calls were cancelled near their
+60-second read deadlines; other extraction requests returned planner-tool names
+before local retries recovered. These are separate remaining issues, not fixed
+by required planner reads. Live sources and timing differ between runs, so this
+result does not establish a latency improvement or regression. The ephemeral
+anonymous worker reported clean shutdown. No saved login state was used.
+
+The capability defaults off. It applies only to singleton area-planner reads;
+extraction and multi-tool decisions keep `auto`. Wire-level tests cover both flag
+states, invalid tool names, unknown source IDs, provider rejection and unchanged
+typed-output validation. No execution guard, retry allowance, budget or authority
+rule changed. Validation passed **932 tests**, including **152 benchmark cases**,
+mypy across **50 modules**, Ruff/format and wheel build. No production config,
+saved browser profile, running model service or ingress was changed.
+
+## Bounded Registration Hop: 2026-11-04
+
+The unseeded trace reached a public directory, the operator homepage and its
+registration entry. The entry was at depth two, where ordinary link admission
+stopped. The candidate allows registration links at that depth in area mode only.
+Other links still stop there; registration links cannot repeat the exception at
+depth three. Focused source checks, six-link truncation, registry/read/tool/time
+budgets, URL validation and required-detail verification are unchanged.
+
+A fresh anonymous fetch of the observed operator registration page verified the
+real HTML path: registering that page at depth two retained zero links in focused
+source mode and six registration links at depth three in area mode. Both remained
+partial, with zero course records. This probe supplied the known entry URL and
+used fixed empty extraction, so it verifies link admission, not course discovery.
+
+The new `registration-hop` replay models that observed route with synthetic URLs
+and the existing original-course detail fixture. Search supplies only the
+directory, not the final portal or detail. Navigation extraction is fixed empty;
+the configured private model handles planner choices. The benchmark checks the
+complete five-page read sequence and the unchanged November 2 identity, time,
+price, full status, source evidence and absence of invented queue information.
+It does not claim a real anonymous portal lists that detail.
+
+With the old installed wheel, **0/3** runs recovered the course: each read three
+sources, returned zero courses, used two model requests and eight tool operations.
+With the candidate wheel, **3/3** passed every check: each read five sources,
+returned one course with partial coverage, used one model request and nine tool
+operations, and recorded zero denied tool attempts. The existing deterministic
+mandatory-read path performs most of this navigation; this is not evidence of
+improved model reasoning. Both three-run reports recorded one model connection
+and no blocked connections, DNS calls or processes under the model-only guard.
+
+A targeted regression failed before the fix and passed afterward. Tests also
+cover both request modes, depth boundaries, link/registry caps, ordinary-link
+exclusion, and a membership-required portal that must fail without returning a
+successful empty result. Validation passed **942 tests**, including **155 benchmark
+cases**, mypy across **50 modules**, Ruff/format, whitespace checks and wheel build.
+
+The separate unseeded anonymous search **failed at its unchanged 300-second
+deadline** after 16 model requests, 35 registered sources and seven checked
+sources. Two earlier extraction calls each consumed roughly 59 seconds; the final
+extraction was cancelled at the run deadline. The public search results differed
+from the preceding run, and this path did not reach the operator registration
+entry. The trace therefore cannot attribute the timeout to this navigation change
+or demonstrate live recall improvement. The temporary worker stopped cleanly.
+Original-course discovery, source selection and extraction reliability remain
+unmet production gates. No login fallback, production deployment, running model
+service or ingress change was made.
+
+## Isolated Guided Extraction Probe: 2026-11-04
+
+With permission to test the local serving runtime, an isolated environment added
+Rapid-MLX's guided extra without changing the existing service. Rapid-MLX
+**0.6.83**, MLX/MLX Metal **0.31.2**, mlx-lm **0.31.3**, transformers **5.10.2**
+and tokenizers **0.22.2** matched the existing environment. The added packages were
+Outlines **1.3.3** and outlines-core **0.2.14**. Other transitive dependencies were
+freshly resolved, so comparisons below use the same isolated server, not the
+earlier service as a control. The existing Qwen model snapshot was reused offline.
+
+The temporary server listened only on loopback, used a separate owner-only API
+key, and returned 401 without that key. Content-free observation of the runtime's
+guided method distinguished successful guided generation from silent fallback.
+No browser credentials, cloud inference fallback or ingress changes were used.
+
+The first native-output probe retained the private model's inline schema
+transformer. Its first real extraction request timed out after **60.02s**. No
+guided completion was recorded; process sampling showed sustained outlines-core
+work after the client timeout. The run was stopped rather than counted as ten
+completed failures. The temporary server required forced termination after SIGTERM
+did not stop it. This is a cancellation/resource risk, not a successful strict
+output implementation.
+
+After restarting only the temporary server, a small boolean schema completed in
+**1.86s**, with correct JSON and a successful guided observation. A second variant
+used Pydantic AI's standard `OpenAIJsonSchemaTransformer` and
+`NativeOutput(ExtractionReport, strict=True)`. The existing Pydantic model and
+evidence validator remained unchanged. Native instructions requested typed JSON
+instead of the output tool; this is a combined output-mode/schema experiment, not
+an isolated estimate of the decoder's effect.
+
+| Fixed anonymous page case | Tool output | Native with standard transformer |
+| --- | --- | --- |
+| Operator homepage without course facts | 2/2 | 2/2 |
+| Registration entry without course facts | 2/2 | 2/2 |
+| Facility directory without course facts | 2/2 | 2/2 |
+| Original dated clinic, exact time and price | 2/2 | 2/2 |
+| Undated Live Ball course retained without invented dates | 0/2 | 2/2 |
+| Total | **8/10** | **10/10** |
+
+These were real SDK/model requests against private captures of public pages, with
+two repetitions per case. Tool mode ran first, followed by native mode; order was
+not counterbalanced. Native calls took **6.74-10.82s**, versus **0.53-5.56s** for
+tool mode. All ten native calls had successful guided observations. Each run's
+model-only network audit recorded one model connection and zero blocked network,
+DNS or process attempts. This small replay is not a general reliability estimate.
+
+A separate temporary mocked-transport harness passed **18 checks** across the
+three output configurations: valid dated/undated extraction, invented-price
+rejection, oversized fields, excess course count and negative title indices.
+Native requests advertised no tools. These checks do not add to the repository's
+pytest count and do not establish live cancellation safety.
+
+An unseeded anonymous live search using the prototype native extractor still
+**failed at 300.01s**: 11 completed model requests, 37 registered sources and four
+checked sources. The original URL remained scorer-only. Four live guided
+extractions completed, then no further guided completion was observed before
+shutdown. Page-fetch stage timings were short; several complete read/extraction
+operations consumed roughly 60 seconds. Sampling later showed MLX evaluation
+waiting, but does not establish the precise cause. The prototype's model clone
+bypassed the extractor timing wrapper in this run, so its stage report is
+incomplete; request budgets and final recall checks were unchanged. Do not
+attribute these waits to slow websites or claim an end-to-end improvement.
+
+The anonymous worker reported clean shutdown. The isolated model instance was
+stopped, its listener verified closed and its temporary key removed after testing.
+A post-test check of the existing service returned 200 for the model list but
+timed out on actual generation after 60 seconds. There was no immediately preceding
+pre-test generation check, so this does not establish that the experiment caused
+the failure. Under the user's service-change authorization, the original service
+was restarted with its existing runtime and configuration. A new generation
+request then returned 200 with content in **0.93s**. The original loopback binding
+was verified, and configuration-file digests matched before and after the restart.
+
+No application behavior, existing runtime dependencies, VPS deployment or routing
+was changed. Native extraction remains experimental: mixed planner/extractor
+execution, bounded cancellation and unseeded recall must pass before adoption.
+
+## Runtime Upgrade and Launcher Controls: 2026-11-04
+
+The next probe used an isolated Rapid-MLX **1.0.1** environment with MLX/MLX Metal
+**0.32.4**, mlx-lm **0.31.3**, llguidance **1.9.1**, transformers **5.15.1** and
+tokenizers **0.22.2**. This runtime uses llguidance rather than Outlines for native
+JSON decoding. It is a whole-runtime comparison, not a single-dependency causal
+test. The same local Qwen checkpoint and separate loopback endpoint were retained.
+Telemetry and model downloads were explicitly disabled. A Python socket audit
+blocked four non-loopback DNS attempts; their originating feature was not recorded.
+Do not treat telemetry opt-out as proof that all runtime network activity is off.
+
+The original service passed an actual generation preflight in **0.55s**. After
+the candidate warned about the combined memory footprint, only the dedicated
+original inference LaunchAgent was temporarily stopped. No unrelated services or
+routes changed. The original LaunchAgent configuration was retained for restoration.
+
+The checkpoint's separate `chat_template.jinja` contains XML function/parameter
+markup, but automatic runtime configuration chose `hermes`. A same-version
+comparison explicitly selected `qwen3_coder_xml`; it did not improve the fact
+oracle. A startup-race attempt made zero completed model requests and is excluded
+from the comparison, not counted as model behavior. The rerun first verified the
+authenticated endpoint was ready.
+
+| Ready-server variant | Fixed-page oracle | Undated target case |
+| --- | --- | --- |
+| Tool output, automatic `hermes` | 8/10 | 0/2; validation failure, 58.10s / 56.49s |
+| Tool output, explicit XML parser | 8/10 | 0/2; validation failure, 9.16s / 6.50s |
+| Native output, standard schema transformer | 8/10 | 0/2; returned a different course |
+| Native output, original inline schema transformer | 8/10 | 0/2; returned a different course |
+
+Every variant passed the three negative-page cases and the original dated clinic
+twice. Native output returned an undated Drill Class but omitted the explicitly
+published NTRP 3.0+ Live Ball candidate. The target oracle was not relaxed. Each
+variant's model-only client audit recorded one connection and zero blocked network,
+DNS or process attempts. Variant order was not counterbalanced. Faster responses
+and valid JSON do not establish better course recall.
+
+The inline-schema requests now completed in **3.08-6.44s**, unlike the old
+Outlines attempt that kept working after client timeout. A separate bounded
+mixed-mode probe alternated a tool call, native JSON, a deliberately disconnected
+long JSON request, native JSON again and another tool call. Both repetitions
+passed all five checks. The two client disconnects occurred at **0.50s**; the
+server recorded `GuidedGenerationCancelledError` twice, and each following native
+request completed correctly in **1.85s**. The server also logged two unretrieved
+future exceptions on cancellation. No tool was executed by this probe. An invalid
+schema returned **502**, failing the expected-400 check; it did not return a
+successful unconstrained answer. These small probes are not proof of the full
+live workflow. Unseeded search was not rerun after the accuracy gate failed.
+
+The launcher change addresses a separate verified privacy/configuration gap:
+always disable runtime/Hugging Face telemetry, and optionally retain an explicit
+parser selection across restart. Auto-detection remains the default; no model
+family is hard-coded into deployment behavior. Five new tests cover inherited
+telemetry settings, parser propagation, existing-key preservation, file modes,
+secret-free arguments/plist/output and absence of routing commands. Four failed
+before the change and all five passed afterward. Full validation passed **947
+tests**, including **155 benchmark cases**, mypy across **52 modules**, and
+Ruff/format. The course accuracy gate is still failed; this launcher change is not
+an extraction or production-readiness claim. The candidate runtime was not adopted.
+
+The temporary model was stopped, its key removed and its listener verified closed.
+The original service was restored from its unchanged LaunchAgent configuration;
+actual generation returned 200 with content in **0.51s**, still on loopback.
+
+## Observed Registration Branch Ordering: 2026-11-04
+
+A preliminary extraction-prompt probe asked the model to retain all adult group
+courses and leave level filtering to Python. On the unchanged serving runtime,
+the baseline passed the captured undated and dated cases in **8.16s / 3.02s**.
+The candidate then timed out on both cases in **65.00s / 63.23s**. Its next undated
+attempt passed with six candidates in **23.17s**, using two model requests. The
+batch was stopped after the consecutive timeouts; it is not a completed balanced
+comparison. The candidate prompt was not adopted. A subsequent actual generation
+returned 200 with content in **0.49s**, without restarting the service. These
+observations do not establish a persistent server deadlock or a prompt improvement.
+
+An unseeded anonymous run of the existing application then failed after
+**207.16s**, with **16 completed model requests**, **43 registered sources** and
+**10 completed reads**. The trace contains twelve read attempts: an unrelated
+extraction exhausted its local deadline, and a registration portal was unavailable.
+The target operator's directory, homepage and registration entry were reached,
+but the planner selected a different location's portal before the read budget ran
+out. The original occurrence URL remained scorer-only. The worker stopped cleanly.
+
+The compact planner frontier retained current link labels but discarded their
+observed ancestry. On a multi-location operator site, the requested primary city
+need not match the neighboring city named by the directory that led to the site.
+The first candidate added up to four ancestor titles, within three observed link hops,
+to each readable source. This was untrusted navigation context, not course evidence,
+additional read permission or a replay of page bodies. Cycles, context size,
+unrelated sources, unavailable-evidence navigation and unchanged evidence/audit
+state have deterministic coverage. Four new checks failed before implementation.
+
+The new `branch-navigation` replay uses a synthetic directory-to-registration
+chain, six location-labelled portals and the existing anonymous clinic fixture.
+Navigation extraction is fixed empty; the private model handles planner choices. The
+oracle requires the directory's location and its detail to be visited first,
+while preserving the original occurrence, price, full status, provenance and no
+personal-queue inference. It does not claim that the real anonymous portal lists
+the detail. The unchanged application passed the fact checks **3/3**, but first
+branch selection **0/3**, taking **41.92s / 42.23s / 43.60s** and nine model
+requests per run. Adding ancestry to the planner prompt still passed **0/3**,
+taking **56.04s / 48.14s / 48.30s**, with nine requests per run. That prompt-only
+variant was not retained.
+
+The final candidate keeps ancestry local instead. When the available coverage
+choices are already-required registration links, it removes shared label words
+and compares remaining words with their bounded observed ancestor titles. Only a
+unique positive highest score selects an automatic read; ties and missing context
+stay with the planner. This is a lexical navigation heuristic, not geographic
+verification. A single known required detail is also read before other branches.
+Every automatic read uses the existing audited read method, deadlines and budgets;
+other required links remain obligations. Focused source checks retain their model
+flow. No operator names, locations, domains or portal IDs are hard-coded.
+
+The final ordering candidate passed **3/3** with all original fact checks intact,
+taking **29.65s / 23.02s / 25.85s**, with seven model requests per run. Each variant
+read ten replay sources and used sixteen tool operations. Ordering the branch and
+its known detail is deterministic; this is not evidence of better model reasoning
+or real anonymous catalog availability. The three variant batches ran sequentially,
+not counterbalanced, so timings do not establish a general speedup. Each model-only
+audit recorded one model connection and zero blocked network, DNS or process attempts.
+
+Local validation passed **962 tests**, including **161 benchmark cases**, mypy
+across **52 modules**, lint/format and wheel build. Coverage includes ambiguous or
+missing lineage, cycles, three-hop/four-source
+caps, unrelated-source exclusion, focused mode, pending search coverage, read
+budgets and required-detail priority. Existing tests changed only expected model
+call counts for automatic detail reads; their original fact checks are unchanged.
+
+The final unseeded anonymous run completed in **145.21s**, using **17 model
+requests** and **18 tool operations**, and returned **seven partial-coverage course
+candidates** from ten completed reads. It still **failed the original-course
+recall oracle**. The search results and chosen sources differed from the preceding
+run; this path did not reach the original operator, so it cannot validate the new
+ordering on that real site or establish a causal timing improvement. The worker
+stopped cleanly. No login fallback, production application deployment, inference
+runtime change or routing change was made. Production promotion remains gated on
+unseeded original-course recall and reliable extraction/source selection.
+
+A fresh known-link anonymous check passed **1/1** in **14.55s**, using three model
+requests and two tool operations. The original occurrence facts, evidence,
+incomplete-series reporting and absence of personal queue inference all passed.
+Its temporary worker also stopped cleanly. This confirms the supplied-detail path
+on the final candidate, not autonomous discovery of that link.
+
+## Search Result Ownership: 2026-11-04
+
+A fresh anonymous search-admission probe found the target operator in the first
+three neighboring-city results, inside the existing four-result admission limit.
+That snapshot does not support increasing the limit as a fix for missed recall.
+It did reveal result titles containing subsequent results' titles. Captured HTML
+confirmed a missing closing `div` in a rich result: the library's recovered tree
+nested later result cards, and descendant-wide XPath joined their headings, URLs
+and snippets. This can corrupt a source URL, not just its display text.
+
+The candidate parses both observed layouts together with the existing HTML parser
+dependency. Each heading, anchor and snippet must belong to its nearest result
+card. A result cannot borrow a nested card's heading or an anchor outside the card.
+The engine's transport, redirect decoding, explicit-provider policy, eight-result
+limit and four-megabyte page limit remain unchanged. Unrecognized search pages
+still fail instead of becoming successful empty searches. No model prompt, source
+budget, provider fallback or authenticated access changed.
+
+Three new benchmark regressions use synthetic domains and transcribed structure,
+not raw captured pages. Two failed before implementation: malformed sibling cards
+produced concatenated fields, and mixed classic/alternate layouts dropped the
+alternate result. All three pass afterward. The captured-page comparison uses
+the same HTML for baseline and candidate, with card-scoped heading/anchor pairs
+as the reference: **19/21** exact pairs before, **21/21** afterward across three
+recognized pages. A fourth capture contained no recognized result cards and
+remained unavailable. This measures parsing integrity, not source relevance,
+course accuracy or model decision quality; it is not independent browser ground
+truth or a claim about every search-page layout.
+
+Validation passed **965 tests**, including **164 benchmark cases**, mypy across
+**52 modules**, Ruff/format and wheel build. Raw search captures and private run
+artifacts stay outside the repository. The deployed application and inference
+service were not modified by this parser evaluation.
+
+A fresh Qwen/Rapid-MLX unseeded anonymous run completed in **133.13s**, with
+**18 model requests**, **18 tool operations**, eleven completed reads and one
+unavailable read. It returned six partial-coverage candidates but **failed the
+original-course recall oracle**. The original occurrence URL remained scorer-only.
+The trace reached the target facility directory, then eventually read its social
+page rather than the original detail. This does not establish that parsing caused
+the remaining navigation failure or that the new run is faster: live results and
+model choices differ between runs. The temporary anonymous worker stopped cleanly.
+The scoped parsing fix is suitable for the integration branch; production
+promotion remains blocked on the separate unseeded recall and extraction gates.
+Post-run inference health returned 200 with generated content in **0.70s**;
+an unauthenticated request returned 401, and the listener remained loopback-only.
