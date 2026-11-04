@@ -57,6 +57,24 @@ sleeping Mac awake or run before login. Stop it with:
 launchctl bootout "gui/$(id -u)/org.tennis-calendar.inference"
 ```
 
+The launcher explicitly disables Rapid-MLX and Hugging Face telemetry, including
+when the parent environment enables it. Reinstall the service with this script to
+update an already-copied launcher; a VPS deployment does not update the model host.
+These opt-outs are not a network sandbox: audit other runtime outbound activity
+when evaluating an upgrade.
+
+Match the parser to the checkpoint's actual chat template, not just its API alias.
+For a Qwen3-Coder checkpoint using `<function=...>` and `<parameter=...>` tool
+markup, add `--tool-call-parser qwen3_coder_xml` to the installer command. The
+choice is retained across service restarts. Other checkpoints may require another
+parser; omission keeps runtime auto-detection. A matching parser does not establish
+correct course facts: run the extraction and discovery benchmarks before rollout.
+
+Runtime upgrades are separate from application deployments. Test the candidate in
+an isolated environment, disable telemetry before starting it, retain the previous
+runtime for rollback, and verify actual generation after startup and cancellation.
+A successful `/v1/models` response alone is not an inference-readiness check.
+
 Avoid starting a second large model through a coding-agent runner while this service
 is loaded. Shared-memory pressure affects both workloads.
 

@@ -1929,3 +1929,145 @@ or demonstrate live recall improvement. The temporary worker stopped cleanly.
 Original-course discovery, source selection and extraction reliability remain
 unmet production gates. No login fallback, production deployment, running model
 service or ingress change was made.
+
+## Isolated Guided Extraction Probe: 2026-11-04
+
+With permission to test the local serving runtime, an isolated environment added
+Rapid-MLX's guided extra without changing the existing service. Rapid-MLX
+**0.6.83**, MLX/MLX Metal **0.31.2**, mlx-lm **0.31.3**, transformers **5.10.2**
+and tokenizers **0.22.2** matched the existing environment. The added packages were
+Outlines **1.3.3** and outlines-core **0.2.14**. Other transitive dependencies were
+freshly resolved, so comparisons below use the same isolated server, not the
+earlier service as a control. The existing Qwen model snapshot was reused offline.
+
+The temporary server listened only on loopback, used a separate owner-only API
+key, and returned 401 without that key. Content-free observation of the runtime's
+guided method distinguished successful guided generation from silent fallback.
+No browser credentials, cloud inference fallback or ingress changes were used.
+
+The first native-output probe retained the private model's inline schema
+transformer. Its first real extraction request timed out after **60.02s**. No
+guided completion was recorded; process sampling showed sustained outlines-core
+work after the client timeout. The run was stopped rather than counted as ten
+completed failures. The temporary server required forced termination after SIGTERM
+did not stop it. This is a cancellation/resource risk, not a successful strict
+output implementation.
+
+After restarting only the temporary server, a small boolean schema completed in
+**1.86s**, with correct JSON and a successful guided observation. A second variant
+used Pydantic AI's standard `OpenAIJsonSchemaTransformer` and
+`NativeOutput(ExtractionReport, strict=True)`. The existing Pydantic model and
+evidence validator remained unchanged. Native instructions requested typed JSON
+instead of the output tool; this is a combined output-mode/schema experiment, not
+an isolated estimate of the decoder's effect.
+
+| Fixed anonymous page case | Tool output | Native with standard transformer |
+| --- | --- | --- |
+| Operator homepage without course facts | 2/2 | 2/2 |
+| Registration entry without course facts | 2/2 | 2/2 |
+| Facility directory without course facts | 2/2 | 2/2 |
+| Original dated clinic, exact time and price | 2/2 | 2/2 |
+| Undated Live Ball course retained without invented dates | 0/2 | 2/2 |
+| Total | **8/10** | **10/10** |
+
+These were real SDK/model requests against private captures of public pages, with
+two repetitions per case. Tool mode ran first, followed by native mode; order was
+not counterbalanced. Native calls took **6.74-10.82s**, versus **0.53-5.56s** for
+tool mode. All ten native calls had successful guided observations. Each run's
+model-only network audit recorded one model connection and zero blocked network,
+DNS or process attempts. This small replay is not a general reliability estimate.
+
+A separate temporary mocked-transport harness passed **18 checks** across the
+three output configurations: valid dated/undated extraction, invented-price
+rejection, oversized fields, excess course count and negative title indices.
+Native requests advertised no tools. These checks do not add to the repository's
+pytest count and do not establish live cancellation safety.
+
+An unseeded anonymous live search using the prototype native extractor still
+**failed at 300.01s**: 11 completed model requests, 37 registered sources and four
+checked sources. The original URL remained scorer-only. Four live guided
+extractions completed, then no further guided completion was observed before
+shutdown. Page-fetch stage timings were short; several complete read/extraction
+operations consumed roughly 60 seconds. Sampling later showed MLX evaluation
+waiting, but does not establish the precise cause. The prototype's model clone
+bypassed the extractor timing wrapper in this run, so its stage report is
+incomplete; request budgets and final recall checks were unchanged. Do not
+attribute these waits to slow websites or claim an end-to-end improvement.
+
+The anonymous worker reported clean shutdown. The isolated model instance was
+stopped, its listener verified closed and its temporary key removed after testing.
+A post-test check of the existing service returned 200 for the model list but
+timed out on actual generation after 60 seconds. There was no immediately preceding
+pre-test generation check, so this does not establish that the experiment caused
+the failure. Under the user's service-change authorization, the original service
+was restarted with its existing runtime and configuration. A new generation
+request then returned 200 with content in **0.93s**. The original loopback binding
+was verified, and configuration-file digests matched before and after the restart.
+
+No application behavior, existing runtime dependencies, VPS deployment or routing
+was changed. Native extraction remains experimental: mixed planner/extractor
+execution, bounded cancellation and unseeded recall must pass before adoption.
+
+## Runtime Upgrade and Launcher Controls: 2026-11-04
+
+The next probe used an isolated Rapid-MLX **1.0.1** environment with MLX/MLX Metal
+**0.32.4**, mlx-lm **0.31.3**, llguidance **1.9.1**, transformers **5.15.1** and
+tokenizers **0.22.2**. This runtime uses llguidance rather than Outlines for native
+JSON decoding. It is a whole-runtime comparison, not a single-dependency causal
+test. The same local Qwen checkpoint and separate loopback endpoint were retained.
+Telemetry and model downloads were explicitly disabled. A Python socket audit
+blocked four non-loopback DNS attempts; their originating feature was not recorded.
+Do not treat telemetry opt-out as proof that all runtime network activity is off.
+
+The original service passed an actual generation preflight in **0.55s**. After
+the candidate warned about the combined memory footprint, only the dedicated
+original inference LaunchAgent was temporarily stopped. No unrelated services or
+routes changed. The original LaunchAgent configuration was retained for restoration.
+
+The checkpoint's separate `chat_template.jinja` contains XML function/parameter
+markup, but automatic runtime configuration chose `hermes`. A same-version
+comparison explicitly selected `qwen3_coder_xml`; it did not improve the fact
+oracle. A startup-race attempt made zero completed model requests and is excluded
+from the comparison, not counted as model behavior. The rerun first verified the
+authenticated endpoint was ready.
+
+| Ready-server variant | Fixed-page oracle | Undated target case |
+| --- | --- | --- |
+| Tool output, automatic `hermes` | 8/10 | 0/2; validation failure, 58.10s / 56.49s |
+| Tool output, explicit XML parser | 8/10 | 0/2; validation failure, 9.16s / 6.50s |
+| Native output, standard schema transformer | 8/10 | 0/2; returned a different course |
+| Native output, original inline schema transformer | 8/10 | 0/2; returned a different course |
+
+Every variant passed the three negative-page cases and the original dated clinic
+twice. Native output returned an undated Drill Class but omitted the explicitly
+published NTRP 3.0+ Live Ball candidate. The target oracle was not relaxed. Each
+variant's model-only client audit recorded one connection and zero blocked network,
+DNS or process attempts. Variant order was not counterbalanced. Faster responses
+and valid JSON do not establish better course recall.
+
+The inline-schema requests now completed in **3.08-6.44s**, unlike the old
+Outlines attempt that kept working after client timeout. A separate bounded
+mixed-mode probe alternated a tool call, native JSON, a deliberately disconnected
+long JSON request, native JSON again and another tool call. Both repetitions
+passed all five checks. The two client disconnects occurred at **0.50s**; the
+server recorded `GuidedGenerationCancelledError` twice, and each following native
+request completed correctly in **1.85s**. The server also logged two unretrieved
+future exceptions on cancellation. No tool was executed by this probe. An invalid
+schema returned **502**, failing the expected-400 check; it did not return a
+successful unconstrained answer. These small probes are not proof of the full
+live workflow. Unseeded search was not rerun after the accuracy gate failed.
+
+The launcher change addresses a separate verified privacy/configuration gap:
+always disable runtime/Hugging Face telemetry, and optionally retain an explicit
+parser selection across restart. Auto-detection remains the default; no model
+family is hard-coded into deployment behavior. Five new tests cover inherited
+telemetry settings, parser propagation, existing-key preservation, file modes,
+secret-free arguments/plist/output and absence of routing commands. Four failed
+before the change and all five passed afterward. Full validation passed **947
+tests**, including **155 benchmark cases**, mypy across **52 modules**, and
+Ruff/format. The course accuracy gate is still failed; this launcher change is not
+an extraction or production-readiness claim. The candidate runtime was not adopted.
+
+The temporary model was stopped, its key removed and its listener verified closed.
+The original service was restored from its unchanged LaunchAgent configuration;
+actual generation returned 200 with content in **0.51s**, still on loopback.
