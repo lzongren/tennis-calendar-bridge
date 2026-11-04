@@ -124,7 +124,9 @@ def test_anonymous_query_reaches_relay_with_exact_validated_body(monkeypatch):
     request.is_navigation_request.return_value = False
     request.all_headers = AsyncMock(return_value={"content-type": "application/json"})
     route = Mock(request=request, abort=AsyncMock(), fulfill=AsyncMock())
-    asyncio.run(ReadNetwork(True).handle(route))
+    network = ReadNetwork(True)
+    asyncio.run(network.handle(route))
+    assert not network.membership_denied.is_set()
     route.abort.assert_not_awaited()
     route.fulfill.assert_awaited_once()
     assert fetch.call_args.kwargs["post_body"] == body
@@ -149,3 +151,4 @@ def test_member_only_catalog_is_not_a_successful_empty_result(monkeypatch):
     network = ReadNetwork(True)
     asyncio.run(network.handle(route))
     assert network.membership_required and not network.login_required
+    assert network.membership_denied.is_set()
