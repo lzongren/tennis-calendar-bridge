@@ -169,6 +169,21 @@ Live public retrieval requires subprocesses and public connections, so this mode
 does **not** apply or claim the model-only network guard. It is not a full-city
 recall test or a verification of current seats.
 
+The `location-navigation` replay starts with six location cards whose registration
+buttons have identical text and opaque destination URLs:
+
+```sh
+python -m benchmarks.source_discovery --case location-navigation --repeats 3 --output /tmp/location-navigation.json
+```
+
+It checks that the planner reads the requested location first, then verifies the
+original anonymous November 2 course facts. Navigation pages have fixed empty
+course extraction; only the planner uses the real model. Every search, refinement
+and page response stays inside the fixture corpus under the model-only network
+guard. This tests label ownership and selection order, not live catalog access or
+unseeded search recall. Other registration links still retain their existing
+coverage obligations; this case does not increase or waive runtime budgets.
+
 The `extraction-deadline` replay injects a non-completing extractor into an optional
 overview page that links to the anonymous November clinic transcription:
 

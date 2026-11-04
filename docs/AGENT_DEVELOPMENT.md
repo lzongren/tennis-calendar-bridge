@@ -289,6 +289,15 @@ client explicitly uses Pydantic AI's built-in definition inliner. Wire-level tes
 verify that required fields and `additionalProperties: false` survive that conversion.
 Missing course lists or evidence fields cannot default to a successful empty result.
 
+Generic registration buttons retain an unambiguous local heading in their source
+label, so identically worded links from different location cards stay distinguishable.
+The HTML parser checks at most three ancestor levels and 32 direct children per
+container, accepting one preceding heading in a container of at most 500 text
+characters. Global, following and ambiguous headings are not borrowed. Labels stay
+bounded to 240 characters and remain untrusted navigation hints, not course facts
+or permission to visit a URL. Existing URL policy, source limits and traversal depth
+are unchanged.
+
 The model selects inclusive start/end evidence lines; Python retains the full bounded
 span, including intervening exclusion text. Core quoted fields are checked against
 that span before date expansion; unsupported optional club/venue/level labels are

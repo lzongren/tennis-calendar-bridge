@@ -1774,3 +1774,52 @@ Validation passed **906 tests**, including **137 benchmark cases**, mypy across
 **50 modules**, Ruff/format and wheel build. This is a source-registry correctness
 improvement, not a production recall pass. The anonymous discovery gate remains
 unmet; no production service, login profile, model service or ingress was changed.
+
+## Location-Owned Registration Labels: 2026-11-04
+
+A live public multi-location registration page displayed six city headings beside
+nearly identical registration buttons. The HTML adapter retained the button text
+but discarded the local heading association, leaving opaque portal URLs with
+indistinguishable labels. The candidate retains one preceding heading from a small
+local container. A fresh anonymous fetch verified six distinct location-owned
+labels. No venue names, portal IDs or provider-specific selectors are hardcoded.
+
+The new `location-navigation` replay follows this page structure using synthetic
+cities and URLs, then the existing anonymous original-course fixture. It scores
+requested-location-first selection separately from the original date, time, price,
+availability and evidence checks. A deliberately wrong-first planner fails the
+selection check even when it eventually retrieves the correct course. Navigation
+extraction is fixed empty so this replay measures the planner, not model extraction.
+
+The first real-model comparison exposed a harness isolation omission: optional
+source refinement still used the public search implementation. The model-only guard
+blocked six subprocess attempts before any public retrieval. Those six aborted
+runs are invalid for comparing parser effectiveness. All replay modes now default
+to an empty fixture refiner, with explicit fixture refiners overriding it where
+needed; a regression exercises that path without public access.
+
+After correcting the harness, alternating original and contextual labels across
+three repetitions each produced **0/3 complete passes for both variants**. Every
+run ended with an unavailable-tool error after ten model requests and five checked
+sources. The corrected model-only audit recorded six model connections and zero
+blocked connections, DNS requests or subprocesses. This does not demonstrate an
+agent success-rate improvement, despite the independently verified parser fix.
+
+A follow-up tool-name-only trace localized the failure: after seven valid read or
+refinement calls, the server returned `searchread_source` three times while only
+`read_source` was advertised. The SDK rejected the nonexistent tool. No automatic
+tool-name remapping was added. The trace used one model connection with no blocked
+network or process attempts and does not establish whether generation or serving
+caused the malformed name.
+
+Local validation passed **922 tests**, including **142 benchmark cases**, mypy
+across **50 modules**, Ruff/format,
+whitespace checks and wheel build. Parser tests cover bounded heading ownership,
+ambiguous and neighboring cards, unsafe targets and unchanged descriptive anchors.
+
+The branch remains a **draft** pending the model/tool-selection failure. It does
+not include the separate extraction-prefix experiment. Full unseeded live search
+was not repeated after the controlled workflow failed; original-course discovery
+and production readiness remain unmet. Only the isolated evaluation environment
+changed. No saved profile, login fallback, running model service, production
+deployment or ingress configuration changed.
