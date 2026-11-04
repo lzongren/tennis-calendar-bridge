@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date
@@ -120,6 +121,7 @@ class SourceDocument(EvidenceModel):
     records: tuple[SessionEvidence, ...] = Field(default=(), max_length=64)
     partial: bool = False
     evidence_unavailable: bool = False
+    refinement_available: bool = False
 
     @model_validator(mode="after")
     def owned_records(self) -> SourceDocument:
@@ -131,6 +133,12 @@ class SourceDocument(EvidenceModel):
             raise ValueError("Navigation sources must be discovered links")
         if self.evidence_unavailable and (self.records or not self.partial or not self.links):
             raise ValueError("Unavailable evidence may retain only partial navigation, not facts")
+        if self.refinement_available and (
+            self.records or self.required_ids or self.navigation_ids or self.evidence_unavailable
+        ):
+            raise ValueError(
+                "Refinement requires a checked source without facts or registration links"
+            )
         return self
 
 
@@ -142,6 +150,8 @@ class SourceBackend(Protocol):
     """
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults: ...
+
+    async def refine(self, source_id: str, request: DiscoveryRequest) -> SearchResults: ...
 
     async def read(
         self, source_id: str, request: DiscoveryRequest, *, deadline: float | None = None
@@ -168,7 +178,7 @@ class Completion(EvidenceModel):
 
 
 class ToolAudit(EvidenceModel):
-    tool: Literal["search_courses", "read_source"]
+    tool: Literal["search_courses", "refine_source", "read_source"]
     outcome: Literal["ok", "cached", "retry", "unavailable", "denied"]
     source_id: str | None = None
 
@@ -183,7 +193,7 @@ class DiscoveryRun(EvidenceModel):
     tool_calls: int
 
 
-INSTRUCTIONS = """Research adult tennis sessions using only search_courses and read_source.
+INSTRUCTIONS = """Research adult tennis sessions using only the advertised research tools.
 Start by searching the requested city. In area mode, search that city with overview,
 registration and schedule focuses before reading sources. Inspect new relevant sources
 from each focus, not just the first results with some courses. Also search the nearby
@@ -208,6 +218,9 @@ natural-language report. Do not assert availability or a personal waitlist posit
 An empty search is not complete while there are supplied neighboring cities to try.
 If no courses emerge, refine the original city's search using registration and schedule
 focus before reporting no results. These are fixed query templates, not arbitrary queries.
+When a checked directory names an operator but has no courses or registration links,
+use refine_source with its eligible source ID before browsing unrelated directories.
+The adapter derives a bounded search from observed page metadata, not your own query.
 """
 
 AREA_PREFLIGHT_INSTRUCTIONS = """
@@ -293,24 +306,78 @@ class ResearchState:
                     + ". Focuses: "
                     + ", ".join(focuses)
                 )
+        return await self.run_search(
+            key,
+            self.allowed_cities[city_key],
+            lambda: self.backend.search(
+                self.allowed_cities[city_key],
+                self.request.model_copy(update={"search_focus": focus}),
+            ),
+            "search_courses",
+        )
+
+    def refinement_ids(self) -> tuple[str, ...]:
+        if (
+            self.request.search_mode != "area"
+            or self.required_search_options()
+            or self.search_attempts >= self.limits.searches
+        ):
+            return ()
+        return tuple(
+            sid
+            for sid, document in self.documents.items()
+            if document.refinement_available
+            and sid not in self.failed_sources
+            and "source:" + sid not in self.searches
+        )
+
+    async def refine_source(self, source_id: SourceID) -> SearchResults:
+        """Search for an operator named by a successfully read source, using only its ID."""
+        self.charge()
+        key = "source:" + source_id
+        if key in self.searches:
+            self.audit.append(
+                ToolAudit(tool="refine_source", source_id=source_id, outcome="cached")
+            )
+            return self.searches[key]
+        if source_id not in self.refinement_ids():
+            self.audit.append(
+                ToolAudit(tool="refine_source", source_id=source_id, outcome="denied")
+            )
+            raise ModelRetry(
+                "Refinement requires an eligible checked source and remaining search budget."
+            )
+        return await self.run_search(
+            key,
+            self.request.city,
+            lambda: self.backend.refine(source_id, self.request),
+            "refine_source",
+            source_id,
+        )
+
+    async def run_search(
+        self,
+        key: str,
+        city: str,
+        fetch: Callable[[], Awaitable[SearchResults]],
+        tool: Literal["search_courses", "refine_source"],
+        source_id: str | None = None,
+    ) -> SearchResults:
         if self.search_attempts >= self.limits.searches:
             raise AgentDiscoveryError("Discovery search budget exceeded; narrow the search.")
         self.search_attempts += 1
         for attempt in range(2):
             try:
                 async with asyncio.timeout(self.limits.tool_seconds):
-                    result = await self.backend.search(
-                        self.allowed_cities[city_key],
-                        self.request.model_copy(update={"search_focus": focus}),
-                    )
+                    result = await fetch()
                 self.register(result.sources)
                 self.allow_cities(result.nearby_cities)
                 self.searches[key] = result
-                self.search_locations[key] = self.allowed_cities[city_key]
-                self.audit.append(ToolAudit(tool="search_courses", outcome="ok"))
+                self.search_locations[key] = city
+                self.audit.append(ToolAudit(tool=tool, source_id=source_id, outcome="ok"))
                 return result
             except (TransientSourceError, TimeoutError):
-                self.audit.append(ToolAudit(tool="search_courses", outcome="retry"))
+                self.audit.append(ToolAudit(tool=tool, source_id=source_id, outcome="retry"))
                 if attempt:
                     raise AgentDiscoveryError(
                         "Public search unavailable after retry; previous results retained."
@@ -448,6 +515,7 @@ class ResearchState:
         return {
             "source_id": document.source.id,
             "source": document.source.model_dump(mode="json"),
+            "refinement_available": document.refinement_available,
             "links": [link.model_dump() for link in document.links],
             "required_ids": document.required_ids,
             "navigation_ids": document.navigation_ids,
@@ -586,6 +654,7 @@ class ResearchState:
             if not any(doc.records for doc in self.documents.values())
             else [],
             "reads_remaining": max(0, self.limits.reads - self.read_attempts),
+            "refinement_source_ids": self.refinement_ids(),
         }
         if self.request.search_mode == "area":
             completion: dict[str, object] = {"state": "pending"}
@@ -697,6 +766,16 @@ async def run_discovery_agent(
         schema["required"] = ["city", "focus"]
         return replace(definition, parameters_json_schema=schema)
 
+    async def prepare_refinement(
+        ctx: RunContext[None], definition: ToolDefinition
+    ) -> ToolDefinition | None:
+        available = state.refinement_ids()
+        if not available:
+            return None
+        schema = deepcopy(definition.parameters_json_schema)
+        schema["properties"]["source_id"]["enum"] = list(available)
+        return replace(definition, parameters_json_schema=schema)
+
     async def prepare_read(
         ctx: RunContext[None], definition: ToolDefinition
     ) -> ToolDefinition | None:
@@ -727,6 +806,7 @@ async def run_discovery_agent(
         + (AREA_PREFLIGHT_INSTRUCTIONS if request.search_mode == "area" else ""),
         tools=[
             Tool(state.search_courses, sequential=True, prepare=prepare_search),
+            Tool(state.refine_source, sequential=True, prepare=prepare_refinement),
             Tool(state.read_source, sequential=True, prepare=prepare_read),
         ],
         output_type=ToolOutput(Completion, name="finish_discovery"),
@@ -757,7 +837,7 @@ async def run_discovery_agent(
                     if not Agent.is_model_request_node(node):
                         continue
                     completed_reads = await state.advance_required_reads()
-                    if not state.available_read_ids():
+                    if not state.available_read_ids() and not state.refinement_ids():
                         try:
                             state.complete(Completion(outcome="sources_checked"))
                         except ModelRetry:

@@ -1435,3 +1435,52 @@ extra path segments, action-bearing slugs and query parameters.
 Local validation passed **810 tests**, **104 benchmark cases**, mypy across
 **50 modules**, and Ruff/format. Fixtures contain synthetic URLs and course text;
 the live URLs, captured HTML and machine-specific probe stayed outside the repo.
+
+## Source-Derived Search Refinement: 2026-11-03
+
+A public directory observed in the unseeded run named the target operator but
+linked only to other directories, not its official schedule. Fixed city/focus
+queries could not follow that name. The candidate adds `refine_source(source_id)`:
+only successfully read sources without course records or registration navigation
+are eligible. Python derives a bounded subject from observed metadata; the model
+cannot supply a query, hostname or URL. It shares the existing search budget,
+single transient retry, cache and admission policy. No login fallback is enabled.
+
+The reproducible `source-refinement` replay passed **3/3** with Qwen/Rapid-MLX:
+**4.07s / 0.94s / 0.94s**, one model request and seven tool operations each. The
+private planner selected the new tool, then singleton schedule/detail reads
+recovered the original anonymous November 2 time, $54 price and full status.
+Queue count and personal queue position stayed unknown. Search/read responses and
+the empty directory extraction were controlled fixtures, not real web retrieval.
+The model-only guard recorded one model connection and zero blocked network, DNS
+or process attempts. Warm-state differences make these durations observations,
+not independent latency estimates or a comparison against the previous planner.
+
+A separate anonymous public transport probe retrieved the observed directory,
+derived its actual heading and searched with the original request city plus the
+fixed adult-tennis/year suffix. The official schedule appeared in the first four
+results (**1/1**, **2.20s**). This supplied-directory probe had no model planner and
+does not establish city-wide discovery or registration-detail retrieval.
+
+Known-link anonymous detail verification passed **2/2**, **13.01s / 6.78s**, with
+three model requests and two tools each. Both retained the unchanged original
+clinic identity, date, time, price, full status and unknown anonymous queue checks.
+
+The separate **unseeded live search still failed at 300.01s**: 17 completed model
+requests, 42 registered sources and two checked sources. This run reached the
+official operator schedule directly from search, not through refinement. Two
+extractions exhausted their local deadlines; other extraction responses used an
+unadvertised tool or prose instead of the required schema. The operator portal
+read was unavailable. Four planner read IDs were outside the current advertised
+enum; that alone does not distinguish cached reads from coverage-policy rejection.
+No eligible refinement was exercised, and no original-course recall or successful
+end-to-end completion was established. The component replay does not supersede
+this failed production gate. Keep this candidate experimental.
+
+Local validation passed **837 tests**, including **106 benchmark cases**, mypy
+across **50 modules**, Ruff/format and wheel build. New tests cover source ownership,
+metadata-only subjects, tool schema restrictions, URL admission, cache and shared
+budgets, bounded retries, timeout cancellation, caller cancellation, worker dispatch
+and backward-compatible ordinary search payloads. Evaluation used an isolated
+installation and ephemeral anonymous worker; running services, saved profiles,
+production configuration and ingress were not changed.

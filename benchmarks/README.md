@@ -213,3 +213,20 @@ rows leave availability unknown. December 7 is outside this window. Prices, time
 and status belong to each row; no queue count or personal position is inferred.
 The result remains partial because neither pagination nor year transitions are
 fully established. This is a known-source check and cannot satisfy `clinic-search`.
+
+## Source-Derived Refinement
+
+```sh
+python -m benchmarks.source_discovery --case source-refinement \
+  --repeats 3 --output /tmp/source-refinement-replay.json
+```
+
+This controlled case uses the real private planner with synthetic search/read
+responses and a fixed empty directory extractor. The directory names an operator
+but has no outbound course link. Only `refine_source` reveals its official schedule,
+which links to the anonymized original November 2 detail fixture. The check requires
+one successful refinement and the unchanged date, time, $54 price, full status,
+unknown anonymous queue and evidence checks. No target URL is supplied in the
+request; the fixture owns it. Outbound traffic is restricted to the private model.
+This measures tool planning and reconciliation, not live web retrieval or city-wide
+recall. `--live-web` is deliberately rejected for this replay case.

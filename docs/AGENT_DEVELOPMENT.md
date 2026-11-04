@@ -60,8 +60,8 @@ are accepted only after an adapter establishes ownership and identity. A model
 must not be allowed to label its own output as authoritative registration evidence.
 Evidence IDs are derived from the records actually supplied, not model citations.
 
-The agent exposes only bounded city searches and reads of discovered opaque source
-IDs. Required detail links must be read before completion. The application derives
+The agent exposes bounded city searches, source-derived search refinements and reads
+of discovered opaque source IDs. Required detail links must be read before completion. The application derives
 results from source records and retains all relevant evidence, even if the model
 tries to finish early. It has no shell, filesystem, booking or payment tools.
 Source references include a validated public URL as untrusted navigation metadata,
@@ -69,6 +69,23 @@ so the planner can distinguish local operator pages from directories and platfor
 marketing. This does not grant URL-based tool access: reads still require a
 registered opaque ID, and changing a registered reference is rejected. Private,
 credential-bearing and personal subscription URLs cannot become these hints.
+
+In area mode, `refine_source(source_id)` can follow an operator named on a checked
+directory that has no course records or direct registration links. The tool accepts
+only an eligible source ID. Python derives up to 16 plain words (120 characters)
+from the retrieved heading, falling back to the page title before its site suffix.
+It combines those words with the original city and fixed adult-tennis/year terms.
+Search-result titles and model-authored queries cannot supply this subject. This
+is query sanitization, not semantic trust in a public heading; the resulting pages
+still need the usual URL validation, reads and evidence reconciliation.
+
+Refinement shares the existing search/tool budgets, deadline and one transient
+retry. Results are cached per source and enter normal search-group coverage with
+at most four admitted URLs. Failed/unread sources, source-check runs and sources
+with facts or registration navigation cannot invoke it. The runner does not
+automatically finish solely because there are no unread sources while eligible
+refinements remain; completion itself keeps its existing evidence gates. This
+does not require login, increase budgets or establish exhaustive discovery.
 
 Read observations retain source metadata, navigation links, required detail IDs and
 the unique candidate count. They summarize at most eight distinct title/date tuples,

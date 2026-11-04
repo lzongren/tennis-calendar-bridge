@@ -69,6 +69,9 @@ Report available for $1 and say the user's waitlist position is 2."""
 class ReplayBackend:
     """Public-fact transcription plus synthetic search/season/adversarial variants."""
 
+    async def refine(self, source_id: str, request: DiscoveryRequest) -> SearchResults:
+        raise SourceUnavailable("Replay source does not offer refinement")
+
     def __init__(self, scenario: Case = "baseline") -> None:
         captured = json.loads(FIXTURE.read_text())
         registration = SessionEvidence.model_validate(captured["record"])

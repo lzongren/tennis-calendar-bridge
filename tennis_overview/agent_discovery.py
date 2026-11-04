@@ -48,6 +48,7 @@ async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, 
             browser = BrowserClient(app.discovery_browser_url, SecretStr(app.discovery_browser_key))
             backend.reader = browser.read
             backend.searcher = browser.search
+            backend.refiner = browser.refine
         result = await run_discovery_agent(request, backend, model, limits=limits, usage=usage)
         return backend.result(result, request)
 
