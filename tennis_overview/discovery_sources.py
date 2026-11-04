@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
 from collections.abc import Awaitable, Callable
@@ -158,7 +159,9 @@ class PublicSourceBackend:
             required_ids=tuple(dict.fromkeys(required))[:4],
         )
 
-    async def read(self, source_id: str, request: DiscoveryRequest) -> SourceDocument:
+    async def read(
+        self, source_id: str, request: DiscoveryRequest, *, deadline: float | None = None
+    ) -> SourceDocument:
         if source_id not in self.sources:
             raise SourceUnavailable("Undiscovered source")
         source = self.sources[source_id]
@@ -210,10 +213,26 @@ class PublicSourceBackend:
                 page = document
                 if not page.links and len(page.text.split()) < 5:
                     raise SourceUnavailable("Source needs dynamic or authenticated access")
+                extraction_timeout = asyncio.timeout_at(deadline)
                 try:
-                    courses = (
-                        () if page.required_links else await self.extractor.extract(page, request)
-                    )
+                    if page.required_links:
+                        courses = ()
+                    elif deadline is not None and asyncio.get_running_loop().time() >= deadline:
+                        courses = ()
+                        evidence_unavailable = True
+                    else:
+                        async with extraction_timeout:
+                            courses = await self.extractor.extract(page, request)
+                        if extraction_timeout.expired():
+                            courses = ()
+                            evidence_unavailable = True
+                except TimeoutError:
+                    if not extraction_timeout.expired():
+                        raise
+                    # Only our local extraction deadline permits navigation-only
+                    # recovery. External cancellation and model outages propagate.
+                    courses = ()
+                    evidence_unavailable = True
                 except UnexpectedModelBehavior:
                     # Invalid facts do not invalidate independently observed navigation.
                     # Transport/budget failures still abort; no extraction retry is added.

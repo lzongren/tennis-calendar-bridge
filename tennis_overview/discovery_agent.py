@@ -135,11 +135,17 @@ class SourceDocument(EvidenceModel):
 
 
 class SourceBackend(Protocol):
-    """Implementations own public URL validation, parsing, authority and identity."""
+    """Adapters own validation and parsing; read deadlines use the loop's monotonic clock.
+
+    A staged reader may stop optional work at that deadline. ResearchState still
+    enforces a separate hard timeout, including for adapters that ignore the hint.
+    """
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults: ...
 
-    async def read(self, source_id: str, request: DiscoveryRequest) -> SourceDocument: ...
+    async def read(
+        self, source_id: str, request: DiscoveryRequest, *, deadline: float | None = None
+    ) -> SourceDocument: ...
 
 
 class DiscoveryLimits(EvidenceModel):
@@ -355,10 +361,17 @@ class ResearchState:
         self.read_attempts += 1
         reason = SourceFailureReason.PAGE_UNAVAILABLE
         for attempt in range(2):
-            deadline = asyncio.timeout(self.limits.tool_seconds)
+            expires_at = asyncio.get_running_loop().time() + self.limits.tool_seconds
+            deadline = asyncio.timeout_at(expires_at)
             try:
                 async with deadline:
-                    document = await self.backend.read(source_id, self.request)
+                    # Leave at most 50 ms for a staged reader to return already
+                    # observed navigation after cancelling optional extraction.
+                    document = await self.backend.read(
+                        source_id,
+                        self.request,
+                        deadline=expires_at - min(0.05, self.limits.tool_seconds / 10),
+                    )
                 if document.source != self.registry[source_id]:
                     raise AgentDiscoveryError("Retrieved source identity did not match.")
                 self.register(document.links)

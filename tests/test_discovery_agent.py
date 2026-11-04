@@ -60,11 +60,11 @@ class AreaBackend(ReplayBackend):
         }[request.search_focus]
         return SearchResults(sources=(ref,))
 
-    async def read(self, source_id, request):
+    async def read(self, source_id, request, *, deadline=None):
         if source_id == self.schedule_ref.id:
             self.read_calls.append(source_id)
             return SourceDocument(source=self.schedule_ref, text="No additional dated courses")
-        return await super().read(source_id, request)
+        return await super().read(source_id, request, deadline=deadline)
 
 
 @pytest.mark.benchmark
@@ -305,10 +305,10 @@ def test_repeated_read_is_cached_but_charged():
 
 def test_required_failed_source_does_not_create_success():
     class UnavailableBackend(ReplayBackend):
-        async def read(self, source_id, request):
+        async def read(self, source_id, request, *, deadline=None):
             if source_id == "dated-registration":
                 raise SourceUnavailable("private provider details must not escape")
-            return await super().read(source_id, request)
+            return await super().read(source_id, request, deadline=deadline)
 
     with pytest.raises(AgentDiscoveryError, match="Required registration") as caught:
         asyncio.run(run_discovery_agent(request(), UnavailableBackend(), scripted(plan())))
@@ -436,7 +436,7 @@ def test_transient_failure_is_retried_at_most_once():
     from tennis_overview.discovery_agent import TransientSourceError
 
     class FailingBackend(ReplayBackend):
-        async def read(self, source_id, request):
+        async def read(self, source_id, request, *, deadline=None):
             self.read_calls.append(source_id)
             raise TransientSourceError("provider diagnostic must stay private")
 

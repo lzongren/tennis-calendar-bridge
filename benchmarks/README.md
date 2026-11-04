@@ -116,6 +116,20 @@ Live public retrieval requires subprocesses and public connections, so this mode
 does **not** apply or claim the model-only network guard. It is not a full-city
 recall test or a verification of current seats.
 
+The `extraction-deadline` replay injects a non-completing extractor into an optional
+overview page that links to the anonymous November clinic transcription:
+
+```sh
+python -m benchmarks.source_discovery --case extraction-deadline --repeats 3 --output /tmp/extraction-deadline.json
+```
+
+Only the planner uses the private model in this case; the extractor stalls under a
+one-second test tool budget. The source backend must cancel it once, retain only
+observed navigation, and keep the overview unavailable. The agent must follow the
+linked detail and pass the unchanged anonymous date/time/price/full-status oracle.
+This is a focused fault-injection replay with the model-only network guard, not
+live web discovery, model-outage recovery, or a production latency measurement.
+
 Modes use a fixed November 1, 2026 Pacific anchor, except `anonymous-series`, which
 starts November 3 to exercise a past selected occurrence. A changed source should be
 investigated against the published schedule, not silently accommodated by relaxing

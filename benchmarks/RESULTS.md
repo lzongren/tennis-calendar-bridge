@@ -1351,3 +1351,42 @@ The trace contains 16 model attempts, including two cancelled extractions. The
 scorer-only original occurrence URL was not supplied to the agent. No original-course
 recall or bounded end-to-end completion was established. These live results remain
 an unmet production gate; the nine passing extraction replays do not supersede it.
+
+## Navigation After Extraction Deadlines: 2026-11-03
+
+A deterministic regression reproduced another lost path: retrieval completed, but
+the extraction deadline discarded the page's independently observed registration
+link. The original implementation returned `page_unavailable` without navigation.
+The staged reader now receives an application-owned monotonic deadline inside the
+unchanged hard tool budget. It may retain validated navigation after its own
+extraction timeout, never facts or successful-source status. External cancellation,
+the enclosing run deadline, transport/model-budget failures and required-source failure
+remain separate. No retries or larger budgets were added.
+
+The new reproducible `extraction-deadline` case passed **3/3** with the private
+Qwen/Rapid-MLX planner: **13.03s / 4.40s / 5.01s**, four model requests and three
+tools each. It injects a stalled extractor under a one-second test tool budget;
+the private model chooses the search/read/completion steps. Each run cancelled
+extraction once, retained the unavailable overview, followed the observed detail
+link and preserved the original anonymous time, price, full status and unknown
+personal queue. The model-only guard recorded one model connection and zero blocked
+network, DNS or process attempts. This is controlled fault injection, not a live
+web retrieval or model-outage benchmark.
+
+Known-link live anonymous verification passed **2/2** in **13.49s / 6.67s**, with
+three model requests and two tools each. The same original facts and incomplete
+series checks passed. The candidate wheel was installed only in the isolated
+evaluator; production and the browser worker were not changed.
+
+The separate unseeded real-web run still failed, this time at **271.59s** after
+20 completed model requests, 48 registered sources and four checked sources.
+A required linked registration page was unavailable, so the existing validator
+aborted. This run did not exercise an extraction timeout, and its different search
+results do not establish a latency improvement. Original-course discovery and
+end-to-end completion remain unmet production gates.
+
+Local validation passed **792 tests**, **100 benchmark cases**, mypy across
+**50 modules**, Ruff/format, wheel build and Twine. Added cases cover the original
+course through a timed-out optional source, required-source failure, link/depth/
+registry limits, cached failure, external and enclosing cancellation, expired
+deadlines, transport timeouts and late results after suppressed cancellation.

@@ -280,6 +280,21 @@ tool budget. Required-source failures still abort, optional failures remain part
 and external cancellation propagates without caching a completed failure. The
 total run deadline and model-request limits are unchanged.
 
+`SourceBackend.read` accepts a keyword-only absolute `deadline` on the event loop's
+monotonic clock. The controller places it inside the hard tool deadline, reserving
+at most 50 ms (10% for very short budgets) for a staged adapter to return
+already observed navigation. Adapters cannot extend the outer timeout. The public
+source adapter uses that deadline only around extraction, after retrieval finishes.
+If extraction expires, only independently validated links can survive: the source
+remains unavailable, its evidence is empty, and coverage remains partial. An already
+expired extraction deadline does not start another model request. Late results from
+an extractor that suppresses cancellation are discarded.
+
+This recovery does not catch external cancellation, the overall research deadline,
+model HTTP/budget failures or a transport timeout raised before the local deadline.
+Required-source failures still abort. Browser protocol, permissions and authentication
+are unchanged; the deadline is application-owned and never a model tool argument.
+
 ## Geographic Coverage
 
 Area search resolves exact city names and aliases against the pinned offline
@@ -398,9 +413,10 @@ failed extraction nor the untrusted navigation text. Linked sources require sepa
 reads and establish their own facts; the original page stays unavailable in the source
 report.
 
-This recovery applies only to exhausted evidence validation on a public page with
-admissible navigation. Required-source failures still abort even if linked details
-succeed; no valid facts across all attempted sources cannot publish an empty success.
+This recovery applies only to exhausted evidence validation or a local extraction
+deadline on a public page with admissible navigation. Required-source failures still
+abort even if linked details succeed; no valid facts across all attempted sources
+cannot publish an empty success.
 Model transport failures, request budgets, cancellation, invalid browser observations
 and URL-policy violations do not become navigation-only success. No new retry,
 authentication permission or source/read budget is introduced.

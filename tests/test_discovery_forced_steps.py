@@ -53,10 +53,10 @@ def test_forced_required_failure_aborts_instead_of_finishing_other_candidates():
     backend = ReplayBackend()
     original = backend.read
 
-    async def read(source_id, query):
+    async def read(source_id, query, *, deadline=None):
         if source_id == "dated-registration":
             raise SourceUnavailable()
-        return await original(source_id, query)
+        return await original(source_id, query, deadline=deadline)
 
     backend.read = read
     model = AsyncMock(side_effect=AssertionError("A failed required detail must abort"))
@@ -147,7 +147,7 @@ def test_forced_reads_respect_overall_timeout_and_cancellation(cancel):
     async def scenario():
         backend = ReplayBackend()
 
-        async def slow(*args):
+        async def slow(*args, **kwargs):
             if cancel:
                 raise asyncio.CancelledError()
             await asyncio.sleep(1)
