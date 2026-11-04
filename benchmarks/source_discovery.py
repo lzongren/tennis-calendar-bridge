@@ -10,10 +10,11 @@ import re
 import time
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import parse_qs, urlsplit
 
 from pydantic import SecretStr
+from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RunUsage
 
 from tennis_overview.browser_documents import BrowserDocument
@@ -36,6 +37,28 @@ FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 REPLAY_URL = "https://club.example.org/adults"
 BROWSER_URL = "https://app.courtreserve.com/Online/Events/Details/12345/EXAMPLE?resId=123&tab=dates"
 CAPTURE_TIME = datetime(2026, 11, 2, 18, tzinfo=timezone.utc)
+ExtractionSampling = Literal["baseline", "qwen3-coder"]
+
+
+def configure_extraction_sampling(extractor: CourseExtractor, profile: ExtractionSampling) -> None:
+    """Benchmark-only sampling; do not change production defaults or evidence policy."""
+    if profile == "baseline":
+        return
+    if profile != "qwen3-coder":
+        raise ValueError("Unknown extraction sampling profile")
+    current = extractor.agent.model_settings
+    if callable(current):
+        raise ValueError("Sampling requires static model settings")
+    settings: ModelSettings = current or {}
+    extra = settings.get("extra_body") or {}
+    if not isinstance(extra, dict):
+        raise ValueError("Sampling requires object-valued model settings")
+    extractor.agent.model_settings = {
+        **settings,
+        "temperature": 0.7,
+        "top_p": 0.8,
+        "extra_body": {**extra, "top_k": 20, "repetition_penalty": 1.05},
+    }
 
 
 class StalledExtractor(CourseExtractor):
@@ -113,6 +136,7 @@ async def evaluate(
     case: str = "ongoing",
     source_url: str = "",
     expected_url: str = "",
+    extractor_sampling: ExtractionSampling = "baseline",
 ) -> list[dict[str, Any]]:
     observations = []
     async with private_model(config) as model:
@@ -274,6 +298,7 @@ async def evaluate(
                     backend.searcher = refinement_search
                     backend.refiner = refinement
                     backend.initial_urls = ()
+            configure_extraction_sampling(backend.extractor, extractor_sampling)
             reader, searcher, refiner = backend.reader, backend.searcher, backend.refiner
 
             async def measured_read(url: str) -> Page | BrowserDocument:
@@ -479,6 +504,12 @@ def main() -> None:
     )
     parser.add_argument("--repeats", type=int, default=2, choices=range(1, 4))
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--extractor-sampling",
+        choices=("baseline", "qwen3-coder"),
+        default="baseline",
+        help="Experimental extraction-only sampling; does not alter planner or production defaults",
+    )
     args = parser.parse_args()
     if args.live_web and args.case not in {
         "ongoing",
@@ -513,10 +544,17 @@ def main() -> None:
                 case=args.case,
                 source_url=args.source_url,
                 expected_url=args.expected_source_url,
+                extractor_sampling=args.extractor_sampling,
             )
         )
         json.dump(
-            {"live_web": args.live_web, "case": args.case, "rows": rows, "network_audit": audit},
+            {
+                "live_web": args.live_web,
+                "case": args.case,
+                "extractor_sampling": args.extractor_sampling,
+                "rows": rows,
+                "network_audit": audit,
+            },
             output,
             indent=2,
         )
