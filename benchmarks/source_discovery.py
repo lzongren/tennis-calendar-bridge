@@ -37,6 +37,8 @@ REPLAY_URL = "https://club.example.org/adults"
 BROWSER_URL = "https://app.courtreserve.com/Online/Events/Details/12345/EXAMPLE?resId=123&tab=dates"
 CAPTURE_TIME = datetime(2026, 11, 2, 18, tzinfo=timezone.utc)
 LOCATION_PORTAL = "https://portal.example.org/303"
+HOP_OPERATOR = "https://operator.example.org/"
+HOP_ENTRY = "https://operator.example.org/register"
 
 
 class StalledExtractor(CourseExtractor):
@@ -131,7 +133,7 @@ async def evaluate(
                 timezone="America/Los_Angeles",
                 start=date(2026, 11, 3) if case == "anonymous-series" else date(2026, 11, 1),
                 search_mode="area"
-                if case in {"source-refinement", "location-navigation"}
+                if case in {"source-refinement", "location-navigation", "registration-hop"}
                 or live
                 and case not in {"anonymous", "anonymous-series"}
                 else "source_check",
@@ -198,6 +200,18 @@ async def evaluate(
                         extractor, usage, limits.model_requests
                     )
                     backend.clock = lambda: CAPTURE_TIME
+                if case == "registration-hop":
+                    page = Page(
+                        REPLAY_URL,
+                        "Facility directory",
+                        "Public adult tennis facility listing.",
+                        (HOP_OPERATOR,),
+                        link_details=(PageLink(HOP_OPERATOR, "Facility reference", "same_as"),),
+                    )
+                    backend.extractor = EmptyDirectoryExtractor(
+                        extractor, usage, limits.model_requests
+                    )
+                    backend.clock = lambda: CAPTURE_TIME
                 if case == "quoted":
                     page = Page(
                         REPLAY_URL,
@@ -236,7 +250,13 @@ async def evaluate(
                 async def replay_read(url: str) -> Page | BrowserDocument:
                     replay_reads.append(url)
                     if (
-                        case in {"extraction-deadline", "source-refinement", "location-navigation"}
+                        case
+                        in {
+                            "extraction-deadline",
+                            "source-refinement",
+                            "location-navigation",
+                            "registration-hop",
+                        }
                         and url == BROWSER_URL
                     ):
                         return BrowserDocument(
@@ -247,6 +267,22 @@ async def evaluate(
                             ).read_text(),
                             CAPTURE_TIME,
                         )
+                    if case == "registration-hop":
+                        hops = {
+                            HOP_OPERATOR: ("Adult tennis", HOP_ENTRY, "Register now"),
+                            HOP_ENTRY: ("Registration", LOCATION_PORTAL, "Registration portal"),
+                            LOCATION_PORTAL: ("Adult classes", BROWSER_URL, "Dated clinic"),
+                        }
+                        if url in hops:
+                            title, target_url, label = hops[url]
+                            return Page(
+                                url,
+                                title,
+                                "Published adult tennis registration navigation.",
+                                (target_url,),
+                                link_details=(PageLink(target_url, label),),
+                                required_links=(target_url,) if url == LOCATION_PORTAL else (),
+                            )
                     if (
                         case == "location-navigation"
                         and isinstance(page, Page)
@@ -278,7 +314,7 @@ async def evaluate(
                 backend.reader = replay_read
                 backend.searcher = empty_search
                 backend.initial_urls = (replay_url,)
-                if case in {"extraction-deadline", "location-navigation"}:
+                if case in {"extraction-deadline", "location-navigation", "registration-hop"}:
 
                     async def replay_search(
                         city: str, level: str, year: int, focus: str
@@ -345,6 +381,7 @@ async def evaluate(
                     "extraction-deadline",
                     "source-refinement",
                     "location-navigation",
+                    "registration-hop",
                 }:
                     target = "app.courtreserve.com"
                 matching = [
@@ -384,6 +421,7 @@ async def evaluate(
                     "extraction-deadline",
                     "source-refinement",
                     "location-navigation",
+                    "registration-hop",
                 }:
                     expected = json.loads(
                         (FIXTURES / "discovery_benchmark" / "nov2_registration.json").read_text()
@@ -427,6 +465,7 @@ async def evaluate(
                         "extraction-deadline",
                         "source-refinement",
                         "location-navigation",
+                        "registration-hop",
                     }:
                         checks["clinic_identity"] = len(matching) == 1 and bool(
                             re.search(
@@ -446,6 +485,14 @@ async def evaluate(
                         checks["location_selected_first"] = replay_reads[:2] == [
                             REPLAY_URL,
                             LOCATION_PORTAL,
+                        ]
+                    if case == "registration-hop":
+                        checks["observed_registration_path"] = replay_reads == [
+                            REPLAY_URL,
+                            HOP_OPERATOR,
+                            HOP_ENTRY,
+                            LOCATION_PORTAL,
+                            BROWSER_URL,
                         ]
                     if case == "extraction-deadline":
                         checks["deadline_navigation_retained"] = any(
@@ -510,6 +557,7 @@ def main() -> None:
             "extraction-deadline",
             "source-refinement",
             "location-navigation",
+            "registration-hop",
         ),
         default="ongoing",
     )
