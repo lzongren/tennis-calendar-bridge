@@ -208,8 +208,20 @@ def page_from_html(url: str, body: bytes) -> Page:
     )
 
 
+def search_subject(title: str) -> str:
+    """Turn observed public metadata into words, never search operators or instructions."""
+    subject = " ".join("".join(c if c.isalnum() else " " for c in title).split())
+    return subject if 3 <= len(subject) <= 120 and len(subject.split()) <= 16 else ""
+
+
+def validate_search_subject(subject: str) -> str:
+    if not subject or search_subject(subject) != subject:
+        raise ValueError("Use bounded plain words for an observed source subject")
+    return subject
+
+
 def search_courses(
-    location: str, level: str, year: int, focus: str | None = None
+    location: str, level: str, year: int, focus: str | None = None, *, subject: str = ""
 ) -> list[dict[str, str]]:
     from ddgs import DDGS
     from ddgs.engines import ENGINES
@@ -223,6 +235,10 @@ def search_courses(
     if focus not in queries:
         raise ValueError("Invalid search focus")
     query = queries[focus]
+    if subject:
+        if focus != "registration":
+            raise ValueError("Source refinement requires registration focus")
+        query = f"{validate_search_subject(subject)} {location} adult tennis clinics {year}"
     # Keep legacy behavior separate. Explicit selection avoids DDGS's unrestricted
     # provider fallback; Bing is disabled in the evaluated DDGS release.
     backend = "bing,duckduckgo" if focus is None else "yahoo"

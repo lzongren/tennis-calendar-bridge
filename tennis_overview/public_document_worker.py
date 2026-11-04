@@ -55,6 +55,7 @@ def search() -> int:
     request = json.loads(sys.stdin.buffer.read(4097))
     city, level, year = request["city"], request["level"], request["year"]
     focus = request.get("focus", "overview")
+    subject = request.get("subject", "")
     if (
         not isinstance(city, str)
         or not 1 <= len(city) <= 120
@@ -64,10 +65,15 @@ def search() -> int:
         or not 2000 <= year <= 2100
         or any(ord(c) < 32 for c in city + level)
         or focus not in {"overview", "registration", "schedule"}
+        or not isinstance(subject, str)
     ):
         return 1
     try:
-        results = search_courses(city, level, year, focus)
+        results = (
+            search_courses(city, level, year, focus, subject=subject)
+            if subject
+            else search_courses(city, level, year, focus)
+        )
     except DDGSException:
         # A provider failure or ambiguous no-results response is not an empty catalog.
         # EX_TEMPFAIL lets the parent use its bounded retry without exposing diagnostics.

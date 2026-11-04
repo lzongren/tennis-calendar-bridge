@@ -28,11 +28,12 @@ from .discovery_agent import (
     SourceFailureReason,
     SourceUnavailable,
 )
-from .public_documents import read_public_document, search_public_courses
-from .public_web import Page, PageLink, public_url
+from .public_documents import read_public_document, refine_public_courses, search_public_courses
+from .public_web import Page, PageLink, public_url, search_subject
 
 Reader = Callable[[str], Awaitable[Page | BrowserDocument]]
 Searcher = Callable[[str, str, int, str], Awaitable[list[dict[str, str]]]]
+Refiner = Callable[[str, str, int], Awaitable[list[dict[str, str]]]]
 
 # Six live queries admit at most 24 results, leaving room in the 48-source
 # registry for operator-linked schedules and registration details.
@@ -82,6 +83,7 @@ class PublicSource:
     status: str = "not_read"
     page: Page | None = None
     failure_reason: SourceFailureReason | None = None
+    refinement_subject: str = ""
 
 
 @dataclass
@@ -96,6 +98,7 @@ class PublicSourceBackend:
     search_failed: bool = False
     truncated: bool = False
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
+    refiner: Refiner = refine_public_courses
 
     def register(self, url: str, title: str, depth: int) -> SourceRef | None:
         url = public_url(url)
@@ -159,12 +162,39 @@ class PublicSourceBackend:
             required_ids=tuple(dict.fromkeys(required))[:4],
         )
 
+    async def refine(self, source_id: str, request: DiscoveryRequest) -> SearchResults:
+        source = self.sources.get(source_id)
+        if (
+            request.search_mode != "area"
+            or source is None
+            or source.status != "checked"
+            or not source.refinement_subject
+        ):
+            raise SourceUnavailable("Source is not eligible for refinement")
+        candidates = await self.refiner(source.refinement_subject, request.city, request.start.year)
+        refs: dict[str, SourceRef] = {}
+        for candidate in candidates:
+            try:
+                url = public_url(candidate["url"])
+                if url == source.url or identity(url) in refs:
+                    continue
+                if len(refs) >= AREA_RESULTS_PER_QUERY:
+                    self.truncated = True
+                    break
+                ref = self.register(url, candidate["title"], 0)
+            except (KeyError, ValueError):
+                continue
+            if ref:
+                refs[ref.id] = ref
+        return SearchResults(sources=tuple(refs.values()), partial=True)
+
     async def read(
         self, source_id: str, request: DiscoveryRequest, *, deadline: float | None = None
     ) -> SourceDocument:
         if source_id not in self.sources:
             raise SourceUnavailable("Undiscovered source")
         source = self.sources[source_id]
+        source.refinement_subject = ""
         try:
             document = await self.reader(source.url)
             registration = None
@@ -320,6 +350,10 @@ class PublicSourceBackend:
             source.failure_reason = (
                 SourceFailureReason.EVIDENCE_INVALID if evidence_unavailable else None
             )
+            if not (evidence_unavailable or records or required or navigation):
+                source.refinement_subject = search_subject(
+                    page.heading or page.title.split(" | ")[0]
+                )
             return SourceDocument(
                 source=source.ref,
                 text=page.text,
@@ -329,6 +363,7 @@ class PublicSourceBackend:
                 navigation_ids=tuple(dict.fromkeys(navigation)),
                 partial=partial,
                 evidence_unavailable=evidence_unavailable,
+                refinement_available=bool(source.refinement_subject),
             )
         except SourceUnavailable as error:
             source.status = "unavailable"

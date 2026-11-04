@@ -50,6 +50,13 @@ class StalledExtractor(CourseExtractor):
             self.cancelled += 1
 
 
+class EmptyDirectoryExtractor(CourseExtractor):
+    """Fixed empty directory evidence; refinement replay measures the real planner only."""
+
+    async def extract(self, page: Page, request: DiscoveryRequest) -> tuple[CourseCandidate, ...]:
+        return ()
+
+
 async def empty_search(city: str, level: str, year: int, focus: str) -> list[dict[str, str]]:
     return []
 
@@ -119,7 +126,9 @@ async def evaluate(
                 timezone="America/Los_Angeles",
                 start=date(2026, 11, 3) if case == "anonymous-series" else date(2026, 11, 1),
                 search_mode="area"
-                if live and case not in {"anonymous", "anonymous-series"}
+                if case == "source-refinement"
+                or live
+                and case not in {"anonymous", "anonymous-series"}
                 else "source_check",
             )
             usage = RunUsage()
@@ -136,6 +145,7 @@ async def evaluate(
                     SecretStr(os.environ["TENNIS_DISCOVERY_BROWSER_KEY"]),
                 )
                 backend.reader = client.read
+                backend.refiner = client.refine
                 if case in {"anonymous", "anonymous-series"}:
                     backend.searcher = empty_search
                     backend.initial_urls = (read_url(source_url),)
@@ -159,6 +169,18 @@ async def evaluate(
                         link_details=(PageLink(BROWSER_URL, "Adult clinic registration"),),
                     )
                     backend.extractor = StalledExtractor(extractor, usage, limits.model_requests)
+                    backend.clock = lambda: CAPTURE_TIME
+                if case == "source-refinement":
+                    page = Page(
+                        REPLAY_URL,
+                        "Directory",
+                        "No dated courses on this public directory.",
+                        (),
+                        heading="Example Activities: Example City",
+                    )
+                    backend.extractor = EmptyDirectoryExtractor(
+                        extractor, usage, limits.model_requests
+                    )
                     backend.clock = lambda: CAPTURE_TIME
                 if case == "quoted":
                     page = Page(
@@ -196,7 +218,7 @@ async def evaluate(
                     backend.clock = lambda: capture_time
 
                 async def replay_read(url: str) -> Page | BrowserDocument:
-                    if case == "extraction-deadline" and url == BROWSER_URL:
+                    if case in {"extraction-deadline", "source-refinement"} and url == BROWSER_URL:
                         return BrowserDocument(
                             BROWSER_URL,
                             "Anonymous clinic",
@@ -204,6 +226,14 @@ async def evaluate(
                                 FIXTURES / "discovery_benchmark/courtreserve_anonymous_detail.html"
                             ).read_text(),
                             CAPTURE_TIME,
+                        )
+                    if case == "source-refinement" and url == "https://operator.example.org/adults":
+                        return Page(
+                            url,
+                            "Adult lessons",
+                            "Dated adult clinic registration",
+                            (BROWSER_URL,),
+                            required_links=(BROWSER_URL,),
                         )
                     if url != replay_url:
                         raise ValueError("Replay source outside fixture")
@@ -221,7 +251,30 @@ async def evaluate(
 
                     backend.searcher = replay_search
                     backend.initial_urls = ()  # Optional overview, not a required detail.
-            reader, searcher = backend.reader, backend.searcher
+                if case == "source-refinement":
+
+                    async def refinement_search(
+                        city: str, level: str, year: int, focus: str
+                    ) -> list[dict[str, str]]:
+                        return [{"url": REPLAY_URL, "title": "Public operator directory"}]
+
+                    async def refinement(
+                        subject: str, city: str, year: int
+                    ) -> list[dict[str, str]]:
+                        if (subject, city, year) != (
+                            "Example Activities Example City",
+                            "Example City",
+                            2026,
+                        ):
+                            raise ValueError("Refinement outside observed fixture")
+                        return [
+                            {"url": "https://operator.example.org/adults", "title": "Adult lessons"}
+                        ]
+
+                    backend.searcher = refinement_search
+                    backend.refiner = refinement
+                    backend.initial_urls = ()
+            reader, searcher, refiner = backend.reader, backend.searcher, backend.refiner
 
             async def measured_read(url: str) -> Page | BrowserDocument:
                 with metrics.measure("source_read"):
@@ -235,6 +288,12 @@ async def evaluate(
 
             backend.reader = measured_read
             backend.searcher = measured_search
+
+            async def measured_refine(subject: str, city: str, year: int) -> list[dict[str, str]]:
+                with metrics.measure("search"):
+                    return await refiner(subject, city, year)
+
+            backend.refiner = measured_refine
             started = time.monotonic()
             try:
                 run = await run_discovery_agent(
@@ -243,7 +302,13 @@ async def evaluate(
                 result = backend.result(run, request)
                 courses = result["courses"]
                 target = "www.sjsrc.com" if live else "club.example.org"
-                if case in {"browser", "anonymous", "clinic-search", "extraction-deadline"}:
+                if case in {
+                    "browser",
+                    "anonymous",
+                    "clinic-search",
+                    "extraction-deadline",
+                    "source-refinement",
+                }:
                     target = "app.courtreserve.com"
                 matching = [
                     course
@@ -275,7 +340,13 @@ async def evaluate(
                     checks["quoted_title"] = any(
                         course["title"] == "Adult Coach Clinic" for course in matching
                     )
-                elif case in {"browser", "anonymous", "clinic-search", "extraction-deadline"}:
+                elif case in {
+                    "browser",
+                    "anonymous",
+                    "clinic-search",
+                    "extraction-deadline",
+                    "source-refinement",
+                }:
                     expected = json.loads(
                         (FIXTURES / "discovery_benchmark" / "nov2_registration.json").read_text()
                     )["expected"]
@@ -312,12 +383,25 @@ async def evaluate(
                         "series_incomplete": result["partial"],
                         "request_budget": usage.requests <= limits.model_requests,
                     }
-                    if case in {"anonymous", "clinic-search", "extraction-deadline"}:
+                    if case in {
+                        "anonymous",
+                        "clinic-search",
+                        "extraction-deadline",
+                        "source-refinement",
+                    }:
                         checks["clinic_identity"] = len(matching) == 1 and bool(
                             re.search(
                                 r"Adult Coach.*Clinic.*NTRP 2\.5 - 3\.0.*MON 6:30PM - Fall 2",
                                 matching[0]["title"],
                             )
+                        )
+                    if case == "source-refinement":
+                        checks["refinement_used_once"] = (
+                            sum(
+                                event.tool == "refine_source" and event.outcome == "ok"
+                                for event in run.audit
+                            )
+                            == 1
                         )
                     if case == "extraction-deadline":
                         checks["deadline_navigation_retained"] = any(
@@ -379,6 +463,7 @@ def main() -> None:
             "anonymous-series",
             "clinic-search",
             "extraction-deadline",
+            "source-refinement",
         ),
         default="ongoing",
     )

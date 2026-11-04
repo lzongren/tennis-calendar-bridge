@@ -9,7 +9,7 @@ from urllib.parse import parse_qsl, urlsplit
 from pydantic import AwareDatetime, Field, model_validator
 
 from .course_evidence import EvidenceModel
-from .public_web import public_url
+from .public_web import public_url, validate_search_subject
 
 Text = Annotated[str, Field(max_length=240)]
 AUTH_HOST = "app.courtreserve.com"
@@ -87,15 +87,20 @@ class BrowserRequest(EvidenceModel):
     level: Text = ""
     year: int | None = Field(default=None, ge=2000, le=2100, strict=True)
     focus: Literal["overview", "registration", "schedule"] = "overview"
+    subject: Annotated[str, Field(max_length=120)] = ""
 
     @model_validator(mode="after")
     def validate_operation(self) -> BrowserRequest:
         if self.operation == "read":
             read_url(self.url)
-            if self.city or self.level:
+            if self.city or self.level or self.subject:
                 raise ValueError("Read accepts a discovered URL only")
         elif self.url or not self.city.strip() or self.year is None:
             raise ValueError("Search requires a city, not a URL")
+        if self.subject:
+            if self.focus != "registration":
+                raise ValueError("Source refinement requires registration focus")
+            validate_search_subject(self.subject)
         return self
 
 

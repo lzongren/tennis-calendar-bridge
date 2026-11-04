@@ -44,12 +44,20 @@ async def read_public_document(url: str, *, timeout: float = 20) -> Page:
 
 
 async def search_public_courses(
-    city: str, level: str, year: int, focus: str = "overview"
+    city: str, level: str, year: int, focus: str = "overview", *, subject: str = ""
 ) -> list[dict[str, str]]:
     """Anonymous public search, without inheriting model or portal credentials."""
     output = await run_public_worker(
         "search",
-        json.dumps({"city": city, "level": level, "year": year, "focus": focus}).encode("utf-8"),
+        json.dumps(
+            {
+                "city": city,
+                "level": level,
+                "year": year,
+                "focus": focus,
+                **({"subject": subject} if subject else {}),
+            }
+        ).encode("utf-8"),
         timeout=20,
     )
     try:
@@ -59,6 +67,14 @@ async def search_public_courses(
         return [{"url": public_url(row["url"]), "title": row["title"][:240]} for row in results]
     except (ValueError, KeyError):
         raise SourceUnavailable("Public search failed") from None
+
+
+async def refine_public_courses(subject: str, city: str, year: int) -> list[dict[str, str]]:
+    from .public_web import validate_search_subject
+
+    return await search_public_courses(
+        city, "", year, "registration", subject=validate_search_subject(subject)
+    )
 
 
 async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> bytes:

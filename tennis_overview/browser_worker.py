@@ -135,7 +135,17 @@ def child_reply(request: BrowserRequest, root: Path, scratch: Path | None) -> di
     try:
         if request.operation == "search":
             assert request.year is not None
-            links = search_courses(request.city, request.level, request.year, request.focus)
+            links = (
+                search_courses(
+                    request.city,
+                    request.level,
+                    request.year,
+                    request.focus,
+                    subject=request.subject,
+                )
+                if request.subject
+                else search_courses(request.city, request.level, request.year, request.focus)
+            )
             reply = BrowserReply(
                 kind="search", links=tuple(BrowserLink.model_validate(link) for link in links)
             )

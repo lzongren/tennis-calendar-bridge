@@ -43,7 +43,7 @@ class BrowserClient:
             raise ValueError("A dedicated browser credential is required")
 
     async def call(self, request: BrowserRequest) -> BrowserReply:
-        body = request.model_dump_json()
+        body = request.model_dump_json(exclude={"subject"} if not request.subject else None)
         if self.key.get_secret_value() in body:
             raise AgentDiscoveryError("Credential-bearing browser request blocked")
         try:
@@ -137,6 +137,15 @@ class BrowserClient:
     async def search(self, city: str, level: str, year: int, focus: str) -> list[dict[str, str]]:
         request = BrowserRequest.model_validate(
             {"operation": "search", "city": city, "level": level, "year": year, "focus": focus}
+        )
+        reply = await self.call(request)
+        if reply.kind != "search":
+            raise AgentDiscoveryError("Unexpected browser search response")
+        return [{"url": read_url(link.url), "title": link.title} for link in reply.links]
+
+    async def refine(self, subject: str, city: str, year: int) -> list[dict[str, str]]:
+        request = BrowserRequest(
+            operation="search", city=city, year=year, focus="registration", subject=subject
         )
         reply = await self.call(request)
         if reply.kind != "search":

@@ -50,6 +50,13 @@ organization context; cookies and bearer headers are never sent there. The event
 list query remains same-origin. A member-only catalog returns
 `membership_required`, not a successful empty catalog or an automatic login retry.
 The worker still navigates the rendered UI, not a separate club API client.
+
+Source-derived refinement uses the same anonymous search operation with a bounded
+plain-word `subject` and `registration` focus. It adds no browser actions or profile
+access. Deploy a worker version supporting this optional field before enabling the
+matching agent; an older worker rejects it. Ordinary searches and reads omit the
+field, preserving their previous wire format. There is no fallback to another
+host, saved login profile or search provider when refinement fails.
 Private destinations, writes, WebSockets, downloads, and known
 action URLs are blocked. CourtReserve document navigation is restricted to
 portal, event-list, and event-detail paths. Navigation uses observed read-only
