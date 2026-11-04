@@ -1344,3 +1344,10 @@ Local validation passed **780 tests**, **96 benchmark cases**, mypy across
 **50 modules**, Ruff/format, wheel build and Twine. Four new deterministic cases
 cover source-only prompt data, rejection of a borrowed year, undated candidates,
 and retention of weekday/time evidence without generating dated sessions.
+
+The subsequent unseeded anonymous real-web run still failed at **300.04s**:
+14 completed model requests, 30 registered sources and three checked sources.
+The trace contains 16 model attempts, including two cancelled extractions. The
+scorer-only original occurrence URL was not supplied to the agent. No original-course
+recall or bounded end-to-end completion was established. These live results remain
+an unmet production gate; the nine passing extraction replays do not supersede it.
