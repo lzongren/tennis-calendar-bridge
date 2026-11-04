@@ -1688,3 +1688,52 @@ deduplication, priority and serialization, plus a source-controlled replay of th
 original anonymous facts. Both live runs used temporary anonymous workers and
 stopped them afterward. No saved profile, model service, production runtime or
 ingress changed. The production acceptance gate remains unmet.
+
+## Budgeted Facility Reference Attempts: 2026-11-03
+
+Retaining identity links did not make the planner visit them. A priority-only
+candidate still finished its unseeded search without reading those references:
+223.56s, five courses, six checked sources, 12 model requests, 15 tool operations,
+partial coverage and zero denied tool attempts. Original-course checks failed.
+A controlled-source real-model replay also completed too early and failed the
+single-reference facts, evidence and navigation checks.
+
+Adding only a completion gate exposed a separate model/tool compatibility issue.
+The single-reference replay passed **0/3** runs: the model repeatedly
+returned `finish_discovery` while only `read_source` was advertised, exhausting the
+unknown-tool retry limit. A two-reference variation with clearer identity labels
+passed its separate single run. These are retained negative results, not evidence
+that changing a prompt reliably fixes the failure.
+
+The final candidate attempts observed identity references after mandatory coverage
+while read capacity remains. When the whole known reference set fits, the
+application executes it through the existing read boundary in discovery order,
+rechecking higher-priority obligations after each read. Larger sets remain planner
+choices. Failed references count as attempted, not verified; exhausted capacity
+may still return validated partial evidence. No budget or URL authority expands.
+
+The final real-model, controlled-source replay passed **9/9**: three repetitions
+each of registration navigation, single-reference and multiple-reference cases.
+All retain the original anonymous course-fact oracle and reject premature reads of
+unrelated directories. Durations were 1.61-2.06s. Automatic reads reduce planner
+work, but these fixtures do not measure live discovery or establish a general
+latency improvement. Cases where the reference set exceeds remaining capacity
+still depend on the model's tool compliance.
+
+The final unseeded live run completed in **185.11s**, returning five courses with
+partial coverage, 24 completed model requests, 18 tool operations, nine checked
+sources and zero denied tool attempts. It followed the target facility directory
+to the operator homepage, then its registration entry, and also attempted the
+identity profile. This is a live traversal improvement, but it still missed the
+original course. Identity, exact registration facts and source-evidence checks
+failed; the queue check failed its nonempty-match prerequisite, not because a
+personal queue position was inferred. The expected detail URL remained scorer-only.
+One extractor timed out, another failed after invalid outputs, and several others
+recovered through retries. Different live paths preclude a latency comparison.
+
+Validation passed **900 tests**, including **135 benchmark cases**, mypy across
+**50 modules**, Ruff/format and wheel build. Tests cover reference ownership,
+mandatory coverage priority, read exhaustion, failure caching, shared tool limits
+and unchanged focused-source behavior. The temporary anonymous worker stopped.
+No saved profile, production runtime, model service or ingress changed. Original
+course recall and registration-entry traversal remain production blockers.

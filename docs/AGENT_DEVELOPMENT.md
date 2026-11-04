@@ -133,8 +133,11 @@ Focused `source_check` retains its existing instructions and `Agent.run` path.
 Area mode drives the Pydantic AI graph with `Agent.iter`. Before a model request,
 the application executes mandatory reads only while the allowed priority set has
 exactly one ID. Each uses the normal read method, including its audit, retry policy,
-source validation and budgets. Multiple choices and optional links remain with the
-planner. Completed observations are enqueued as structured input data, not invented
+source validation and budgets. After mandatory coverage, it also attempts observed
+facility identity references in discovery order when the entire known set fits the
+remaining read budget. Each read rechecks higher-priority obligations. Larger sets
+and other optional choices remain with the planner. Completed observations are
+enqueued as structured input data, not invented
 assistant/tool messages or system instructions.
 
 If no unread sources remain, the application calls the same completion validator
@@ -184,6 +187,14 @@ required course-detail read, but defers optional linked navigation. This prevent
 one operator's signup links from consuming the budget before other search groups
 are inspected. After that breadth pass, all outstanding navigation attempts remain
 mandatory. Budgets and required-detail failure handling are unchanged.
+
+After mandatory coverage, adapter-owned `reference_ids` take priority over unrelated
+optional reads. These are discovered facility identity links, not verified facts or
+an authorization to log in. Completion requires attempting them only while read
+capacity remains; failed references count as attempted, and exhausted capacity may
+still return validated partial evidence. Required-detail, navigation, search-group
+and no-results checks remain authoritative. Schema visibility, read guards and
+completion use the same pending-reference set. `source_check` is unchanged.
 
 Each model turn also receives state-owned progress instructions: outstanding query
 phases, required detail IDs, registration navigation, unattempted source groups and

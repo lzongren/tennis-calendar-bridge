@@ -136,7 +136,10 @@ def test_bad_metadata_does_not_break_ordinary_course_links(raw):
 
 @pytest.mark.benchmark
 def test_directory_reference_reaches_original_anonymous_course_facts_in_replay():
-    directory = page({"@context": "https://schema.org", "@graph": [entity()]})
+    directory = page(
+        {"@context": "https://schema.org", "@graph": [entity()]},
+        '<a href="https://other.example.org/tennis">Other tennis directory</a>',
+    )
     operator = Page(
         OPERATOR, "Adult clinics", "Public registration", (DETAIL,), required_links=(DETAIL,)
     )
@@ -164,6 +167,10 @@ def test_directory_reference_reaches_original_anonymous_course_facts_in_replay()
 
     def respond(messages, info):
         if reads == [DIRECTORY]:
+            tool = next(tool for tool in info.function_tools if tool.name == "read_source")
+            assert tool.parameters_json_schema["properties"]["source_id"]["enum"] == [
+                identity(OPERATOR)
+            ]
             return ModelResponse([ToolCallPart("read_source", {"source_id": identity(OPERATOR)})])
         assert reads == [DIRECTORY, OPERATOR, DETAIL]
         return ModelResponse([ToolCallPart("finish_discovery", {"outcome": "sources_checked"})])

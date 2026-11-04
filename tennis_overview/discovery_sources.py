@@ -310,6 +310,7 @@ class PublicSourceBackend:
                     self.details[key] = course
             linked: dict[str, SourceRef] = {}
             navigation = []
+            references = []
             ranked_links = related_links(page)
             if source.depth < 2:
                 for link in ranked_links[:6]:
@@ -318,6 +319,8 @@ class PublicSourceBackend:
                     )
                     if ref:
                         linked[ref.id] = ref
+                        if link.relation == "same_as":
+                            references.append(ref.id)
                         # A general signup route needs an area-search attempt, not
                         # successful course verification or an authenticated fallback.
                         if not registration and REGISTRATION_LINK.search(
@@ -363,6 +366,7 @@ class PublicSourceBackend:
                 links=tuple(linked.values()),
                 required_ids=tuple(dict.fromkeys(required)),
                 navigation_ids=tuple(dict.fromkeys(navigation)),
+                reference_ids=tuple(dict.fromkeys(references)),
                 partial=partial,
                 evidence_unavailable=evidence_unavailable,
                 refinement_available=bool(source.refinement_subject),
