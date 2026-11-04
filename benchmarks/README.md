@@ -47,6 +47,21 @@ scorer rejects skipped navigation even when another course is already present.
 These are controlled transcripts, not proof of live-web discovery; the original
 unseeded clinic case remains a separate acceptance gate.
 
+Area planning uses a request-only state projection: the model receives the current
+read/refinement choices, bounded candidate summaries and a generic validation-retry
+indicator instead of replaying obsolete source IDs and tool exchanges. Eligible
+read choices retain discovery order, not opaque-ID sort order. Pydantic AI's
+framework transcript, the application's evidence and audit, coverage checks and
+budgets remain intact. `source_check` mode keeps its existing conversation path.
+The planner is asked for one advertised tool call per turn; this is a prompt, not
+a decoder guarantee or a replacement for tool validation.
+
+`tests/test_planner_frontier.py` checks outgoing context against the advertised
+read set, source ordering, preserved framework history, bounded summaries, retry
+feedback, unchanged request limits and original course facts. The navigation replay
+above still verifies source retrieval and membership/injection behavior. A compact
+request alone is not proof of improved live-model choices or successful discovery.
+
 Use `--suite priority --search-mode area` to replay the original course evidence with
 three extra general-information links competing with its observed registration
 route. The scorer keeps the original facts and coverage assertions and additionally

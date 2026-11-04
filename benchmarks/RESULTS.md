@@ -1542,3 +1542,65 @@ The ephemeral worker stopped after the run; saved profiles and running services
 were untouched. Both Python 3.11 and 3.12 CI jobs passed. The failed full run does
 not invalidate the narrow component timing result, nor does that component result
 satisfy the original release gate.
+
+## Request-Only Planner Frontier: 2026-11-03
+
+Long-running searches exposed repeated planner selections of IDs outside the
+currently advertised read set. This candidate replaces only the outgoing area
+planner conversation with current eligible sources, bounded candidate summaries,
+recent action outcomes and a generic retry indicator. It preserves discovery order
+instead of sorting opaque IDs. Full framework history, evidence, audit, coverage
+checks and usage limits remain in application state. Source-check mode and
+extractor sampling are unchanged. The planner also receives the single-call
+instruction evaluated separately in PR #31; this is not a decoder constraint.
+
+Real Qwen/Rapid-MLX navigation replay, one observation per scenario:
+
+| Scenario | Baseline | Final candidate | Checks |
+| --- | --- | --- | --- |
+| Registration navigation | 6.35s | 4.94s | Both pass |
+| Membership restriction | 1.98s | 1.10s | Both pass |
+| Hostile navigation metadata | 1.99s | 1.09s | Both pass |
+
+Each run used two model requests. Tool counts remained 10, 8 and 10 respectively.
+Both processes recorded one model connection and zero blocked network, DNS or
+process attempts. Sources were replayed, not fetched live; the injection result
+does not prove general prompt-injection resistance. Sequential runs and model
+cache state prevent attributing the timing difference to this change alone.
+
+An intermediate candidate sorted source IDs and omitted the single-call prompt.
+Its unseeded live search still timed out at **300.01s**, with 13 completed model
+requests, 31 registered sources and four checked sources. All eight returned read
+selections were in the advertised set, but it did not reach the original clinic.
+Completed planner inputs ranged from 1,669 to 4,277 tokens. Two extractions exhausted
+their local deadlines. This is evidence about that run's choice validity and
+context size, not improved recall or end-to-end latency. The failed observation
+was retained rather than replaced by the final candidate's results.
+
+The final ordered-frontier candidate also **failed the unseeded original-course
+gate**: **250.32s**, 20 completed model requests, 43 registered sources and nine
+checked sources, ending in `AgentDiscoveryError`. The expected URL remained
+scorer-only. All 12 model-returned read IDs were in the advertised set, but the
+last was still offered after the 12-read budget had been spent (including a
+mandatory automatic read). The trace and execution guard are consistent with
+read-budget exhaustion; the sanitized error report does not expose its nested
+message. Earlier turns advertised completion, but the planner kept reading.
+
+Planner responses were 39-48 tokens; one was prose and required a retry. Planner
+input sizes ranged from 2,322 to 5,759 tokens. One extraction used an unadvertised
+tool before retrying, and another exhausted its local deadline. Public courses
+and dated pages were read, but the original clinic was not reached and no final
+discovery result was returned. Better choice validity in this sample does not
+establish recall or production readiness. Budget-aware tool advertisement,
+source selection and extractor reliability remain separate unresolved issues.
+The temporary anonymous worker stopped after the failed run. Keep this change
+as a draft, not a release or production deployment.
+
+Local checks passed **852 tests**, including **116 benchmark cases**, mypy across
+**50 modules**, Ruff and format checks. Browser tests require an environment that
+allows isolated Chrome processes; a sandboxed rerun failed six browser launches,
+then the full suite and benchmark subset passed outside that sandbox. Tests cover
+retained framework history, current-source schemas, source ordering, retry feedback,
+bounded summaries, unchanged request budgets and original course facts. Live
+captures and endpoint credentials remain outside the repository. No saved browser
+profile, running service, production configuration or ingress was changed.

@@ -108,19 +108,10 @@ def test_forced_observations_are_input_data_not_fabricated_calls_or_instructions
             for part in message.parts
             if isinstance(part, UserPromptPart)
         ]
-        observed = next(
-            item["completed_required_reads"]
-            for item in inputs
-            if "completed_required_reads" in item
-        )
-        searches = next(
-            item["completed_searches"] for item in inputs if "completed_searches" in item
-        )
-        assert searches[-1]["result"]["sources"][0]["title"] == HOSTILE_TEXT[:240]
-        assert [item["source"]["id"] for item in observed] == [
-            "seasonal-schedule",
-            "dated-registration",
-        ]
+        observed = inputs[0]["research_snapshot"]
+        assert observed["candidate_session_count"] == 1
+        assert [item["id"] for item in observed["read_sources"]] == [ref.id for ref in refs]
+        assert backend.read_calls == ["seasonal-schedule", "dated-registration"]
         assert "Untrusted optional title" not in info.instructions
         assert "collector.invalid" not in info.instructions
         assert info.output_tools
@@ -140,6 +131,10 @@ def test_forced_observations_are_input_data_not_fabricated_calls_or_instructions
         checks[key] for key in ("facts", "evidence", "retrieval", "neighbor_search", "safe_tools")
     )
     assert run.model_requests == 1 and run.partial
+    assert (
+        next(source for source in run.sources if source.id == "seasonal-schedule").title
+        == (HOSTILE_TEXT[:240])
+    )
 
 
 @pytest.mark.parametrize("cancel", [False, True])
