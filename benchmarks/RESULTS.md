@@ -1604,3 +1604,44 @@ retained framework history, current-source schemas, source ordering, retry feedb
 bounded summaries, unchanged request budgets and original course facts. Live
 captures and endpoint credentials remain outside the repository. No saved browser
 profile, running service, production configuration or ingress was changed.
+
+## Read-Budget Completion: 2026-11-03
+
+The preceding live run offered another read after consuming its read budget.
+This candidate removes exhausted read choices and, in area mode, runs the existing
+completion validator before making another model request. If coverage is already
+satisfied, it returns the evidence collected so far with the existing partial flag.
+If required details, registration navigation, search groups or no-results coverage
+remain incomplete, it still fails. It does not extend any budget or change the
+original-course factual scorer.
+
+Ten focused tests cover automatic and model-chosen last reads, exact original
+facts, conflicting dates, hostile metadata, a transient read, exhausted tool
+advertisement and incomplete mandatory/no-results coverage. Successful completion
+of this boundary is distinct from finding the original course on the live web.
+
+The isolated anonymous live search now returned normally: **237.03s**, 21 completed
+model requests, 18 tool operations, ten checked sources and five courses, with
+`partial=true` and zero denied tool attempts. Twelve source reads (one automatic)
+consumed the unchanged budget; no thirteenth read or final planner request was
+made. The expected registration URL remained scorer-only. The original clinic
+identity, registration facts and source-evidence checks still failed because that
+course was absent. The queue check also failed its nonempty-match prerequisite;
+this is not evidence that the agent invented a queue position.
+
+The previous candidate aborted at 250.32s instead of returning evidence. Live
+search results and chosen paths differed between runs, so these durations do not
+establish a latency improvement. This run reached the target operator's public
+directory but did not discover its exact course. One optional extraction again
+exhausted its deadline, and another required retries after an unadvertised tool
+and prose response. Source selection, exact-course recall and extraction reliability
+remain unresolved; normal completion does not satisfy the production gate.
+
+Real-model navigation replay also passed **3/3** (registration, membership denial,
+hostile navigation metadata), at 5.91s, 1.09s and 1.09s. Those sources are fixtures;
+this is regression coverage, not another live-web recall result.
+
+Validation passed **862 tests**, including **125 benchmark cases**, mypy across
+**50 modules**, Ruff/format and wheel build. The temporary anonymous worker stopped
+after the live run. No saved profile, production configuration, running service or
+ingress was changed.

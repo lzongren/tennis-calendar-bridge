@@ -667,6 +667,8 @@ class ResearchState:
         return tuple(sorted(priority | pending_details))
 
     def available_read_ids(self) -> tuple[str, ...]:
+        if self.read_attempts >= self.limits.reads:
+            return ()
         return self.coverage_read_ids() or tuple(
             sorted(self.registry.keys() - self.documents.keys() - self.failed_sources)
         )
@@ -906,11 +908,18 @@ async def run_discovery_agent(
                     if not Agent.is_model_request_node(node):
                         continue
                     completed_reads = await state.advance_required_reads()
-                    if not state.available_read_ids() and not state.refinement_ids():
+                    reads_exhausted = state.read_attempts >= state.limits.reads
+                    if reads_exhausted or (
+                        not state.available_read_ids() and not state.refinement_ids()
+                    ):
                         try:
                             state.complete(Completion(outcome="sources_checked"))
                         except ModelRetry:
-                            pass
+                            if reads_exhausted:
+                                raise AgentDiscoveryError(
+                                    "Discovery read budget exhausted before coverage completed; "
+                                    "previous results retained."
+                                ) from None
                         else:
                             return state.result(run.usage.requests)
                     if completed_reads:
