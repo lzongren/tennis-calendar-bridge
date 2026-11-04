@@ -1774,3 +1774,56 @@ Validation passed **906 tests**, including **137 benchmark cases**, mypy across
 **50 modules**, Ruff/format and wheel build. This is a source-registry correctness
 improvement, not a production recall pass. The anonymous discovery gate remains
 unmet; no production service, login profile, model service or ingress was changed.
+
+## Extraction Task Boundary Candidate: 2026-11-04
+
+An SDK isolation probe confirmed that nested extraction received the extraction
+instructions and numbered page lines, not the planner's research snapshot. A
+call-order probe passed eight legal-tool checks across a directory, dated page and
+planner requests. Replaying the problematic homepage and registration-entry requests
+then failed all six extraction tool-name checks, both before and after planner calls.
+These observations do not establish a shared model-cache or context-isolation bug.
+
+Two task-prefix prototypes were compared with the unchanged JSON-only prompt on
+five captured public pages, twice each. Requests retained temperature zero and
+unchanged tool definitions; variant order reversed on the second repetition.
+These direct-request diagnostics did not execute tools or apply SDK retries.
+
+| Batch | JSON-only oracle passes | Task-prefix oracle passes | Important failure |
+| --- | --- | --- | --- |
+| First prototype | 5/10 | 8/10 | Both undated-course samples became empty reports |
+| Preserve-undated candidate | 2/10 | 9/10 | One registration-entry sample emitted an unavailable tool |
+
+The first prototype is rejected. The second explicitly retains qualifying
+descriptions when schedule facts are absent. Both its dated samples retained the
+original November 2 time and $54 price, and both undated samples retained Live Ball
+without generating dates. The baseline varied between batches, including timeouts;
+these are small diagnostic samples, not a universal accuracy or latency comparison.
+
+The second candidate was then installed only in an isolated evaluation environment
+and tested through the actual `CourseExtractor` SDK path, with its normal bounded
+retry. It passed **8/10** checks. One registration-entry sample exhausted its retry
+after an unavailable tool call; one operator-page sample returned an empty report
+instead of its undated course. Both dated samples passed, one after a retry. All
+other successful samples used one request. The model-only network audit recorded
+one connection and zero blocked connections, DNS requests or processes.
+
+The unseeded anonymous live search completed in **125.17s**, with six courses,
+11 checked sources, 19 model requests, 18 tool operations, partial coverage and zero
+denied tool attempts. It reached the operator homepage and registration entry, but
+still missed the original course. Identity, registration facts and source-evidence
+checks failed; the queue check failed its nonempty-match prerequisite, not because
+a personal position was inferred. The expected detail URL remained scorer-only.
+An optional identity profile failed extraction after two text-only responses. The
+temporary anonymous worker stopped. Different live paths preclude a latency claim.
+
+Local validation passed **910 tests**, including **141 benchmark cases**, mypy
+across **50 modules**, Ruff/format, whitespace checks and wheel build. The new
+synthetic SDK tests cover navigation, dated and undated evidence and bounded
+unknown-tool rejection; their passing results do not negate the live failures.
+
+Consequently, this prompt candidate is **not accepted for merge or deployment**.
+Typed output and a passing synthetic suite cannot establish semantic recall.
+The candidate leaves sampling, output schema, evidence validation, retries, model
+budgets, navigation limits and source authority unchanged. No login fallback,
+saved profile, production runtime, model service or ingress change is included.

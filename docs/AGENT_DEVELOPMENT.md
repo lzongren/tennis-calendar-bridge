@@ -295,6 +295,12 @@ that span before date expansion; unsupported optional club/venue/level labels ar
 omitted rather than borrowed from other courses or the requested level.
 The extractor receives location, level and numbered source lines, not the requested
 calendar start or timezone. Python applies that window and timezone after grounding.
+The candidate extraction prompt prefixes that JSON with an explicit extraction-only
+task and asks the model to retain qualifying undated descriptions. This is a prompt
+experiment, not a security boundary: only `extract_courses` is exposed, and the
+existing evidence validation, retry and request budgets remain authoritative.
+Live SDK evaluation still missed an undated description and exhausted an unknown-tool
+retry; see `benchmarks/RESULTS.md`. Do not treat this candidate as production accepted.
 Required date fields may contain empty strings: an undated description stays undated,
 while published weekday/time quotes remain evidence without inventing a year. A year
 found only outside the selected span is still rejected, not silently removed to avoid a retry.

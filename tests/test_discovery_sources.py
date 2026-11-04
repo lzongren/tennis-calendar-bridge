@@ -18,6 +18,7 @@ from benchmarks.discovery_metrics import error_types
 
 from tennis_overview.agent_discovery import run_until_stopped
 from tennis_overview.course_extraction import (
+    EXTRACTION_TASK,
     CourseExtractor,
     ExtractedCourse,
     ExtractionReport,
@@ -290,7 +291,9 @@ def test_missing_courses_is_not_an_empty_result():
 @pytest.mark.benchmark
 def test_extractor_uses_source_dates_not_the_requested_calendar_window():
     async def respond(messages, info):
-        payload = json.loads(messages[-1].parts[0].content)
+        prompt = messages[-1].parts[0].content
+        assert prompt.startswith(EXTRACTION_TASK)
+        payload = json.loads(prompt.removeprefix(EXTRACTION_TASK))
         assert set(payload) == {"location", "level", "page_url", "page_lines"}
         assert payload["page_lines"] == list(map(list, enumerate(generic_page().text.splitlines())))
         return ModelResponse([ToolCallPart("extract_courses", {"courses": [quoted_course()]})])
