@@ -70,6 +70,14 @@ marketing. This does not grant URL-based tool access: reads still require a
 registered opaque ID, and changing a registered reference is rejected. Private,
 credential-bearing and personal subscription URLs cannot become these hints.
 
+The source registry retains the shortest observed depth for each URL. A direct
+search result can therefore become depth zero even if first seen as a linked page.
+This changes future link admission, not the source ID, existing evidence or cached
+observations. It does not reread cached pages or retroactively expand their links.
+Ordinary navigation still stops after two hops; discarded links mark the document
+partial even when fewer than six were present. Required course-detail handling and
+the shared read, source and tool budgets remain unchanged.
+
 In area mode, `refine_source(source_id)` can follow an operator named on a checked
 directory that has no course records or direct registration links. The tool accepts
 only an eligible source ID. Python derives up to 16 plain words (120 characters)
