@@ -20,13 +20,23 @@ def main() -> None:
     parser.add_argument("--executable", required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--port", type=int, default=8123)
+    parser.add_argument(
+        "--tool-call-parser",
+        help="Explicit parser for the model's tool-call template; default: auto",
+    )
     args = parser.parse_args()
+    parser_args = ["--tool-call-parser", args.tool_call_parser] if args.tool_call_parser else []
     root = Path.home() / ".config" / "tennis-inference"
     key_path = root / "api-key"
     if args.action == "run":
         env = os.environ.copy()
         env["RAPID_MLX_API_KEY"] = key_path.read_text().strip()
-        env["HF_HUB_OFFLINE"] = "1"
+        env.update(
+            HF_HUB_OFFLINE="1",
+            HF_HUB_DISABLE_TELEMETRY="1",
+            RAPID_MLX_TELEMETRY="0",
+            DO_NOT_TRACK="1",
+        )
         os.execve(
             args.executable,
             [
@@ -53,6 +63,8 @@ def main() -> None:
                 "180",
                 "--log-level",
                 "WARNING",
+                *(["--enable-auto-tool-choice"] if parser_args else []),
+                *parser_args,
             ],
             env,
         )
@@ -87,6 +99,7 @@ def main() -> None:
             args.model,
             "--port",
             str(args.port),
+            *parser_args,
         ],
         "RunAtLoad": True,
         "KeepAlive": True,
