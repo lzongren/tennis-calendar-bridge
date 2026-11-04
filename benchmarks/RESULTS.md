@@ -1823,3 +1823,60 @@ was not repeated after the controlled workflow failed; original-course discovery
 and production readiness remain unmet. Only the isolated evaluation environment
 changed. No saved profile, login fallback, running model service, production
 deployment or ingress configuration changed.
+
+## Opt-In Required Read Choice: 2026-11-04
+
+The location replay's failing request advertised only `read_source`, but the local
+runtime repeatedly returned `searchread_source`. Replaying that exact request with
+unchanged messages, schema and sampling settings isolated the tool-choice hint:
+
+| Wire choice | Valid name and allowed source argument |
+| --- | --- |
+| `auto` | 0/2 |
+| `required` | 2/2 |
+| Named `read_source` | 2/2 |
+
+Variant order was reversed for the second repetition. No tool was executed by
+this diagnostic, and no invalid name was repaired. Inspection of the installed
+runtime showed prompt guidance and post-generation validation, not a constrained
+decoder. These six responses are narrow compatibility evidence, not a general
+model reliability estimate.
+
+An initial full-workflow probe changed only singleton-read HTTP requests to named
+choice and completed three times. The candidate instead uses Pydantic AI's native
+tool-choice setting; the pinned SDK maps a choice covering the sole advertised
+tool to `required`. A second three-run check used the installed candidate wheel,
+without HTTP payload mutation. All three recovered the original course identity,
+registration facts and evidence, with no invented personal queue information.
+Each used nine model requests, 14 tool operations, eight source reads and two
+required-choice requests, finishing in **30.54s, 30.66s and 31.59s**. Each returned
+one course with partial coverage and zero denied tool attempts. The model-only
+audit recorded three connections and no blocked network, DNS or process attempts.
+
+The requested-location-first check still failed **3/3**. Therefore the full
+`location-navigation` benchmark remains failed, despite workflow completion and
+fact recovery improving from 0/3 to 3/3. Its oracle is unchanged. These are replay
+results with a real planner and fixture retrieval, not anonymous live-web recall.
+
+A fresh unseeded anonymous `clinic-search` run with the flag enabled completed
+in **238.53s**, returning five courses with nine checked sources, 20 model
+requests, 18 tool operations, partial coverage and zero denied tool attempts.
+The original course identity, registration facts and evidence checks still failed.
+The queue check failed its nonempty-match prerequisite, not because a position
+was invented. The expected occurrence URL was used only by the scorer.
+
+The trace reached the operator homepage and registration entry, but admitted no
+further entry links on that path. Two extraction calls were cancelled near their
+60-second read deadlines; other extraction requests returned planner-tool names
+before local retries recovered. These are separate remaining issues, not fixed
+by required planner reads. Live sources and timing differ between runs, so this
+result does not establish a latency improvement or regression. The ephemeral
+anonymous worker reported clean shutdown. No saved login state was used.
+
+The capability defaults off. It applies only to singleton area-planner reads;
+extraction and multi-tool decisions keep `auto`. Wire-level tests cover both flag
+states, invalid tool names, unknown source IDs, provider rejection and unchanged
+typed-output validation. No execution guard, retry allowance, budget or authority
+rule changed. Validation passed **932 tests**, including **152 benchmark cases**,
+mypy across **50 modules**, Ruff/format and wheel build. No production config,
+saved browser profile, running model service or ingress was changed.

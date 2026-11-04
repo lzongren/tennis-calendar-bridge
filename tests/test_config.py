@@ -29,5 +29,8 @@ enabled = false
 
     assert config.app.base_path == "/tennis"
     assert not config.app.discovery_agent_enabled
+    assert not config.app.discovery_require_read_tool
     monkeypatch.setenv("TENNIS_DISCOVERY_AGENT_ENABLED", "true")
     assert load_config(str(config_path)).app.discovery_agent_enabled
+    monkeypatch.setenv("TENNIS_DISCOVERY_REQUIRE_READ_TOOL", "true")
+    assert load_config(str(config_path)).app.discovery_require_read_tool

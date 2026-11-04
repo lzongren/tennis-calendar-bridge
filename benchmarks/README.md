@@ -159,6 +159,13 @@ python -m benchmarks.source_discovery --case quoted --repeats 2 --output /tmp/so
 python -m benchmarks.source_discovery --live-web --repeats 2 --output /tmp/source-live.json
 ```
 
+The optional `--require-read-tool` flag tests required tool choice when the area
+planner advertises only `read_source`. It defaults off, does not force multi-tool
+decisions or extractor outputs, and does not weaken local argument validation.
+For example, add it to the `location-navigation` replay to test compatibility
+without public web retrieval. Original course facts and requested-location-first
+selection remain separate gates; successful completion alone is not a pass.
+
 Replay uses a sanitized ongoing timetable or a minimal dated course transcription.
 The latter checks generic extraction of the November 2 time and $54 price, but
 deliberately has no availability assertion: it is not a replacement for the anchor

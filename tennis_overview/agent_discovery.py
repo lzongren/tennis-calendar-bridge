@@ -36,6 +36,7 @@ async def discover_async(app: AppConfig, location: dict[str, Any]) -> dict[str, 
         base_url=app.discovery_api_url,
         model=app.discovery_model,
         api_key=SecretStr(app.discovery_api_key),
+        require_read_tool=app.discovery_require_read_tool,
     )
     async with private_model(config) as model:
         extractor = CourseExtractor(model, usage, limits.model_requests)

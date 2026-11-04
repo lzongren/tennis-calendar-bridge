@@ -898,10 +898,16 @@ async def run_discovery_agent(
             "research_snapshot": state.planner_snapshot(),
             "previous_response_invalid": invalid,
         }
+        settings = request_context.model_settings
+        if request_context.model.profile.get("supports_forced_tool_choice", False) and set(
+            request_context.model_request_parameters.declared_tool_defs
+        ) == {"read_source"}:
+            settings = {**(settings or {}), "tool_choice": ["read_source"]}
         # Replace only the outgoing context, not the audit/history or instruction
         # configuration. No synthetic assistant calls or dangling tool results.
         return replace(
             request_context,
+            model_settings=settings,
             messages=[ModelRequest(parts=[UserPromptPart(json.dumps(snapshot))])],
         )
 

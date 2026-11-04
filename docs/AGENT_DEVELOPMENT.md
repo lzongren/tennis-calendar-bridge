@@ -138,6 +138,21 @@ The planner must use the current tool schema rather than replaying a tool that w
 available earlier in the conversation.
 Focused `source_check` retains its existing instructions and `Agent.run` path.
 
+`TENNIS_DISCOVERY_REQUIRE_READ_TOOL` defaults to `false`. On a validated private
+endpoint, setting it to `true` lets the area planner request required tool choice
+only when `read_source` is the sole advertised tool. The pinned Pydantic AI SDK
+serializes this as `tool_choice="required"`. Multi-tool decisions and typed
+extraction outputs retain `auto`; enabling the capability globally would also
+force extraction tools, which this implementation deliberately avoids.
+
+The private model adapter uses the SDK's conditional `_supports_tool_forcing`
+hook. Wire-level regression tests cover that protected extension point, so SDK
+upgrades must run them. This is a provider hint, not a decoder constraint or
+security boundary: unknown tools and source IDs remain rejected, provider errors
+remain failures, and no tool-name repair or additional retries are introduced.
+The live check covers non-streaming requests only. Keep the flag off on other
+endpoints until tested; a compatibility pass does not establish course recall.
+
 Area mode drives the Pydantic AI graph with `Agent.iter`. Before a model request,
 the application executes mandatory reads only while the allowed priority set has
 exactly one ID. Each uses the normal read method, including its audit, retry policy,
