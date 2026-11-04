@@ -105,6 +105,10 @@ def test_real_case_progress_guides_coverage_without_spending_completion_retries(
     def respond(messages, info):
         nonlocal finishes
         assert "Current research obligations" in info.instructions
+        assert (
+            "Respond with exactly one advertised tool call and no prose, commentary or planning text."
+            in info.instructions
+        )
         progress = json.loads(
             info.instructions.split("Current research obligations", 1)[1].split("\n", 1)[1]
         )
