@@ -74,9 +74,14 @@ The source registry retains the shortest observed depth for each URL. A direct
 search result can therefore become depth zero even if first seen as a linked page.
 This changes future link admission, not the source ID, existing evidence or cached
 observations. It does not reread cached pages or retroactively expand their links.
-Ordinary navigation still stops after two hops; discarded links mark the document
-partial even when fewer than six were present. Required course-detail handling and
-the shared read, source and tool budgets remain unchanged.
+Ordinary navigation still stops after two hops. Area search additionally admits
+registration links observed at depth two, allowing a public directory -> operator
+-> signup entry -> portal path. That exception ends at depth three and does not
+apply to ordinary links or focused `source_check` requests. The existing six-link
+cap, public URL checks, source/read/tool budgets and required-detail handling stay
+unchanged. Discarded links mark the document partial even when fewer than six were
+present. A registration link is a read-only navigation candidate, not permission
+to authenticate, enroll, or infer booking status.
 
 In area mode, `refine_source(source_id)` can follow an operator named on a checked
 directory that has no course records or direct registration links. The tool accepts

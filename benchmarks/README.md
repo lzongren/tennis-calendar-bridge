@@ -191,6 +191,22 @@ guard. This tests label ownership and selection order, not live catalog access o
 unseeded search recall. Other registration links still retain their existing
 coverage obligations; this case does not increase or waive runtime budgets.
 
+The `registration-hop` replay covers an additional public directory hop before
+the signup entry. Search returns only the synthetic directory; subsequent URLs
+must come from observed links. Empty directory extraction is fixed, while the
+planner uses the configured model and the final anonymous detail uses the original
+November 2 fixture and fact oracle:
+
+```sh
+python -m benchmarks.source_discovery --case registration-hop --require-read-tool --repeats 3 --output /tmp/registration-hop.json
+```
+
+The check requires all five pages in order and the original course facts. It does
+not establish that a real portal exposes that detail without login. Offline tests
+also require an unavailable portal to remain a failed run, not a successful empty
+calendar. Public retrieval is blocked by the replay's model-only network guard;
+use the separate unseeded `clinic-search` case for live recall.
+
 The `extraction-deadline` replay injects a non-completing extractor into an optional
 overview page that links to the anonymous November clinic transcription:
 

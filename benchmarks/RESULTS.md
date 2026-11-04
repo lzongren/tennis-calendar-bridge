@@ -1880,3 +1880,52 @@ typed-output validation. No execution guard, retry allowance, budget or authorit
 rule changed. Validation passed **932 tests**, including **152 benchmark cases**,
 mypy across **50 modules**, Ruff/format and wheel build. No production config,
 saved browser profile, running model service or ingress was changed.
+
+## Bounded Registration Hop: 2026-11-04
+
+The unseeded trace reached a public directory, the operator homepage and its
+registration entry. The entry was at depth two, where ordinary link admission
+stopped. The candidate allows registration links at that depth in area mode only.
+Other links still stop there; registration links cannot repeat the exception at
+depth three. Focused source checks, six-link truncation, registry/read/tool/time
+budgets, URL validation and required-detail verification are unchanged.
+
+A fresh anonymous fetch of the observed operator registration page verified the
+real HTML path: registering that page at depth two retained zero links in focused
+source mode and six registration links at depth three in area mode. Both remained
+partial, with zero course records. This probe supplied the known entry URL and
+used fixed empty extraction, so it verifies link admission, not course discovery.
+
+The new `registration-hop` replay models that observed route with synthetic URLs
+and the existing original-course detail fixture. Search supplies only the
+directory, not the final portal or detail. Navigation extraction is fixed empty;
+the configured private model handles planner choices. The benchmark checks the
+complete five-page read sequence and the unchanged November 2 identity, time,
+price, full status, source evidence and absence of invented queue information.
+It does not claim a real anonymous portal lists that detail.
+
+With the old installed wheel, **0/3** runs recovered the course: each read three
+sources, returned zero courses, used two model requests and eight tool operations.
+With the candidate wheel, **3/3** passed every check: each read five sources,
+returned one course with partial coverage, used one model request and nine tool
+operations, and recorded zero denied tool attempts. The existing deterministic
+mandatory-read path performs most of this navigation; this is not evidence of
+improved model reasoning. Both three-run reports recorded one model connection
+and no blocked connections, DNS calls or processes under the model-only guard.
+
+A targeted regression failed before the fix and passed afterward. Tests also
+cover both request modes, depth boundaries, link/registry caps, ordinary-link
+exclusion, and a membership-required portal that must fail without returning a
+successful empty result. Validation passed **942 tests**, including **155 benchmark
+cases**, mypy across **50 modules**, Ruff/format, whitespace checks and wheel build.
+
+The separate unseeded anonymous search **failed at its unchanged 300-second
+deadline** after 16 model requests, 35 registered sources and seven checked
+sources. Two earlier extraction calls each consumed roughly 59 seconds; the final
+extraction was cancelled at the run deadline. The public search results differed
+from the preceding run, and this path did not reach the operator registration
+entry. The trace therefore cannot attribute the timeout to this navigation change
+or demonstrate live recall improvement. The temporary worker stopped cleanly.
+Original-course discovery, source selection and extraction reliability remain
+unmet production gates. No login fallback, production deployment, running model
+service or ingress change was made.
