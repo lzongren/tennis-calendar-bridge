@@ -71,6 +71,16 @@ pass. `tests/test_read_budget_completion.py` exercises this boundary with the
 original facts, conflict and injection cases, automatic and planner-chosen reads,
 and incomplete mandatory/no-results coverage.
 
+Public HTML retrieval preserves bounded inline Schema.org `sameAs` references
+for a `SportsActivityLocation` or `LocalBusiness` whose `url` matches the page.
+Only the supported inline context/graph shapes are read; remote contexts are never
+fetched and scripts are never executed. These are untrusted navigation candidates,
+not official-source certification or course evidence. They share the existing
+public URL checks, link/depth/read budgets and rank after explicit schedules and
+registration links. The original-case replay in `tests/test_facility_references.py`
+uses synthetic directory/operator links plus the existing anonymous detail fixture;
+it is not proof of finding that detail on the live web.
+
 Use `--suite priority --search-mode area` to replay the original course evidence with
 three extra general-information links competing with its observed registration
 route. The scorer keeps the original facts and coverage assertions and additionally

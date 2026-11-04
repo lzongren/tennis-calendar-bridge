@@ -1645,3 +1645,46 @@ Validation passed **862 tests**, including **125 benchmark cases**, mypy across
 **50 modules**, Ruff/format and wheel build. The temporary anonymous worker stopped
 after the live run. No saved profile, production configuration, running service or
 ingress was changed.
+
+## Facility Identity References: 2026-11-03
+
+A fresh anonymous read of the target operator's public directory exposed a
+retrieval gap. Ordinary anchors led to other facilities, but an inline JSON-LD
+`SportsActivityLocation` entity included the operator homepage in `sameAs`. The
+HTML reader removed scripts before retaining this metadata. Schema.org describes
+[`sameAs`](https://schema.org/sameAs) as an identity reference, not a claim about
+courses, prices or availability.
+
+The candidate retains bounded references from matching facility entities and
+passes them through the existing public URL checks and navigation budgets. It
+does not resolve remote JSON-LD contexts or execute scripts. A before/after read
+of the actual directory retained zero such references before the change and two
+after it, including the operator homepage. The second was a public social profile,
+illustrating why these remain untrusted candidates rather than certified official
+sources. This supplied-directory component probe did not run a model or discover
+the original registration detail.
+
+A separate process-only prototype deferred source refinement until initial search
+groups were covered. Its unseeded run returned six courses in 224.92s but still
+missed the original clinic (18 model requests, 18 tool operations, nine checked
+sources, partial coverage). It refined a general source instead of the target
+operator. Different live search paths preclude a timing comparison. That prototype
+was not adopted and is not part of this candidate.
+
+The actual candidate's unseeded run completed in **243.74s**, returning five courses
+with partial coverage, 20 completed model requests, 18 tool operations, ten checked
+sources and zero denied tool attempts. It read the target directory and retained
+the new reference links, but never visited the linked operator homepage. The
+original clinic identity, facts and evidence checks therefore still failed. The
+nonempty-match queue check also failed because the target was absent, not because
+a personal queue position was observed or inferred. One extractor exhausted its
+deadline; another initially returned an unadvertised tool. This establishes the
+retrieval improvement inside a real run, not successful original-course recall.
+
+Validation passed **886 tests**, including **127 benchmark cases**, mypy across
+**50 modules**, Ruff/format and wheel build. The new tests cover supported graph
+shapes, matching entity ownership, malformed/oversized data, URL admission,
+deduplication, priority and serialization, plus a source-controlled replay of the
+original anonymous facts. Both live runs used temporary anonymous workers and
+stopped them afterward. No saved profile, model service, production runtime or
+ingress changed. The production acceptance gate remains unmet.

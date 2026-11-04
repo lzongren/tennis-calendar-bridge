@@ -55,7 +55,7 @@ def related_links(page: Page) -> tuple[PageLink, ...]:
         description = link.title + " " + path
         if link.url == page.url or re.search(r"pickleball|youth|junior|camp", description, re.I):
             continue
-        if not re.search(
+        if link.relation != "same_as" and not re.search(
             r"adult|tennis|clinic|schedule|timetable|calendar|register|registration|portal|bookclass|bookcourse|csc",
             description,
             re.I,
@@ -69,8 +69,10 @@ def related_links(page: Page) -> tuple[PageLink, ...]:
             and not re.search(r"rating|rules|policy|policies", description, re.I)
         ):
             rank = 1
-        else:
+        elif link.relation == "same_as":
             rank = 2
+        else:
+            rank = 3
         selected.append((rank, link))
     return tuple(link for _, link in sorted(selected, key=lambda item: item[0]))
 
