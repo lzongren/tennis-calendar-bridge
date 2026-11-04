@@ -2153,3 +2153,50 @@ requests and two tool operations. The original occurrence facts, evidence,
 incomplete-series reporting and absence of personal queue inference all passed.
 Its temporary worker also stopped cleanly. This confirms the supplied-detail path
 on the final candidate, not autonomous discovery of that link.
+
+## Search Result Ownership: 2026-11-04
+
+A fresh anonymous search-admission probe found the target operator in the first
+three neighboring-city results, inside the existing four-result admission limit.
+That snapshot does not support increasing the limit as a fix for missed recall.
+It did reveal result titles containing subsequent results' titles. Captured HTML
+confirmed a missing closing `div` in a rich result: the library's recovered tree
+nested later result cards, and descendant-wide XPath joined their headings, URLs
+and snippets. This can corrupt a source URL, not just its display text.
+
+The candidate parses both observed layouts together with the existing HTML parser
+dependency. Each heading, anchor and snippet must belong to its nearest result
+card. A result cannot borrow a nested card's heading or an anchor outside the card.
+The engine's transport, redirect decoding, explicit-provider policy, eight-result
+limit and four-megabyte page limit remain unchanged. Unrecognized search pages
+still fail instead of becoming successful empty searches. No model prompt, source
+budget, provider fallback or authenticated access changed.
+
+Three new benchmark regressions use synthetic domains and transcribed structure,
+not raw captured pages. Two failed before implementation: malformed sibling cards
+produced concatenated fields, and mixed classic/alternate layouts dropped the
+alternate result. All three pass afterward. The captured-page comparison uses
+the same HTML for baseline and candidate, with card-scoped heading/anchor pairs
+as the reference: **19/21** exact pairs before, **21/21** afterward across three
+recognized pages. A fourth capture contained no recognized result cards and
+remained unavailable. This measures parsing integrity, not source relevance,
+course accuracy or model decision quality; it is not independent browser ground
+truth or a claim about every search-page layout.
+
+Validation passed **965 tests**, including **164 benchmark cases**, mypy across
+**52 modules**, Ruff/format and wheel build. Raw search captures and private run
+artifacts stay outside the repository. The deployed application and inference
+service were not modified by this parser evaluation.
+
+A fresh Qwen/Rapid-MLX unseeded anonymous run completed in **133.13s**, with
+**18 model requests**, **18 tool operations**, eleven completed reads and one
+unavailable read. It returned six partial-coverage candidates but **failed the
+original-course recall oracle**. The original occurrence URL remained scorer-only.
+The trace reached the target facility directory, then eventually read its social
+page rather than the original detail. This does not establish that parsing caused
+the remaining navigation failure or that the new run is faster: live results and
+model choices differ between runs. The temporary anonymous worker stopped cleanly.
+The scoped parsing fix is suitable for the integration branch; production
+promotion remains blocked on the separate unseeded recall and extraction gates.
+Post-run inference health returned 200 with generated content in **0.70s**;
+an unauthenticated request returned 401, and the listener remained loopback-only.
