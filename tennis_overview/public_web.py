@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import http.client
 import ipaddress
+import json
 import socket
 import ssl
 from dataclasses import dataclass
+from typing import Literal
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
@@ -112,6 +114,7 @@ def schedule_blocks(soup: BeautifulSoup, url: str) -> tuple[ScheduleBlock, ...]:
 class PageLink:
     url: str
     title: str
+    relation: Literal["anchor", "same_as"] = "anchor"
 
 
 @dataclass(frozen=True)
@@ -179,16 +182,81 @@ def fetch_resource(url: str, accepted: tuple[str, ...]) -> tuple[str, str, bytes
     raise ValueError("Too many source redirects")
 
 
+def facility_references(soup: BeautifulSoup, url: str) -> tuple[PageLink, ...]:
+    """Read bounded inline identity references, never resolve JSON-LD contexts."""
+    contexts = {
+        "https://schema.org",
+        "http://schema.org",
+        "https://schema.org/",
+        "http://schema.org/",
+    }
+    types = {"SportsActivityLocation", "LocalBusiness"}
+    links: dict[str, PageLink] = {}
+    for script in soup.select('script[type="application/ld+json"]')[:8]:
+        raw = script.get_text()
+        if len(raw) > 65_536:
+            continue
+        try:
+            document = json.loads(raw)
+        except (ValueError, RecursionError):
+            continue
+        context = document.get("@context") if isinstance(document, dict) else None
+        nodes = document.get("@graph", [document]) if isinstance(document, dict) else document
+        if not isinstance(nodes, list):
+            continue
+        for node in nodes[:32]:
+            if not isinstance(node, dict):
+                continue
+            node_context = node.get("@context", context)
+            if not isinstance(node_context, str) or node_context not in contexts:
+                continue
+            node_types = node.get("@type", [])
+            if isinstance(node_types, str):
+                node_types = [node_types]
+            if not isinstance(node_types, list) or not any(
+                isinstance(kind, str) and kind in types for kind in node_types
+            ):
+                continue
+            identity_url = node.get("url")
+            if not isinstance(identity_url, str):
+                continue
+            try:
+                if public_url(identity_url).rstrip("/") != public_url(url).rstrip("/"):
+                    continue
+            except ValueError:
+                continue
+            references = node.get("sameAs", [])
+            if isinstance(references, str):
+                references = [references]
+            if not isinstance(references, list):
+                continue
+            name = node.get("name")
+            title = "Facility reference" + (": " + name[:200] if isinstance(name, str) else "")
+            for reference in references[:8]:
+                if not isinstance(reference, str):
+                    continue
+                try:
+                    link = public_url(reference)
+                except ValueError:
+                    continue
+                if link.rstrip("/") != url.rstrip("/"):
+                    links.setdefault(link, PageLink(link, title, "same_as"))
+                if len(links) == 8:
+                    return tuple(links.values())
+    return tuple(links.values())
+
+
 def page_from_html(url: str, body: bytes) -> Page:
     soup = BeautifulSoup(body, "html.parser")
     schedules = schedule_blocks(soup, url)
+    references = facility_references(soup, url)
     title = soup.title.get_text(" ", strip=True) if soup.title else urlsplit(url).hostname or ""
     heading = soup.h1.get_text(" ", strip=True) if soup.h1 else ""
     # Navigation can contain hundreds of links before the actual course content.
     # Apply the link budget after removing chrome, just as we do for source text.
     for node in soup.select("script, style, nav, footer, header, noscript, svg, [role=navigation]"):
         node.decompose()
-    links: dict[str, PageLink] = {}
+    links: dict[str, PageLink] = {link.url: link for link in references}
     for anchor in soup.find_all("a", href=True):
         try:
             link = public_url(urljoin(url, str(anchor["href"])))
