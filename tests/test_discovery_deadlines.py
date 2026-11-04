@@ -34,9 +34,9 @@ class DeadlineBackend(ReplayBackend):
             return SearchResults(sources=(*result.sources, SLOW))
         return result
 
-    async def read(self, source_id, query):
+    async def read(self, source_id, query, *, deadline=None):
         if source_id != self.slow_id:
-            return await super().read(source_id, query)
+            return await super().read(source_id, query, deadline=deadline)
         self.read_calls.append(source_id)
         try:
             await asyncio.Future()
@@ -54,7 +54,9 @@ def test_tool_deadline_is_not_a_transient_read_retry():
         assert backend.read_calls == [SLOW.id]
         assert backend.cancelled == 1
         assert [event.outcome for event in state.audit] == ["unavailable"]
-        assert await state.read_source(SLOW.id) == failure
+        cached = await state.read_source(SLOW.id)
+        assert cached["cached"] and cached["reason"] == failure["reason"]
+        assert cached["next_source_ids"] == ()
         assert backend.read_calls == [SLOW.id]
 
     asyncio.run(scenario())
@@ -120,7 +122,7 @@ def test_external_cancellation_does_not_retry_or_publish_source_failure():
         started = asyncio.Event()
         calls = 0
 
-        async def read(*args):
+        async def read(*args, **kwargs):
             nonlocal calls
             calls += 1
             started.set()

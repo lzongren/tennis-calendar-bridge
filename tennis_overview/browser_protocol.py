@@ -42,9 +42,22 @@ def read_url(value: str, *, document: bool = True) -> str:
     parsed = urlsplit(url)
     if parsed.scheme != "https" or parsed.port not in (None, 443) or len(url) > 2048:
         raise ValueError("Only bounded public HTTPS references are supported")
+    action_path = parsed.path
+    if (
+        parsed.hostname == "playtennis.usta.com"
+        and not parsed.query
+        and re.fullmatch(
+            r"/[A-Za-z0-9-]+/Coaching/Book/"
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            parsed.path,
+        )
+    ):
+        # USTA's public course entry redirects to a Course display page. Exempt
+        # only this segment; the club slug, HTTP method and each redirect remain checked.
+        action_path = action_path.replace("/Coaching/Book/", "/Coaching/Course/", 1)
     if re.search(
         r"(?:^|[/_?&=.-])(?:delete|remove|cancel|unsubscribe|logout|purchase|checkout|payment|addcart|book|submit)(?:$|[/_?&=.-])",
-        parsed.path + "?" + parsed.query,
+        action_path + "?" + parsed.query,
         re.I,
     ):
         raise ValueError("Action references are not readable sources")

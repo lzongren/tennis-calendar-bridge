@@ -37,6 +37,30 @@ in that same mode; it is not live-web recall. The report records `search_mode`.
 Mandatory queries still count toward tool/search limits and audits, but the model
 starts from their structured results instead of choosing each fixed query in turn.
 
+Use `--suite navigation --search-mode area` for the registration-navigation
+regressions. Other-club candidates and an observed operator signup link reproduce
+the early-finish failure shape. Three scenarios cover readable catalog details,
+anonymous membership denial and an injected catalog title. A denial must retain
+other verified candidates and partial coverage without inventing target facts.
+Successful navigation must recover the original course facts and evidence. The
+scorer rejects skipped navigation even when another course is already present.
+These are controlled transcripts, not proof of live-web discovery; the original
+unseeded clinic case remains a separate acceptance gate.
+
+Use `--suite priority --search-mode area` to replay the original course evidence with
+three extra general-information links competing with its observed registration
+route. The scorer keeps the original facts and coverage assertions and additionally
+rejects optional directory reads before required detail verification. It permits
+later optional exploration. This is a synthetic navigation variation around the
+real-course transcription, not a new live-web recall result. Run it against both
+baseline and candidate code with the same fixtures; do not present a scripted
+request-count reduction as a measured real-model speedup.
+
+Replay failures retain a bounded `error_types` chain alongside the outer
+`error_type`. It records exception classes, not provider bodies, validation inputs
+or exception messages. Keep failed batches when rerunning with diagnostics; a later
+successful run does not replace them or establish live-web recall.
+
 Each of five scenarios is repeated serially. The scorer checks exact facts,
 complete source IDs, retrieval, neighboring-city expansion, denied tool attempts
 and partial-result state. Facts are constructed by the same deterministic Python
@@ -91,6 +115,20 @@ seed URL, then checks the operator's Wednesday/Thursday timetable and provenance
 Live public retrieval requires subprocesses and public connections, so this mode
 does **not** apply or claim the model-only network guard. It is not a full-city
 recall test or a verification of current seats.
+
+The `extraction-deadline` replay injects a non-completing extractor into an optional
+overview page that links to the anonymous November clinic transcription:
+
+```sh
+python -m benchmarks.source_discovery --case extraction-deadline --repeats 3 --output /tmp/extraction-deadline.json
+```
+
+Only the planner uses the private model in this case; the extractor stalls under a
+one-second test tool budget. The source backend must cancel it once, retain only
+observed navigation, and keep the overview unavailable. The agent must follow the
+linked detail and pass the unchanged anonymous date/time/price/full-status oracle.
+This is a focused fault-injection replay with the model-only network guard, not
+live web discovery, model-outage recovery, or a production latency measurement.
 
 Modes use a fixed November 1, 2026 Pacific anchor, except `anonymous-series`, which
 starts November 3 to exercise a past selected occurrence. A changed source should be

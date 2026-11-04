@@ -204,7 +204,9 @@ def test_anonymous_real_case_survives_only_optional_page_failure(failure, scope)
         await state.search_courses(REQUEST.city)
         failed = await state.read_source(identity(BAD))
         assert failed["reason"] == failure
-        assert await state.read_source(identity(BAD)) == failed
+        cached = await state.read_source(identity(BAD))
+        assert cached["cached"] and cached["reason"] == failure
+        assert cached["next_source_ids"] == (identity(URL),)
         await state.read_source(identity(URL))
         assert identity(BAD) in state.failed_sources
         if scope != "optional":

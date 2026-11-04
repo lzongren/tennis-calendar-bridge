@@ -35,7 +35,9 @@ def test_unknown_source_diagnostics_are_not_exposed_to_the_model():
         result = await state.read_source("source")
         assert result["reason"] == "page_unavailable"
         assert "private" not in str(result)
-        assert await state.read_source("source") == result
+        cached = await state.read_source("source")
+        assert cached["cached"] and cached["reason"] == "page_unavailable"
+        assert cached["next_source_ids"] == () and "private" not in str(cached)
         backend.read.assert_awaited_once()
 
     asyncio.run(scenario())

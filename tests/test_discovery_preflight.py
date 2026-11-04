@@ -8,7 +8,7 @@ import pytest
 from pydantic_ai.messages import ModelResponse, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import FunctionModel
 
-from benchmarks.agent_discovery import HOSTILE_TEXT, SCENARIOS, ReplayBackend, request, score
+from benchmarks.agent_discovery import SCENARIOS, ReplayBackend, request, score
 from tennis_overview.discovery_agent import (
     AgentDiscoveryError,
     DiscoveryLimits,
@@ -47,12 +47,6 @@ def test_area_preflight_preserves_real_case_without_model_search_turns(case):
     reads.extend(["seasonal-schedule", "dated-registration"])
     if case == "date_conflict":
         reads.append("conflicting-record")
-    turns = iter(
-        [
-            *(ToolCallPart("read_source", {"source_id": key}) for key in reads),
-            ToolCallPart("finish_discovery", {"outcome": "sources_checked"}),
-        ]
-    )
 
     async def respond(messages, info):
         assert sources.queries == EXPECTED_QUERIES
@@ -67,10 +61,9 @@ def test_area_preflight_preserves_real_case_without_model_search_turns(case):
         assert [(item["city"], item["focus"]) for item in completed] == EXPECTED_QUERIES
         assert completed[-1]["result"]["sources"][0]["id"] == reads[0]
         assert "Seasonal adult clinics" not in info.instructions
-        if case == "injection":
-            assert completed[-1]["result"]["sources"][0]["title"] == HOSTILE_TEXT[:240]
-            assert "collector.invalid" not in info.instructions
-        return ModelResponse([next(turns)])
+        tool = next(tool for tool in info.function_tools if tool.name == "read_source")
+        source = tool.parameters_json_schema["properties"]["source_id"]["enum"][0]
+        return ModelResponse([ToolCallPart("read_source", {"source_id": source})])
 
     run = asyncio.run(
         run_discovery_agent(
@@ -80,7 +73,8 @@ def test_area_preflight_preserves_real_case_without_model_search_turns(case):
         )
     )
     assert all(score(run, case).values())
-    assert run.model_requests == len(reads) + 1
+    assert sources.queries == EXPECTED_QUERIES
+    assert run.model_requests == (1 if case == "navigation_failure" else 0)
     assert run.tool_calls == len(EXPECTED_QUERIES) + len(reads)
     assert sum(event.tool == "search_courses" for event in run.audit) == 4
 

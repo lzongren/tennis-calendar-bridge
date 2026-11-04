@@ -55,6 +55,13 @@ action URLs are blocked. CourtReserve document navigation is restricted to
 portal, event-list, and event-detail paths. Navigation uses observed read-only
 controls; registration, cancellation, and payment controls are never clicked.
 
+USTA's public `/<club>/Coaching/Book/<uuid>` entry is a narrowly recognized
+read-only exception to the action-name filter. Observed anonymous GETs redirect
+to a course display page. Only that exact host and path shape, without query
+parameters, are admitted; the club slug still passes the action filter. Each
+redirect and request method is checked independently. This does not allow
+booking submissions or turn any other site's `Book` paths into readable pages.
+
 These are defense-in-depth application controls, not proof of complete OS-level
 containment. A site can misuse GET for mutations. Unknown endpoints must not be
 enabled merely to get a page to load. Cookies are forwarded only to CourtReserve.

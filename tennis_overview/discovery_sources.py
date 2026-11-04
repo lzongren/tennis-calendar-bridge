@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
 from collections.abc import Awaitable, Callable
@@ -36,6 +37,8 @@ Searcher = Callable[[str, str, int, str], Awaitable[list[dict[str, str]]]]
 # Six live queries admit at most 24 results, leaving room in the 48-source
 # registry for operator-linked schedules and registration details.
 AREA_RESULTS_PER_QUERY = 4
+REGISTRATION_LINK = re.compile(r"register|registration|portal|bookclass|bookcourse", re.I)
+SCHEDULE_LINK = re.compile(r"schedule|timetable|calendar", re.I)
 
 
 def identity(value: str) -> str:
@@ -47,16 +50,26 @@ def related_links(page: Page) -> tuple[PageLink, ...]:
     candidates = page.link_details or tuple(PageLink(url, "") for url in page.links)
     selected = []
     for link in candidates:
-        description = link.title + " " + urlsplit(link.url).path
+        path = urlsplit(link.url).path
+        description = link.title + " " + path
         if link.url == page.url or re.search(r"pickleball|youth|junior|camp", description, re.I):
             continue
         if not re.search(
-            r"adult|tennis|clinic|schedule|register|registration|portal|bookclass|bookcourse|csc",
+            r"adult|tennis|clinic|schedule|timetable|calendar|register|registration|portal|bookclass|bookcourse|csc",
             description,
             re.I,
         ):
             continue
-        rank = 0 if re.search(r"register|portal|bookclass|bookcourse", description, re.I) else 1
+        if REGISTRATION_LINK.search(description):
+            rank = 0
+        elif SCHEDULE_LINK.search(description) or (
+            path.lower().endswith(".pdf")
+            and re.search(r"adult|clinic|csc", description, re.I)
+            and not re.search(r"rating|rules|policy|policies", description, re.I)
+        ):
+            rank = 1
+        else:
+            rank = 2
         selected.append((rank, link))
     return tuple(link for _, link in sorted(selected, key=lambda item: item[0]))
 
@@ -146,7 +159,9 @@ class PublicSourceBackend:
             required_ids=tuple(dict.fromkeys(required))[:4],
         )
 
-    async def read(self, source_id: str, request: DiscoveryRequest) -> SourceDocument:
+    async def read(
+        self, source_id: str, request: DiscoveryRequest, *, deadline: float | None = None
+    ) -> SourceDocument:
         if source_id not in self.sources:
             raise SourceUnavailable("Undiscovered source")
         source = self.sources[source_id]
@@ -198,10 +213,26 @@ class PublicSourceBackend:
                 page = document
                 if not page.links and len(page.text.split()) < 5:
                     raise SourceUnavailable("Source needs dynamic or authenticated access")
+                extraction_timeout = asyncio.timeout_at(deadline)
                 try:
-                    courses = (
-                        () if page.required_links else await self.extractor.extract(page, request)
-                    )
+                    if page.required_links:
+                        courses = ()
+                    elif deadline is not None and asyncio.get_running_loop().time() >= deadline:
+                        courses = ()
+                        evidence_unavailable = True
+                    else:
+                        async with extraction_timeout:
+                            courses = await self.extractor.extract(page, request)
+                        if extraction_timeout.expired():
+                            courses = ()
+                            evidence_unavailable = True
+                except TimeoutError:
+                    if not extraction_timeout.expired():
+                        raise
+                    # Only our local extraction deadline permits navigation-only
+                    # recovery. External cancellation and model outages propagate.
+                    courses = ()
+                    evidence_unavailable = True
                 except UnexpectedModelBehavior:
                     # Invalid facts do not invalidate independently observed navigation.
                     # Transport/budget failures still abort; no extraction retry is added.
@@ -246,14 +277,22 @@ class PublicSourceBackend:
                     records[key] = record
                     self.details[key] = course
             linked: dict[str, SourceRef] = {}
+            navigation = []
+            ranked_links = related_links(page)
             if source.depth < 2:
-                for link in related_links(page)[:6]:
+                for link in ranked_links[:6]:
                     ref = self.register(
                         link.url, link.title or "Linked course source", source.depth + 1
                     )
                     if ref:
                         linked[ref.id] = ref
-            partial = partial or len(related_links(page)) > 6 or self.truncated
+                        # A general signup route needs an area-search attempt, not
+                        # successful course verification or an authenticated fallback.
+                        if not registration and REGISTRATION_LINK.search(
+                            link.title + " " + urlsplit(link.url).path
+                        ):
+                            navigation.append(ref.id)
+            partial = partial or len(ranked_links) > 6 or self.truncated
             required = []
             for url in page.required_links:
                 if url not in page.links:
@@ -287,6 +326,7 @@ class PublicSourceBackend:
                 records=tuple(records.values()),
                 links=tuple(linked.values()),
                 required_ids=tuple(dict.fromkeys(required)),
+                navigation_ids=tuple(dict.fromkeys(navigation)),
                 partial=partial,
                 evidence_unavailable=evidence_unavailable,
             )

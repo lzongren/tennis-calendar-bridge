@@ -974,3 +974,464 @@ facts, evidence, withheld personal queue information and partial series coverage
 were preserved. The second run needed an additional model turn; this remains a
 small observed sample, not a reliability or latency guarantee. The full local suite
 was rerun after review: **713 passed**.
+
+## Registration Navigation Coverage: 2026-11-03
+
+The prior live run could finish after reading an operator overview without trying
+its observed registration link, because other clubs already supplied candidates.
+Area discovery now tracks bounded `navigation_ids` independently of required
+course-detail verification. A navigation read must be attempted; a membership or
+login response records unavailable/partial coverage without authorizing a login.
+Required course-detail failures still abort. Registration observations do not
+reopen their general catalog through back-navigation links.
+
+Three new controlled scenarios retain the original clinic facts and add unrelated
+courses, an operator navigation page and a second search group. They verify that
+unrelated candidates cannot end the search before the registration route is tried.
+The variants cover readable details, anonymous membership denial and hostile link
+titles. The denial case must not invent the missing clinic. The scorer also rejects
+a deliberately premature result, even when it has other valid courses.
+
+An initial implementation prioritized navigation immediately. Its three-scenario
+private-model replay passed two repetitions, but the live run spent much of its
+budget on one club's signup pages before visiting other sources. It eventually
+reached the target operator portal and received `membership_required`, then failed
+on an undiscovered model-supplied source ID: **259.01s**, **16 model requests**.
+The existing unknown-source rejection remained active. This was not a passing
+original-course recall result.
+
+The correction gives unattempted search groups priority over optional linked reads,
+while allowing required course details immediately. Tool schema and execution guard
+share the same coverage-ID calculation. A regression failed before this correction
+because an optional catalog read executed before the remaining group. It now passes
+without relaxing any factual or budget checks. The existing frontier benchmark's
+read order was updated; its exact date, time, price, capacity and source-limit
+assertions remain intact.
+
+One intermediate replay used the earlier fixture because its transfer stalled.
+That run passed the earlier three scenarios but does not validate the additional
+search group. The old destination hash was detected, the identified transfer was
+cancelled after the run ended, and both final module hashes were checked before
+starting the fresh evaluation. No production files or browser-worker configuration
+were changed.
+
+On the hash-verified candidate, the expanded navigation suite passed **5/6** across
+two repetitions. Readable navigation and membership denial passed both times; the
+second hostile-title run raised `AgentDiscoveryError`. The process-local network
+audit recorded no blocked connection, DNS or process attempts. This establishes
+neither the exact failure cause nor functional robustness, so the component is not
+eligible for merge on this evidence. A diagnostic rerun retains fixed failure
+categories and synthetic source IDs only, without exposing model messages or keys.
+
+Local verification passed **732 tests**, **77 benchmark cases**, typing across
+**50 modules**, Ruff/format, wheel build and Twine. These local gates do not override
+the real-model failure or the separate original-course recall gate.
+
+The diagnostic rerun passed **4/6**: readable navigation and membership denial
+passed twice, while both hostile-title repetitions failed (**19.88s / 72.39s**).
+The first failure trace showed repeated reads of cached operator pages while the
+other-club search group remained unattempted. The second attempted navigation too
+early, then read the other-club page before failing. Both surfaced a redacted
+`AgentDiscoveryError`; the underlying terminal exception was not captured, so no
+specific timeout or request-limit cause is claimed. These traces establish a
+completion problem despite the coverage guard, not a safe production result.
+
+The component remains draft and unmerged. A new unseeded live run and final
+known-link/evidence replay are deferred until the controlled completion failure is
+resolved. The earlier anonymous live run and prior component's passing known-link
+checks are not presented as acceptance of this final candidate.
+
+## Cached-Read Progress: 2026-11-03
+
+The prior diagnostic showed repeated cached reads while a coverage group remained
+unattempted. Cache responses now acknowledge the earlier attempt and provide the
+currently readable source IDs without repeating untrusted titles, navigation text
+or candidate summaries. Failed sources retain their reason and remain unavailable.
+Each repeated call still consumes a tool operation and is audited; no network read,
+extraction, budget increase or factual reconciliation change is introduced.
+
+The read tool now advertises only available unread IDs after the coverage phase as
+well, and disappears when none remain. Its schema and cache guidance use one ID
+calculation. Unknown sources still fail at the execution boundary, and coverage,
+required-detail verification and anonymous-access limits remain enforced.
+
+Six new regression cases cover repeated hostile navigation text, all three real-case
+navigation variants, cached membership denial and calls to an unavailable read tool.
+Existing cache tests now assert the changed response contract while preserving
+no-repeat-read, deadline, redaction, source-failure and original-course fact checks.
+Local gates passed: **738 tests**, **80 benchmark cases**, typing across **50 modules**,
+Ruff/format, wheel build and Twine.
+
+The first three-repetition private-model run lost its SSH observation connection.
+A fresh process check found no evaluator running, and its report was empty. It is
+an incomplete observation, not a pass or an attributed model failure. Only after
+those checks was a fresh run launched, with diagnostics written directly to an
+owner-only file so transport loss would not discard the evidence. Evaluator module
+and fixture hashes matched the local candidate before testing. Production and the
+browser worker remain unchanged.
+
+The completed fresh navigation run passed **9/9** over three repetitions. Readable
+navigation used **7/7/7** model requests; membership denial **8/6/7**; hostile titles
+**7/7/8**. The denial cases retained other courses without inventing the target
+clinic, and successful reads preserved the original facts and evidence. The trace
+included a stale cached read followed by progress to the outstanding catalog; no
+extra network fetch occurred for the cache hit. All runs stayed within the existing
+limits. The model-only audit recorded zero blocked connection, DNS or process
+attempts. These nine observations support the correction, not a production
+reliability or latency guarantee; the earlier failures remain part of the record.
+
+The original five-scenario `source_check` private-model replay also passed **5/5**
+on the candidate: **12.15s, 6.18s, 8.04s, 3.50s and 9.30s**, with **5/5/6/5/6**
+model requests. Date-conflict handling, original-course evidence, transient retry
+and retained navigation after extraction failure were unchanged. Its model-only
+network audit also recorded zero blocked attempts.
+
+Fresh known-link anonymous checks passed **2/2** in **20.70s / 7.39s**, each using
+three model requests and two tool calls. Original registration facts, source
+evidence, absence of personal queue inference and partial series coverage passed
+unchanged. These are real detail-page checks, not autonomous discovery of its URL.
+
+The final unseeded live search did **not** pass. It reached the original operator's
+registration portal without a supplied source URL, received `membership_required`,
+then hit the unchanged total deadline at **300.01s** after **20 model requests**.
+The report recorded 48 registered sources and five checked sources. The trace also
+showed extractor calls to an unavailable planner tool and exhausted structured
+extraction retries on public pages. These consumed budget; the evidence does not
+establish their underlying cause or prove that no anonymous discovery route exists.
+The expected course URL was supplied only to the scorer, not the planner.
+
+Controlled navigation completion improved, but original-course autonomous recall
+and live completion remain unsatisfied. The component remains draft and unmerged;
+the experimental agent is not deployed or declared production-ready. Anonymous-only
+access remains the explicit boundary: no saved profile, login fallback or expansion
+of permissions was introduced. Future authorized login is separate work.
+
+## Schedule Link Admission: 2026-11-03
+
+Inspection of a fresh anonymous operator page explained one lost retrieval path.
+Its registration link was followed in DOM order by a rating guide and a general
+program page, with published adult and coach-clinic schedules later. The live
+registry had only two slots left when this page was read: the registration route
+and rating guide were admitted; the course schedules were not. This is independent
+of the catalog's membership restriction and model extraction reliability.
+
+Link ranking now keeps registration first, schedules and adult/clinic PDFs next,
+and general tennis information last. Twelve regression cases preserve source order
+within a tier, signup navigation, junior exclusion and bounded admission. Two
+benchmark-marked cases reproduce the nearly full registry without adding slots or
+converting a link into course evidence. Seven tests failed before the correction;
+the initial eight passed afterward, with four more checks for guidance PDFs. The
+fresh public-page capture now retains a schedule
+in the second slot and all four schedule links in its first six candidates.
+
+Local verification passed **750 tests**, **82 benchmark cases**, typing across
+**50 modules**, Ruff/format, wheel build and Twine. The unchanged original-course
+oracle remains the acceptance gate; better link admission alone is not recall.
+
+### Extraction Diagnostics
+
+Before changing ranking, a three-repetition quoted-course replay passed **3/3**
+in **14.27s / 5.11s / 5.28s**. Outbound request inspection confirmed that extraction
+requests advertised only `extract_courses`, contained no prior planner tool calls,
+and did not include planner tool names in system instructions. The model-only audit
+recorded no blocked connections, DNS or process attempts. This did not reproduce
+the longer live search's tool mismatch.
+
+A separate exploratory probe captured two public pages anonymously, then installed
+the process-local model-only network audit guard for inference. The same
+source text, evidence validators and one-retry configuration were used with tool
+output and Pydantic AI prompted JSON output. A two-request ceiling isolated each
+case; these are diagnostic observations, not a replacement acceptance suite.
+
+| Input | Tool output | Prompted JSON output |
+| --- | --- | --- |
+| Operator program overview | Invalid structured result after two requests, 9.82s | Model timeout during retry, 67.47s |
+| Public facility directory | Unadvertised tool followed by text; request limit, 6.12s | Empty courses, one request, 2.86s |
+| Dated course transcription | One grounded course, one request, 2.94s | One grounded course, one request, 2.83s |
+
+The directory mismatch occurred despite an extraction-only request, with no
+planner history or planner names in system instructions. No undeclared tool was
+executed. This does not establish whether generation, serving or parsing caused
+the mismatch. The probe's model-only audit recorded zero blocked attempts.
+Prompted output has not shown a consistent improvement and is **not** adopted;
+production extraction settings and model-server configuration remain unchanged.
+Private captures, raw model responses and credentials are not committed.
+
+The linked public coach-clinic PDF was also fetched anonymously. It lists the
+matching Monday 18:30-19:50 clinic within the autumn term, but quotes **$52**, not
+the registration page's **$54**. It links back to the general portal, not the dated
+event. This supports using schedules for discovery, not treating them as current
+registration price, capacity or waitlist evidence. The original price and
+availability assertions are unchanged.
+
+The hash-verified candidate was installed only in the isolated evaluator. Its
+unseeded live run retained all four operator schedule links, but still failed:
+**299.10s**, **24 model requests**, 48 registered sources and four checked sources,
+with `UsageLimitExceeded`. The original portal again returned `membership_required`.
+The agent did not read the retained schedule PDFs before failure. Changed search
+order and model behavior mean this single run is not a causal latency comparison
+with the prior timeout. Original-course recall and bounded live completion remain
+unsatisfied; preserving a source link is not recovering its course.
+
+Direct inspection also found that the existing deterministic annual-table adapter
+does not recognize this coach-clinic PDF. It still needs either validated model
+extraction or a separately tested generic table improvement. Neither an output-mode
+switch nor a new PDF parser is included in this link-ranking correction. The
+experimental parent remains draft and production is unchanged.
+
+Final known-link anonymous checks passed **2/2** on this candidate in **15.08s /
+7.18s**, with three model requests and two tool calls each. Original registration
+facts, source evidence, no personal queue inference and incomplete-series reporting
+all passed. This confirms the existing supplied-detail path, not unseeded recall.
+
+## Post-Coverage Read Priority: 2026-11-03
+
+The prior live trace visited general tennis directories while known registration
+routes remained unread. Instructions requested registration priority, but after
+search-group coverage both the read-tool schema and execution boundary admitted
+any unread source. A plausible but optional source could therefore spend the same
+finite read/extraction budget needed for verification.
+
+Area-mode read priority now continues after breadth coverage: required details and
+observed registration navigation precede optional exploration. The tool schema,
+cache guidance and execution guard share the same source-ID calculation. Rejected
+out-of-order calls still consume tool operations but do not fetch or extract pages.
+Optional reads become available after these obligations are clear. Focused
+`source_check` behavior, anonymity, failure semantics and all budgets are unchanged.
+
+Four of five new regression cases failed on the baseline, including the actual
+Pydantic AI tool-schema path. With a scripted chooser that selects the first
+advertised ID, the added distraction case previously spent ten model requests and
+read all three optional directories before verifying the original course. The
+candidate uses seven and preserves every original fact/evidence assertion. The
+scorer separately rejects early optional reads even if final course facts are right;
+it accepts optional exploration after verification. This is a deterministic policy
+test, not a measured private-model performance improvement.
+
+Local gates passed **755 tests**, **85 benchmark cases**, typing across **50 modules**,
+Ruff/format, wheel build and Twine. The new `priority` suite is separate from the
+unchanged navigation and evidence suites. The private-model baseline already passed
+**3/3**, each with seven requests (**25.08s / 18.26s / 21.48s**), so those runs do not
+reproduce the live trace's choice error. Its model-only network audit recorded zero
+blocked attempts. The candidate must still be checked against the same replay and
+the unseeded real-course gate; the baseline's success is not acceptance of new code.
+
+The candidate's private-model distraction replay also passed **3/3**, with seven
+requests each (**21.47s / 19.10s / 19.28s**) and no blocked network, DNS or process
+attempts. This does not establish a model performance improvement. The unchanged
+navigation suite then passed only **7/9**. A separate diagnostic run passed **6/9**:
+one membership case exhausted model retries, and two injection cases ended in
+structured-output validation errors. The diagnostic exception chains contained
+`UnexpectedModelBehavior` with `ModelRetry` or `ValidationError`; they do not yet
+identify the responsible argument or prove the priority policy caused the failures.
+Both failed batches remain part of the evidence; reruns do not replace them.
+
+Replay reports now share bounded exception-class diagnostics with the live source
+benchmark. They follow causes and exception groups without persisting error messages,
+validation inputs, page bodies or provider responses. Added regression tests cover
+cycle/depth limits, failure serialization and successful reports. Final local gates
+passed **758 tests**, **85 benchmark cases**, typing, lint/format and wheel/Twine.
+This candidate remains unmerged. Production, saved login profiles and browser-worker
+configuration are unchanged; anonymous catalog rejection does not trigger login.
+
+A final six-case replay with content-free tool-call diagnostics passed **4/6**.
+Both injection repetitions followed the same failure path: two premature
+`finish_discovery` calls while that tool was unavailable, then a call with missing
+`outcome` after required reads completed. The latter produced a `missing` validation
+error at `outcome` and exhausted retries. Some passing cases also attempted a stale
+`read_source` call after the read tool was no longer advertised. These observations
+identify a tool-contract adherence problem; they do not establish a causal regression
+from read priority. Invalid calls did not bypass the existing execution/completion
+guards. This batch is diagnostic, not a replacement for either previous failed batch
+or the unseeded live-course acceptance test. Required fields, retry limits and
+completion checks remain unchanged pending a separately measured fix.
+
+## Deterministic Required Steps: 2026-11-03
+
+Adding exact completion arguments and readable IDs to state-owned instructions was
+not sufficient: the unchanged nine-case navigation replay passed **8/9**, with the
+last injection case failing through `UnexpectedModelBehavior` / `ToolRetryError`.
+That prompt-only result is retained, not counted as acceptance.
+
+The next candidate uses Pydantic AI graph iteration to execute singleton mandatory
+reads and validate exhausted-source completion in application code. It does not
+select between multiple sources, automatically explore optional links, accept empty
+completion arguments, or change course facts. Every automatic read still consumes
+the existing tool/read budget. Observations supplied to later model turns are input
+data, not fabricated tool-call history. This follows the framework's documented
+[graph iteration interface](https://pydantic.dev/docs/ai/core-concepts/agent/).
+
+The same navigation suite then passed **9/9**, preserving original facts, coverage,
+membership-denial semantics and injection assertions. This is an execution-policy
+change: fewer decisions reach the model, not evidence that model instruction
+following became intrinsically more reliable. The original unseeded search remains
+a separate acceptance gate. Production and authenticated access are unchanged.
+
+The automatic-step candidate used two planner requests in each of those nine
+navigation runs (**2.15-6.80s**). The distraction suite passed **3/3** with five
+requests (**17.76s / 13.76s / 15.58s**); optional exploration after verification
+remained available. Both suites recorded zero blocked network, DNS or process
+attempts under the model-only process guard.
+
+Applying the new instructions to focused `source_check` as well was not accepted:
+that evidence replay passed only **6/10**, with date-conflict and transient-read
+failures. The candidate was revised to keep focused instructions, progress fields
+and the `Agent.run` execution path unchanged. The added guidance and graph controller
+are now area-only. Final scoped-candidate results must be evaluated separately from
+the earlier candidate; its passing navigation batch cannot be carried over blindly.
+
+The final scoped candidate passed navigation **9/9** (two planner requests each,
+**2.63-6.76s**), focused evidence **10/10**, and distraction **3/3** (five, five and
+four requests; **16.42s / 13.17s / 7.87s**). All three process-local model-only audits
+recorded zero blocked network, DNS or process attempts. These controlled replays
+preserve the original fact/evidence checks; they do not establish live source recall.
+
+Local validation passed **776 tests**, **92 benchmark cases**, mypy across
+**50 modules**, Ruff/format, wheel build and Twine. Existing tests changed their
+planner-call counts to reflect automatic steps, not their expected course facts.
+Cache coverage still exercises a stale call before automatic completion. Injection
+input-placement assertions run on a branching case that actually invokes the model,
+not on a fully deterministic path where those assertions would be unreachable.
+The built wheel was installed only in the isolated evaluator.
+
+The unseeded real-web run still failed at **300.01s**, with 29 registered sources and
+two checked sources. Usage recorded 14 completed model requests; the stage trace
+recorded **17 attempts**, including three cancelled extraction calls. Extraction
+accounted for nine attempts / **152.37s**, and planning for eight / **117.86s**.
+The trace again observed planner tool names returned during extraction. Those calls
+did not gain planner privileges; invalid output was retried or timed out under the
+unchanged limits. This does not identify whether model generation, serving or parsing
+caused the mismatch. Search results also differed from earlier runs, so these timings
+are not a controlled latency comparison. Original-course recall and bounded live
+completion remain unsatisfied; the experimental parent is not production-ready.
+
+Known-link live anonymous verification passed **2/2** in **13.93s / 6.61s**, with
+three model requests and two tool calls each. Original occurrence facts, source
+evidence, no personal queue inference and incomplete-series reporting all passed.
+This validates the supplied-detail path, not discovery of that link from a city query.
+
+## Source-Only Extraction Context: 2026-11-03
+
+A fresh replay of the captured public operator page reproduced an unsupported
+`year_text`, followed by a retry timeout. The course description did not contain
+a schedule year in its selected evidence. The candidate removes calendar-window
+metadata from the extractor's prompt and explicitly describes empty required fields
+for undated descriptions. Python still applies the requested window and timezone;
+evidence validation, request budgets, tool choice and retries are unchanged.
+
+The first wording passed **7/9**: operator and dated-course checks passed three
+times each, but the directory failed twice (request budget and transport timeout).
+That wording also unnecessarily asked for empty clock times on undated schedules.
+It was narrowed to descriptions with no schedule facts, preserving any published
+weekday and time quotes. Those two batches are separate candidates, not pooled.
+
+The final Qwen/Rapid-MLX replay used two previously captured public pages and a
+minimal dated transcription, with three repetitions per case:
+
+| Case | Passed | Seconds | Model requests per run |
+| --- | --- | --- | --- |
+| Operator catalog: retain compatible Live Ball, invent no dates | 3/3 | 8.13 / 2.24 / 2.21 | 1 |
+| Facility directory: do not turn opening hours into courses | 3/3 | 3.18 / 0.66 / 0.65 | 1 |
+| Dated clinic: preserve title, price, start and end | 3/3 | 2.97 / 2.55 / 2.55 | 1 |
+
+The process-local model-only guard recorded one model connection and zero blocked
+network, DNS or process attempts. Captures and raw reports remain outside Git.
+This is a small repeated extraction check, not statistical proof of serving
+reliability, complete catalog recall, or autonomous discovery of the original link.
+No authenticated browser profile, production service or ingress configuration changed.
+
+Local validation passed **780 tests**, **96 benchmark cases**, mypy across
+**50 modules**, Ruff/format, wheel build and Twine. Four new deterministic cases
+cover source-only prompt data, rejection of a borrowed year, undated candidates,
+and retention of weekday/time evidence without generating dated sessions.
+
+The subsequent unseeded anonymous real-web run still failed at **300.04s**:
+14 completed model requests, 30 registered sources and three checked sources.
+The trace contains 16 model attempts, including two cancelled extractions. The
+scorer-only original occurrence URL was not supplied to the agent. No original-course
+recall or bounded end-to-end completion was established. These live results remain
+an unmet production gate; the nine passing extraction replays do not supersede it.
+
+## Navigation After Extraction Deadlines: 2026-11-03
+
+A deterministic regression reproduced another lost path: retrieval completed, but
+the extraction deadline discarded the page's independently observed registration
+link. The original implementation returned `page_unavailable` without navigation.
+The staged reader now receives an application-owned monotonic deadline inside the
+unchanged hard tool budget. It may retain validated navigation after its own
+extraction timeout, never facts or successful-source status. External cancellation,
+the enclosing run deadline, transport/model-budget failures and required-source failure
+remain separate. No retries or larger budgets were added.
+
+The new reproducible `extraction-deadline` case passed **3/3** with the private
+Qwen/Rapid-MLX planner: **13.03s / 4.40s / 5.01s**, four model requests and three
+tools each. It injects a stalled extractor under a one-second test tool budget;
+the private model chooses the search/read/completion steps. Each run cancelled
+extraction once, retained the unavailable overview, followed the observed detail
+link and preserved the original anonymous time, price, full status and unknown
+personal queue. The model-only guard recorded one model connection and zero blocked
+network, DNS or process attempts. This is controlled fault injection, not a live
+web retrieval or model-outage benchmark.
+
+Known-link live anonymous verification passed **2/2** in **13.49s / 6.67s**, with
+three model requests and two tools each. The same original facts and incomplete
+series checks passed. The candidate wheel was installed only in the isolated
+evaluator; production and the browser worker were not changed.
+
+The separate unseeded real-web run still failed, this time at **271.59s** after
+20 completed model requests, 48 registered sources and four checked sources.
+A required linked registration page was unavailable, so the existing validator
+aborted. This run did not exercise an extraction timeout, and its different search
+results do not establish a latency improvement. Original-course discovery and
+end-to-end completion remain unmet production gates.
+
+Local validation passed **792 tests**, **100 benchmark cases**, mypy across
+**50 modules**, Ruff/format, wheel build and Twine. Added cases cover the original
+course through a timed-out optional source, required-source failure, link/depth/
+registry limits, cached failure, external and enclosing cancellation, expired
+deadlines, transport timeouts and late results after suppressed cancellation.
+
+## USTA Public Course Entry Policy: 2026-11-03
+
+Two required links in the failed unseeded run were public USTA course entries,
+not login pages. Anonymous GETs on the Mac showed a `Coaching/Book/<uuid>` entry
+redirecting to `Coaching/Course/<uuid>`, and a legacy `BookCourse/<uuid>` entry
+redirecting through that same display route. The VPS public reader failed before
+returning a document. Its browser fallback then rejected the `Book` segment,
+either at request validation or while validating the legacy entry's redirect.
+The VPS failure alone did not establish a membership requirement.
+
+The candidate recognizes only the exact `playtennis.usta.com` host and bounded
+`/<club>/Coaching/Book/<uuid>` path without query parameters. Only the `Book`
+segment is exempted from the action-name filter; the slug remains checked.
+Request methods, DNS, redirects, private destinations and authenticated-context
+boundaries are unchanged. No POST, registration click or saved profile is enabled.
+
+On the browser host, a separate process loaded the candidate protocol module
+before importing the installed reader. The running worker and its installed files
+were not changed. Each of the two real URLs was read twice with the installed
+baseline, then twice with the candidate:
+
+| Entry shape | Baseline | Candidate | Candidate durations |
+| --- | --- | --- | --- |
+| Course entry | 0/2, request validation rejected | 2/2 | 4.05s / 3.83s |
+| Legacy entry | 0/2, browser redirect rejected | 2/2 | 3.77s / 3.85s |
+
+Checks required the final course-display path, matching adult clinic title and
+7:00-8:30 PM time. The first page also had the November 3 date, $45 price and full
+status. The second had November 17 and December 8 dates and $120 price. Both
+were anonymous; the supplied profile path was never created. These observations
+are retrieval checks of the two known failing links, not extraction accuracy,
+live model planning, exhaustive recall or confirmation of booking eligibility.
+The original November 2 CourtReserve oracle is unchanged and remains a separate
+release gate. Full unseeded search was not rerun with this candidate.
+
+The sanitized browser regression reproduces both redirect shapes and blocks POST,
+checkout redirects and private destinations. Run it with
+`pytest -q tests/test_usta_read_pages.py`; four cases also run under
+`pytest -q -m benchmark`. Additional policy cases cover other hosts, malformed IDs,
+extra path segments, action-bearing slugs and query parameters.
+
+Local validation passed **810 tests**, **104 benchmark cases**, mypy across
+**50 modules**, and Ruff/format. Fixtures contain synthetic URLs and course text;
+the live URLs, captured HTML and machine-specific probe stayed outside the repo.

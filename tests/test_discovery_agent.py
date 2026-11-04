@@ -60,11 +60,11 @@ class AreaBackend(ReplayBackend):
         }[request.search_focus]
         return SearchResults(sources=(ref,))
 
-    async def read(self, source_id, request):
+    async def read(self, source_id, request, *, deadline=None):
         if source_id == self.schedule_ref.id:
             self.read_calls.append(source_id)
             return SourceDocument(source=self.schedule_ref, text="No additional dated courses")
-        return await super().read(source_id, request)
+        return await super().read(source_id, request, deadline=deadline)
 
 
 @pytest.mark.benchmark
@@ -86,9 +86,10 @@ def test_area_preflight_reserves_coverage_and_hides_exhausted_search_tool():
         tools = {tool.name: tool for tool in info.function_tools}
         assert backend.search_calls == [city + "|" + focus for city, focus in searches]
         assert "search_courses" not in tools
-        assert "read_source" in tools
         if source := next(reads, None):
+            assert "read_source" in tools
             return ModelResponse([ToolCallPart("read_source", {"source_id": source})])
+        assert "read_source" not in tools
         return ModelResponse([ToolCallPart("finish_discovery", {"outcome": "sources_checked"})])
 
     run = asyncio.run(
@@ -98,7 +99,7 @@ def test_area_preflight_reserves_coverage_and_hides_exhausted_search_tool():
     )
     assert run.searched_cities == ("San Jose", "Santa Clara", "Cupertino")
     assert backend.search_calls == [city + "|" + focus for city, focus in searches]
-    assert run.model_requests == 4 and run.tool_calls == 8
+    assert run.model_requests == 2 and run.tool_calls == 8
 
 
 def test_required_search_gate_rejects_optional_query_without_spending_search_budget():
@@ -220,7 +221,9 @@ def test_model_cannot_read_an_arbitrary_source(source):
     with pytest.raises(AgentDiscoveryError, match="blocked"):
         asyncio.run(
             run_discovery_agent(
-                request(), backend, scripted([ToolCallPart("read_source", {"source_id": source})])
+                request(),
+                backend,
+                scripted([*plan()[:2], ToolCallPart("read_source", {"source_id": source})]),
             )
         )
     assert backend.read_calls == []
@@ -290,7 +293,9 @@ def test_repeated_read_is_cached_but_charged():
         await state.search_courses("San Jose")
         await state.search_courses("Santa Clara")
         first = await state.read_source("seasonal-schedule")
-        assert await state.read_source("seasonal-schedule") == first
+        second = await state.read_source("seasonal-schedule")
+        assert first["candidate_session_count"] == 1
+        assert second["cached"] and second["next_source_ids"] == ("dated-registration",)
         assert backend.read_calls == ["seasonal-schedule"]
         assert state.calls == 4
         assert state.audit[-1].outcome == "cached"
@@ -300,10 +305,10 @@ def test_repeated_read_is_cached_but_charged():
 
 def test_required_failed_source_does_not_create_success():
     class UnavailableBackend(ReplayBackend):
-        async def read(self, source_id, request):
+        async def read(self, source_id, request, *, deadline=None):
             if source_id == "dated-registration":
                 raise SourceUnavailable("private provider details must not escape")
-            return await super().read(source_id, request)
+            return await super().read(source_id, request, deadline=deadline)
 
     with pytest.raises(AgentDiscoveryError, match="Required registration") as caught:
         asyncio.run(run_discovery_agent(request(), UnavailableBackend(), scripted(plan())))
@@ -431,7 +436,7 @@ def test_transient_failure_is_retried_at_most_once():
     from tennis_overview.discovery_agent import TransientSourceError
 
     class FailingBackend(ReplayBackend):
-        async def read(self, source_id, request):
+        async def read(self, source_id, request, *, deadline=None):
             self.read_calls.append(source_id)
             raise TransientSourceError("provider diagnostic must stay private")
 
@@ -442,7 +447,9 @@ def test_transient_failure_is_retried_at_most_once():
         await state.search_courses("Santa Clara")
         response = await state.read_source("seasonal-schedule")
         assert "provider diagnostic" not in str(response)
-        assert await state.read_source("seasonal-schedule") == response
+        cached = await state.read_source("seasonal-schedule")
+        assert all(cached[key] == value for key, value in response.items())
+        assert cached["cached"] and cached["next_source_ids"] == ()
         assert backend.read_calls == ["seasonal-schedule", "seasonal-schedule"]
 
     asyncio.run(check())

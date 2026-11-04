@@ -14,7 +14,7 @@ from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior, Usag
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RunUsage
 
-from benchmarks.source_discovery import error_types
+from benchmarks.discovery_metrics import error_types
 
 from tennis_overview.agent_discovery import run_until_stopped
 from tennis_overview.course_extraction import (
@@ -285,6 +285,98 @@ def test_missing_evidence_from_real_model_failure_is_retried_not_silently_droppe
 def test_missing_courses_is_not_an_empty_result():
     with pytest.raises(ValidationError):
         ExtractionReport.model_validate({})
+
+
+@pytest.mark.benchmark
+def test_extractor_uses_source_dates_not_the_requested_calendar_window():
+    async def respond(messages, info):
+        payload = json.loads(messages[-1].parts[0].content)
+        assert set(payload) == {"location", "level", "page_url", "page_lines"}
+        assert payload["page_lines"] == list(map(list, enumerate(generic_page().text.splitlines())))
+        return ModelResponse([ToolCallPart("extract_courses", {"courses": [quoted_course()]})])
+
+    async def scenario():
+        extractor = CourseExtractor(FunctionModel(respond), RunUsage(), 4)
+        result = await extractor.extract(generic_page(), REQUEST)
+        assert result[0].sessions[0].starts_at.isoformat() == "2026-11-02T18:30:00-08:00"
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.benchmark
+@pytest.mark.parametrize("borrowed_year", [False, True])
+def test_undated_catalog_does_not_borrow_a_year_from_another_section(borrowed_year):
+    page = Page(
+        URL,
+        "Adult Programs",
+        "Live Ball\nNTRP 3.0+\nCoached doubles games for adults.\n"
+        "Other Programs\nWinter 2027\nCopyright 2026",
+        (),
+    )
+    fields = {
+        "title_line": 0,
+        "level": "NTRP 3.0+",
+        "evidence_start_line": 0,
+        "evidence_end_line": 2,
+        "year_text": "2027" if borrowed_year else "",
+        "date_start_text": "",
+        "date_end_text": "",
+        "start_time_text": "",
+        "end_time_text": "",
+        "weekdays": [],
+    }
+
+    async def respond(messages, info):
+        return ModelResponse([ToolCallPart("extract_courses", {"courses": [fields]})])
+
+    async def scenario():
+        usage = RunUsage()
+        extractor = CourseExtractor(FunctionModel(respond), usage, 4)
+        if borrowed_year:
+            with pytest.raises(UnexpectedModelBehavior):
+                await extractor.extract(page, REQUEST)
+            assert usage.requests == 2
+        else:
+            result = await extractor.extract(page, REQUEST)
+            assert len(result) == 1
+            assert result[0].title == "Live Ball"
+            assert result[0].sessions == ()
+            assert result[0].availability == "Not checked"
+            assert result[0].evidence == " ".join(page.text.splitlines()[:3])
+            assert usage.requests == 1
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.benchmark
+def test_weekday_and_time_without_year_remain_evidence_not_dated_sessions():
+    page = Page(URL, "Adult Programs", "Live Ball\nNTRP 3.0+\nMondays 7:00 PM - 8:30 PM", ())
+    fields = {
+        "title_line": 0,
+        "level": "NTRP 3.0+",
+        "evidence_start_line": 0,
+        "evidence_end_line": 2,
+        "year_text": "",
+        "date_start_text": "",
+        "date_end_text": "",
+        "start_time_text": "7:00 PM",
+        "end_time_text": "8:30 PM",
+        "weekdays": ["Mondays"],
+    }
+
+    async def respond(messages, info):
+        return ModelResponse([ToolCallPart("extract_courses", {"courses": [fields]})])
+
+    async def scenario():
+        usage = RunUsage()
+        extractor = CourseExtractor(FunctionModel(respond), usage, 4)
+        result = await extractor.extract(page, REQUEST)
+        assert len(result) == 1
+        assert result[0].sessions == ()
+        assert "Mondays 7:00 PM - 8:30 PM" in result[0].evidence
+        assert usage.requests == 1
+
+    asyncio.run(scenario())
 
 
 def test_clock_time_in_end_date_from_live_failure_is_corrected_before_expansion():

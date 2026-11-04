@@ -130,10 +130,16 @@ def test_search_score_requires_same_club_event_and_occurrence():
 
 
 @pytest.mark.benchmark
-def test_measured_replay_keeps_original_oracle_and_isolates_repetitions(monkeypatch):
+@pytest.mark.parametrize("case", ["anonymous", "extraction-deadline"])
+def test_measured_replay_keeps_original_oracle_and_isolates_repetitions(monkeypatch, case):
     turns = iter(
         [
             ToolCallPart("search_courses", {"city": "Example City"}),
+            *(
+                [ToolCallPart("read_source", {"source_id": identity(source_discovery.REPLAY_URL)})]
+                if case == "extraction-deadline"
+                else []
+            ),
             ToolCallPart("read_source", {"source_id": identity(source_discovery.BROWSER_URL)}),
             ToolCallPart("finish_discovery", {"outcome": "sources_checked"}),
         ]
@@ -153,14 +159,16 @@ def test_measured_replay_keeps_original_oracle_and_isolates_repetitions(monkeypa
         model="synthetic-model",
         api_key=SecretStr("synthetic-model-key-for-tests-only"),
     )
-    rows = asyncio.run(source_discovery.evaluate(config, live=False, repeats=2, case="anonymous"))
+    rows = asyncio.run(source_discovery.evaluate(config, live=False, repeats=2, case=case))
     assert len(rows) == 2
     for row in rows:
         assert all(row["checks"].values())
-        assert row["requests"] == 3 and row["tool_calls"] == 2
+        extra = 1 if case == "extraction-deadline" else 0
+        assert row["requests"] == 3 + extra and row["tool_calls"] == 2 + extra
         assert [m["stage"] for m in row["stage_metrics"]["measurements"]] == [
             "planner_model",
             "search",
+            *(["planner_model", "source_read"] if extra else []),
             "planner_model",
             "source_read",
             "planner_model",

@@ -61,10 +61,49 @@ def backend(*, required=False):
 
 
 @pytest.mark.benchmark
+def test_extraction_deadline_keeps_observed_navigation_without_retrying_model():
+    async def scenario():
+        sources = backend()
+        cancelled = 0
+
+        async def stall(*args):
+            nonlocal cancelled
+            try:
+                await asyncio.Future()
+            finally:
+                cancelled += 1
+
+        sources.extractor.extract.side_effect = stall
+        state = ResearchState(request(), sources, DiscoveryLimits(tool_seconds=0.1))
+        await state.search_courses("San Jose")
+        first = await state.read_source(identity(URL))
+        assert first["reason"] == "evidence_invalid"
+        assert [link["id"] for link in first["links"]] == [identity(BROWSER_URL)]
+        assert not state.documents[identity(URL)].records
+        assert not sources.details
+        assert cancelled == 1
+        assert state.read_attempts == 1
+        assert [event.outcome for event in state.audit] == ["ok", "unavailable"]
+        cached = await state.read_source(identity(URL))
+        assert cached["cached"] and cached["next_source_ids"] == (identity(BROWSER_URL),)
+        sources.extractor.extract.assert_awaited_once()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.benchmark
 @pytest.mark.parametrize("required", [False, True])
-def test_original_anonymous_case_survives_optional_extraction_failure_only(required):
+@pytest.mark.parametrize("timeout", [False, True])
+def test_original_anonymous_case_survives_optional_extraction_failure_only(required, timeout):
     async def scenario():
         sources = backend(required=required)
+        limits = DiscoveryLimits(tool_seconds=1 if timeout else 20)
+        if timeout:
+
+            async def stall(*args):
+                await asyncio.Future()
+
+            sources.extractor.extract.side_effect = stall
         turns = iter(
             [
                 ToolCallPart("search_courses", {"city": "San Jose"}),
@@ -79,9 +118,9 @@ def test_original_anonymous_case_survives_optional_extraction_failure_only(requi
 
         if required:
             with pytest.raises(AgentDiscoveryError, match="Required registration"):
-                await run_discovery_agent(request(), sources, FunctionModel(respond))
+                await run_discovery_agent(request(), sources, FunctionModel(respond), limits=limits)
             return
-        run = await run_discovery_agent(request(), sources, FunctionModel(respond))
+        run = await run_discovery_agent(request(), sources, FunctionModel(respond), limits=limits)
         expected = json.loads(FIXTURE.read_text())["expected"]
         assert len(run.sessions) == 1
         course = run.sessions[0].model_dump(mode="json")
@@ -100,9 +139,16 @@ def test_original_anonymous_case_survives_optional_extraction_failure_only(requi
 
 
 @pytest.mark.parametrize("limit", ["depth", "registry", "unrelated"])
-def test_navigation_failure_cannot_bypass_existing_link_limits(limit):
+@pytest.mark.parametrize("timeout", [False, True])
+def test_navigation_failure_cannot_bypass_existing_link_limits(limit, timeout):
     async def scenario():
         sources = backend()
+        if timeout:
+
+            async def stall(*args):
+                await asyncio.Future()
+
+            sources.extractor.extract.side_effect = stall
         ref = sources.register(URL, "Adult tennis", 2 if limit == "depth" else 0)
         if limit == "registry":
             sources.source_limit = 1
@@ -116,7 +162,7 @@ def test_navigation_failure_cannot_bypass_existing_link_limits(limit):
                 )
             )
         with pytest.raises(SourceUnavailable) as caught:
-            await sources.read(ref.id, request())
+            await sources.read(ref.id, request(), deadline=asyncio.get_running_loop().time() + 0.01)
         assert caught.value.reason == "evidence_invalid"
         assert identity(BROWSER_URL) not in sources.sources
         assert not sources.details
@@ -164,9 +210,106 @@ def test_linked_page_does_not_hide_model_outage_budget_or_cancellation(failure):
         sources.extractor.extract.side_effect = failure
         ref = sources.register(URL, "Adult tennis", 0)
         with pytest.raises(type(failure)):
-            await sources.read(ref.id, request())
+            await sources.read(ref.id, request(), deadline=asyncio.get_running_loop().time() + 1)
         assert set(sources.sources) == {ref.id}
         assert not sources.details and sources.sources[ref.id].status == "not_read"
+
+    asyncio.run(scenario())
+
+
+def test_external_cancellation_during_extraction_retains_no_navigation_or_facts():
+    async def scenario():
+        sources = backend()
+        started = asyncio.Event()
+
+        async def stall(*args):
+            started.set()
+            await asyncio.Future()
+
+        sources.extractor.extract.side_effect = stall
+        state = ResearchState(request(), sources, DiscoveryLimits(tool_seconds=1))
+        await state.search_courses("San Jose")
+        task = asyncio.create_task(state.read_source(identity(URL)))
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert set(state.registry) == set(sources.sources) == {identity(URL)}
+        assert not sources.details and not state.documents and not state.failed_sources
+        assert [event.outcome for event in state.audit] == ["ok"]
+
+    asyncio.run(scenario())
+
+
+def test_enclosing_deadline_does_not_become_navigation_only_success():
+    async def scenario():
+        sources = backend()
+        started = asyncio.Event()
+
+        async def stall(*args):
+            started.set()
+            await asyncio.Future()
+
+        sources.extractor.extract.side_effect = stall
+        state = ResearchState(request(), sources, DiscoveryLimits(tool_seconds=1))
+        await state.search_courses("San Jose")
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(0.03):
+                await state.read_source(identity(URL))
+        assert started.is_set()
+        assert not sources.details and not state.documents and not state.failed_sources
+        assert set(state.registry) == {identity(URL)}
+        assert [event.outcome for event in state.audit] == ["ok"]
+
+    asyncio.run(scenario())
+
+
+def test_exhausted_extraction_deadline_does_not_start_model():
+    async def scenario():
+        sources = backend()
+        ref = sources.register(URL, "Adult tennis", 0)
+        result = await sources.read(
+            ref.id, request(), deadline=asyncio.get_running_loop().time() - 1
+        )
+        assert result.evidence_unavailable and result.partial and not result.records
+        assert [link.id for link in result.links] == [identity(BROWSER_URL)]
+        sources.extractor.extract.assert_not_awaited()
+
+    asyncio.run(scenario())
+
+
+def test_unrelated_timeout_is_not_misreported_as_extraction_deadline():
+    async def scenario():
+        sources = backend()
+        sources.extractor.extract.side_effect = TimeoutError("transport detail")
+        ref = sources.register(URL, "Adult tennis", 0)
+        with pytest.raises(TimeoutError):
+            await sources.read(ref.id, request(), deadline=asyncio.get_running_loop().time() + 1)
+        assert set(sources.sources) == {ref.id}
+        assert not sources.details and sources.sources[ref.id].status == "not_read"
+
+    asyncio.run(scenario())
+
+
+def test_extractor_suppressing_its_deadline_cannot_publish_late_facts():
+    async def scenario():
+        sources = backend()
+
+        async def late_result(*args):
+            try:
+                await asyncio.Future()
+            except asyncio.CancelledError:
+                # An invalid late object must be discarded before any fact access.
+                return (object(),)
+
+        sources.extractor.extract.side_effect = late_result
+        ref = sources.register(URL, "Adult tennis", 0)
+        result = await sources.read(
+            ref.id, request(), deadline=asyncio.get_running_loop().time() + 0.01
+        )
+        assert result.evidence_unavailable and result.partial and not result.records
+        assert [link.id for link in result.links] == [identity(BROWSER_URL)]
+        assert not sources.details
 
     asyncio.run(scenario())
 
@@ -236,7 +379,9 @@ def test_failed_evidence_retains_only_navigation_and_is_cached_without_retry():
         await state.search_courses("San Jose")
         first = await state.read_source(identity(URL))
         second = await state.read_source(identity(URL))
-        assert first == second
+        assert second["cached"] and second["next_source_ids"] == (identity(BROWSER_URL),)
+        assert second["reason"] == first["reason"]
+        assert "links" not in second
         assert first["reason"] == "evidence_invalid"
         assert [link["id"] for link in first["links"]] == [identity(BROWSER_URL)]
         assert "candidate_session_count" not in first

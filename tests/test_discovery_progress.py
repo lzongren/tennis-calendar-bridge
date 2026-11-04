@@ -30,14 +30,14 @@ class CoverageBackend(ReplayBackend):
         )
         return SearchResults(sources=(ref,))
 
-    async def read(self, source_id, query):
+    async def read(self, source_id, query, *, deadline=None):
         if source_id in {"registration", "schedule"}:
             self.read_calls.append(source_id)
             return SourceDocument(
                 source=SourceRef(id=source_id, title="Additional public catalog"),
                 text="No additional dated sessions on this page",
             )
-        return await super().read(source_id, query)
+        return await super().read(source_id, query, deadline=deadline)
 
 
 def test_completion_reports_all_missing_detail_and_coverage_obligations_together():
@@ -123,7 +123,7 @@ def test_real_case_progress_guides_coverage_without_spending_completion_retries(
     run = asyncio.run(run_discovery_agent(query, backend, FunctionModel(respond)))
     checks = score(run, "baseline")
     assert all(value for key, value in checks.items() if key != "neighbor_search")
-    assert finishes == 1 and run.model_requests == 5
+    assert finishes == 0 and run.model_requests == 3
     assert run.tool_calls == 7 and backend.search_calls == [query.city] * 3
     assert set(backend.read_calls) == {
         "seasonal-schedule",

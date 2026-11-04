@@ -19,7 +19,7 @@ from pydantic_ai.usage import RunUsage
 from tennis_overview.browser_documents import BrowserDocument
 from tennis_overview.browser_client import BrowserClient
 from tennis_overview.browser_protocol import read_url
-from tennis_overview.course_extraction import CourseExtractor
+from tennis_overview.course_extraction import CourseCandidate, CourseExtractor
 from tennis_overview.discovery_agent import (
     LIVE_DISCOVERY_LIMITS,
     DiscoveryRequest,
@@ -27,9 +27,9 @@ from tennis_overview.discovery_agent import (
 )
 from tennis_overview.discovery_sources import PublicSourceBackend
 from tennis_overview.private_model import PrivateModelConfig, private_model
-from tennis_overview.public_web import Page, page_from_html
+from tennis_overview.public_web import Page, PageLink, page_from_html
 
-from .discovery_metrics import DiscoveryMetrics, MeasuredModel
+from .discovery_metrics import DiscoveryMetrics, MeasuredModel, error_types
 from .network_guard import install_model_only_guard
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
@@ -38,22 +38,16 @@ BROWSER_URL = "https://app.courtreserve.com/Online/Events/Details/12345/EXAMPLE?
 CAPTURE_TIME = datetime(2026, 11, 2, 18, tzinfo=timezone.utc)
 
 
-def error_types(error: BaseException) -> list[str]:
-    """Bounded structural diagnostics, never exception messages or response bodies."""
-    pending: list[BaseException] = [error]
-    seen: set[int] = set()
-    names: list[str] = []
-    while pending and len(seen) < 12:
-        current = pending.pop(0)
-        if id(current) in seen:
-            continue
-        seen.add(id(current))
-        names.append(type(current).__name__)
-        if isinstance(current, BaseExceptionGroup):
-            pending.extend(current.exceptions[:4])
-        if current.__context__ is not None:
-            pending.append(current.__context__)
-    return names
+class StalledExtractor(CourseExtractor):
+    """Controlled extraction stall; only planning uses the real model in this case."""
+
+    cancelled = 0
+
+    async def extract(self, page: Page, request: DiscoveryRequest) -> tuple[CourseCandidate, ...]:
+        try:
+            return await asyncio.Future[tuple[CourseCandidate, ...]]()
+        finally:
+            self.cancelled += 1
 
 
 async def empty_search(city: str, level: str, year: int, focus: str) -> list[dict[str, str]]:
@@ -130,6 +124,8 @@ async def evaluate(
             )
             usage = RunUsage()
             limits = LIVE_DISCOVERY_LIMITS
+            if case == "extraction-deadline":
+                limits = limits.model_copy(update={"tool_seconds": 1})
             backend = PublicSourceBackend(
                 CourseExtractor(extractor, usage, limits.model_requests),
                 source_limit=limits.sources,
@@ -154,6 +150,16 @@ async def evaluate(
                 page: Page | BrowserDocument = page_from_html(
                     REPLAY_URL, (FIXTURES / "discovery_ongoing.html").read_bytes()
                 )
+                if case == "extraction-deadline":
+                    page = Page(
+                        REPLAY_URL,
+                        "Adult tennis courses",
+                        "Published adult tennis programs and registration links.",
+                        (BROWSER_URL,),
+                        link_details=(PageLink(BROWSER_URL, "Adult clinic registration"),),
+                    )
+                    backend.extractor = StalledExtractor(extractor, usage, limits.model_requests)
+                    backend.clock = lambda: CAPTURE_TIME
                 if case == "quoted":
                     page = Page(
                         REPLAY_URL,
@@ -190,6 +196,15 @@ async def evaluate(
                     backend.clock = lambda: capture_time
 
                 async def replay_read(url: str) -> Page | BrowserDocument:
+                    if case == "extraction-deadline" and url == BROWSER_URL:
+                        return BrowserDocument(
+                            BROWSER_URL,
+                            "Anonymous clinic",
+                            (
+                                FIXTURES / "discovery_benchmark/courtreserve_anonymous_detail.html"
+                            ).read_text(),
+                            CAPTURE_TIME,
+                        )
                     if url != replay_url:
                         raise ValueError("Replay source outside fixture")
                     return page
@@ -197,6 +212,15 @@ async def evaluate(
                 backend.reader = replay_read
                 backend.searcher = empty_search
                 backend.initial_urls = (replay_url,)
+                if case == "extraction-deadline":
+
+                    async def replay_search(
+                        city: str, level: str, year: int, focus: str
+                    ) -> list[dict[str, str]]:
+                        return [{"url": REPLAY_URL, "title": "Adult tennis courses"}]
+
+                    backend.searcher = replay_search
+                    backend.initial_urls = ()  # Optional overview, not a required detail.
             reader, searcher = backend.reader, backend.searcher
 
             async def measured_read(url: str) -> Page | BrowserDocument:
@@ -219,7 +243,7 @@ async def evaluate(
                 result = backend.result(run, request)
                 courses = result["courses"]
                 target = "www.sjsrc.com" if live else "club.example.org"
-                if case in {"browser", "anonymous", "clinic-search"}:
+                if case in {"browser", "anonymous", "clinic-search", "extraction-deadline"}:
                     target = "app.courtreserve.com"
                 matching = [
                     course
@@ -251,7 +275,7 @@ async def evaluate(
                     checks["quoted_title"] = any(
                         course["title"] == "Adult Coach Clinic" for course in matching
                     )
-                elif case in {"browser", "anonymous", "clinic-search"}:
+                elif case in {"browser", "anonymous", "clinic-search", "extraction-deadline"}:
                     expected = json.loads(
                         (FIXTURES / "discovery_benchmark" / "nov2_registration.json").read_text()
                     )["expected"]
@@ -288,12 +312,23 @@ async def evaluate(
                         "series_incomplete": result["partial"],
                         "request_budget": usage.requests <= limits.model_requests,
                     }
-                    if case in {"anonymous", "clinic-search"}:
+                    if case in {"anonymous", "clinic-search", "extraction-deadline"}:
                         checks["clinic_identity"] = len(matching) == 1 and bool(
                             re.search(
                                 r"Adult Coach.*Clinic.*NTRP 2\.5 - 3\.0.*MON 6:30PM - Fall 2",
                                 matching[0]["title"],
                             )
+                        )
+                    if case == "extraction-deadline":
+                        checks["deadline_navigation_retained"] = any(
+                            source["url"] == REPLAY_URL
+                            and source["status"] == "unavailable"
+                            and source["failure_reason"] == "evidence_invalid"
+                            for source in result["sources"]
+                        )
+                        checks["extraction_cancelled_once"] = (
+                            isinstance(backend.extractor, StalledExtractor)
+                            and backend.extractor.cancelled == 1
                         )
                 if case == "anonymous-series":
                     checks = {
@@ -336,7 +371,15 @@ def main() -> None:
     parser.add_argument("--live-web", action="store_true")
     parser.add_argument(
         "--case",
-        choices=("ongoing", "quoted", "browser", "anonymous", "anonymous-series", "clinic-search"),
+        choices=(
+            "ongoing",
+            "quoted",
+            "browser",
+            "anonymous",
+            "anonymous-series",
+            "clinic-search",
+            "extraction-deadline",
+        ),
         default="ongoing",
     )
     parser.add_argument(

@@ -77,12 +77,54 @@ body stays with the extractor; full source-owned records stay with reconciliatio
 This projection changes neither extracted facts nor the final evidence set. Dates
 are included because a title-only live trial caused redundant follow-up searches.
 
+Repeated reads return a small state-owned cache acknowledgement and the currently
+available unread source IDs, not another copy of page titles, links or candidate
+summaries. Failure reasons remain explicit; cached failures do not become successful
+reads. Every cache hit still consumes a tool operation and is audited. Full documents
+and source-owned records remain in research state for reconciliation.
+
+The read tool advertises only currently available unread IDs, including after the
+search-group coverage phase; it is hidden when none remain. Its schema and cache
+guidance use the same ID calculation. These hints do not replace execution guards:
+unknown sources remain blocked, coverage rules still apply, and repeated calls can
+still exhaust the unchanged run budget.
+
+After search-group coverage, area mode restricts reads to outstanding required
+details and observed registration navigation until those obligations are attempted.
+Both the schema and execution guard use this priority set. A stale call to a known
+but optional source consumes a tool operation, not a network read, and receives the
+current allowed IDs. Once obligations are clear, optional exploration is available
+again. `source_check` retains its focused read policy. Anonymous navigation failures
+satisfy an attempt only; failed required details still abort verification.
+
 Pydantic AI exposes the completion tool only when the existing completion validator
 finds no outstanding work. Tool preparation calls that same side-effect-free
 validator; it does not maintain a second coverage policy. Terminal source failures
 still reach the validator and abort rather than becoming success. Hiding a tool is
 planning guidance, not a security boundary: the model can still attempt an absent
 tool or return prose, and existing validation and request limits still apply.
+
+Area-mode instructions repeat the currently readable IDs and a completion state
+derived from that same validator. Only a ready state includes the exact completion
+arguments: `sources_checked` when records exist, otherwise `no_results`. Pending and
+terminal failure states are distinct. These hints contain no page text or source
+titles, do not charge tool calls, and do not relax the required `outcome` field.
+The planner must use the current tool schema rather than replaying a tool that was
+available earlier in the conversation.
+Focused `source_check` retains its existing instructions and `Agent.run` path.
+
+Area mode drives the Pydantic AI graph with `Agent.iter`. Before a model request,
+the application executes mandatory reads only while the allowed priority set has
+exactly one ID. Each uses the normal read method, including its audit, retry policy,
+source validation and budgets. Multiple choices and optional links remain with the
+planner. Completed observations are enqueued as structured input data, not invented
+assistant/tool messages or system instructions.
+
+If no unread sources remain, the application calls the same completion validator
+and returns reconciled evidence without asking the model to emit a redundant final
+tool call. Failed required details still abort, and pending search obligations still
+require the planner. `source_check` does not use these automatic steps. The enclosing
+deadline and shared model usage include extraction performed by automatic reads.
 
 Area discovery is the default. Before the first model request, the application
 executes the required overview, registration and schedule queries, then bounded
@@ -104,8 +146,31 @@ disappears at the query limit. Completion still requires an attempted read from 
 new sources introduced by each nonempty search. Existing candidates cannot bypass
 these gates; preflight does not change required-detail or source-failure semantics.
 
+Area coverage also requires an attempt at observed registration navigation. The
+source adapter marks `navigation_ids` only among the existing bounded, validated
+links, using registration labels/paths. It never creates a URL from model output.
+The same classification ranks links before the six-link cap; depth and registry
+limits are unchanged. Failed course extraction can retain these obligations with
+its independently observed links. Registration detail observations do not create
+new catalog obligations from their back-navigation links.
+
+These are not `required_ids`: an unavailable catalog completes the navigation
+attempt and leaves coverage partial, while a failed required course detail still
+aborts verification. Other courses cannot bypass an unattempted navigation ID.
+Completion-tool visibility and validation use the same pending-ID calculation,
+and fixed progress instructions prioritize these IDs. A membership/login response
+does not authorize a login or retry. `source_check` does not expand area navigation.
+
+The read tool's schema and execution guard share a coverage-first ID set while any
+search group is unattempted. It permits a representative from those groups or a
+required course-detail read, but defers optional linked navigation. This prevents
+one operator's signup links from consuming the budget before other search groups
+are inspected. After that breadth pass, all outstanding navigation attempts remain
+mandatory. Budgets and required-detail failure handling are unchanged.
+
 Each model turn also receives state-owned progress instructions: outstanding query
-phases, required detail IDs, unattempted source groups and remaining read capacity.
+phases, required detail IDs, registration navigation, unattempted source groups and
+remaining read capacity.
 Source text, titles and URLs are not promoted into these instructions. Completion
 validation reports all outstanding detail/group reads together, rather than spending
 one output retry per missing group. The progress display and validator share the
@@ -122,6 +187,16 @@ it does not promise exhaustive coverage or increase model, read, tool or time li
 `source_check` is the explicit focused mode for supplied-source and evidence replay
 benchmarks, not the production city-discovery path. It retains the same required
 detail, grounding and failure rules but makes no area-recall claim.
+
+Observed outbound links are ranked before applying the six-link and remaining
+registry limits. Registration routes come first, followed by schedules, timetables,
+calendars and adult/clinic PDFs, then general tennis information. Rating guides and
+rules PDFs do not get the adult-document preference. Ties retain source order.
+This prevents a rating guide encountered early in the DOM from displacing a later
+course schedule when capacity is tight. Ranking is a retrieval hint, not evidence
+of dates, availability or completeness; schedules still need separate validation,
+and missing links still mark coverage partial. No slot eviction or larger budget
+is introduced.
 
 The public search adapter retains the existing Yahoo transport and redirect decoder
 and accepts both observed desktop and alternate result layouts. It excludes account
@@ -182,6 +257,11 @@ The model selects inclusive start/end evidence lines; Python retains the full bo
 span, including intervening exclusion text. Core quoted fields are checked against
 that span before date expansion; unsupported optional club/venue/level labels are
 omitted rather than borrowed from other courses or the requested level.
+The extractor receives location, level and numbered source lines, not the requested
+calendar start or timezone. Python applies that window and timezone after grounding.
+Required date fields may contain empty strings: an undated description stays undated,
+while published weekday/time quotes remain evidence without inventing a year. A year
+found only outside the selected span is still rejected, not silently removed to avoid a retry.
 A valid JSON object is not a sufficient gate:
 live replay and live-web extraction must pass separately. A fixed minimal transcription
 cannot establish dynamic registration recall, occupancy or geographic completeness.
@@ -199,6 +279,21 @@ the existing one-retry allowance; they are distinct from exhausting the enclosin
 tool budget. Required-source failures still abort, optional failures remain partial,
 and external cancellation propagates without caching a completed failure. The
 total run deadline and model-request limits are unchanged.
+
+`SourceBackend.read` accepts a keyword-only absolute `deadline` on the event loop's
+monotonic clock. The controller places it inside the hard tool deadline, reserving
+at most 50 ms (10% for very short budgets) for a staged adapter to return
+already observed navigation. Adapters cannot extend the outer timeout. The public
+source adapter uses that deadline only around extraction, after retrieval finishes.
+If extraction expires, only independently validated links can survive: the source
+remains unavailable, its evidence is empty, and coverage remains partial. An already
+expired extraction deadline does not start another model request. Late results from
+an extractor that suppresses cancellation are discarded.
+
+This recovery does not catch external cancellation, the overall research deadline,
+model HTTP/budget failures or a transport timeout raised before the local deadline.
+Required-source failures still abort. Browser protocol, permissions and authentication
+are unchanged; the deadline is application-owned and never a model tool argument.
 
 ## Geographic Coverage
 
@@ -313,13 +408,15 @@ still provide navigation. The backend retains only independently observed links
 that pass the existing URL, depth and registry limits. Its document is marked
 `evidence_unavailable`, must contain no course records and must remain partial.
 The planner sees `evidence_invalid` plus those links, not the exception message,
-page body or a misleading zero-candidate success. Cached reads do not repeat the
-failed extraction. Linked sources require separate reads and establish their own
-facts; the original page stays unavailable in the source report.
+page body or a misleading zero-candidate success. Cached reads repeat neither the
+failed extraction nor the untrusted navigation text. Linked sources require separate
+reads and establish their own facts; the original page stays unavailable in the source
+report.
 
-This recovery applies only to exhausted evidence validation on a public page with
-admissible navigation. Required-source failures still abort even if linked details
-succeed; no valid facts across all attempted sources cannot publish an empty success.
+This recovery applies only to exhausted evidence validation or a local extraction
+deadline on a public page with admissible navigation. Required-source failures still
+abort even if linked details succeed; no valid facts across all attempted sources
+cannot publish an empty success.
 Model transport failures, request budgets, cancellation, invalid browser observations
 and URL-policy violations do not become navigation-only success. No new retry,
 authentication permission or source/read budget is introduced.
