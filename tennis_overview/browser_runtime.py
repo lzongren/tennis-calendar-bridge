@@ -105,6 +105,7 @@ class ReadNetwork:
         self.attention_required = False
         self.page_unavailable = False
         self.membership_required = False
+        self.membership_denied = asyncio.Event()
         self.denied = False
         self.redirects: dict[str, str] = {}
 
@@ -149,6 +150,7 @@ class ReadNetwork:
                     "You need to be a member of this organization to access this module!"
                 ):
                     self.membership_required = True
+                    self.membership_denied.set()
             if request.is_navigation_request() and resource.status in {401, 403}:
                 self.attention_required = True
             if request.is_navigation_request() and resource.status >= 400:
@@ -191,6 +193,26 @@ async def navigate(page: Page, url: str, network: ReadNetwork) -> None:
     raise BrowserReadError("page_unavailable")
 
 
+async def wait_for_catalog(page: Page, network: ReadNetwork) -> None:
+    """Stop waiting for cards when the provider explicitly denies catalog access."""
+    if network.membership_required:
+        raise BrowserReadError("membership_required")
+    cards = asyncio.create_task(
+        page.locator('[data-testid^="events-list-card-name-"]').first.wait_for(timeout=15000)
+    )
+    denied = asyncio.create_task(network.membership_denied.wait())
+    try:
+        await asyncio.wait((cards, denied), return_when=asyncio.FIRST_COMPLETED)
+        if network.membership_required or network.membership_denied.is_set():
+            raise BrowserReadError("membership_required")
+        await cards
+    finally:
+        for task in (cards, denied):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(cards, denied, return_exceptions=True)
+
+
 async def _read(
     context: BrowserContext, request: BrowserRequest, network: ReadNetwork
 ) -> BrowserReply:
@@ -212,9 +234,7 @@ async def _read(
             read_url(urljoin(page.url, await link.get_attribute("href") or ""))
             await link.click(timeout=5000)
         if "/Events/Details/" not in request.url:
-            await page.locator('[data-testid^="events-list-card-name-"]').first.wait_for(
-                timeout=15000
-            )
+            await wait_for_catalog(page, network)
             names = page.locator('[data-testid^="events-list-card-name-"]')
             selected: list[tuple[str, str]] = []
             for index in range(min(await names.count(), 250)):
@@ -240,9 +260,7 @@ async def _read(
                 await page.locator('[data-testid="events-details-date"]').wait_for(timeout=15000)
                 links.append(BrowserLink(url=read_url(page.url), title=title))
                 await navigate(page, list_url, network)
-                await page.locator('[data-testid^="events-list-card-name-"]').first.wait_for(
-                    timeout=15000
-                )
+                await wait_for_catalog(page, network)
             if not links:
                 raise BrowserReadError("page_unavailable")
             return BrowserReply(

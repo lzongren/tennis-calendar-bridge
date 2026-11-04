@@ -1484,3 +1484,61 @@ budgets, bounded retries, timeout cancellation, caller cancellation, worker disp
 and backward-compatible ordinary search payloads. Evaluation used an isolated
 installation and ephemeral anonymous worker; running services, saved profiles,
 production configuration and ingress were not changed.
+
+## Anonymous Catalog Denial: 2026-11-03
+
+A fresh anonymous browser on the evaluation host opened the target club portal,
+then clicked its observed program-registration link. The website explicitly
+reported that membership was required to access that module, with zero course
+cards. This is a restricted catalog, not evidence that the club offers no courses.
+The known public detail URL remains readable without a login. Saved profiles were
+not opened, and no registration, waitlist or payment action was performed.
+
+The runtime already recognized that exact denial response but waited up to another
+15 seconds for catalog cards. The candidate races card visibility against an
+explicit denial signal and reaps both tasks on success, denial, timeout or caller
+cancellation. It preserves the existing fixed error code and network policy.
+
+An isolated component comparison used the same public portal and fresh anonymous
+contexts, in baseline/candidate/candidate/baseline order:
+
+| Variant | Observations | Result | Profile created |
+| --- | --- | --- | --- |
+| Baseline | 17.94s / 17.86s | `membership_required`, 2/2 | No |
+| Candidate | 3.33s / 3.24s | `membership_required`, 2/2 | No |
+
+The candidate also read the original known clinic detail anonymously in **3.83s**:
+November 2, 6:30-7:50 PM, NTRP 2.5-3.0, $54, full. This was browser retrieval of a
+supplied link, not model extraction or unseeded discovery. These small samples
+demonstrate removal of the avoidable wait, not a general latency distribution or
+improvement in original-course recall. The end-to-end production gate remains
+unmet; no running worker, model service, production configuration or ingress was
+changed.
+
+Regression checks: `pytest -q tests/test_catalog_wait.py tests/test_browser_queries.py`.
+The six catalog-wait cases also run under `pytest -q -m benchmark`, covering an
+already-known denial, in-flight denial, visibility, original timeout, cancellation
+and simultaneous visibility/denial. All started wait tasks must be finished when
+the helper exits. Full pytest passed **843 tests**, including **112 benchmark
+cases**; mypy across **50 modules** and Ruff/format passed. Live URLs and captures stayed outside the repository; fixtures
+use synthetic data only.
+
+### Unseeded Follow-Up
+
+The same candidate wheel was then installed only in the isolated evaluation
+environment. The original `clinic-search` case still **failed at 300.01s** with
+22 completed model requests, 41 registered sources and five checked sources.
+The expected registration URL remained scorer-only, never an agent seed.
+
+This run exercised source-derived refinement on the target operator's public
+directory and found official operator pages, but did not read those pages or reach
+the restricted catalog before the deadline. It therefore does not measure the
+fast-denial change's contribution to end-to-end latency or recall. One optional
+extraction exhausted its local deadline; three planner read IDs were outside the
+currently advertised set. Other extraction responses returned prose or an
+unadvertised tool. These failures remain independent of anonymous catalog access.
+
+The ephemeral worker stopped after the run; saved profiles and running services
+were untouched. Both Python 3.11 and 3.12 CI jobs passed. The failed full run does
+not invalidate the narrow component timing result, nor does that component result
+satisfy the original release gate.
