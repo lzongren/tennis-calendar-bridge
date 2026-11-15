@@ -54,6 +54,26 @@ async def search_public_courses(
     on_date: date | None = None,
 ) -> list[dict[str, str]]:
     """Anonymous public search, without inheriting model or portal credentials."""
+    if on_date is not None and focus == "registration" and not subject:
+        try:
+            payload = json.dumps(
+                {"city": city, "level": level, "date": on_date.isoformat()}
+            ).encode()
+            raw = await run_public_worker("directory", payload, timeout=30)
+            rows = TypeAdapter(list[dict[str, str]]).validate_json(raw)
+            if 0 < len(rows) <= 8:
+                return [
+                    {
+                        "url": public_url(r["url"]),
+                        "title": r["title"][:240],
+                        "listing": public_url(r["listing"]),
+                        "club": r["club"][:240],
+                    }
+                    for r in rows
+                ]
+        except (SourceUnavailable, ValueError, KeyError):
+            # A missing/unsupported region does not disable ordinary public search.
+            pass
     output = await run_public_worker(
         "search",
         json.dumps(
@@ -86,7 +106,7 @@ async def refine_public_courses(subject: str, city: str, year: int) -> list[dict
 
 
 async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> bytes:
-    if mode not in {"document", "search"} or len(payload) > 4096:
+    if mode not in {"document", "search", "directory"} or len(payload) > 4096:
         raise ValueError("Invalid public worker request")
     if not 0 < timeout <= 60:
         raise ValueError("Document timeout must be between zero and 60 seconds")

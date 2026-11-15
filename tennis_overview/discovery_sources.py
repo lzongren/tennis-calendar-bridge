@@ -94,6 +94,7 @@ class PublicSource:
     page: Page | None = None
     failure_reason: SourceFailureReason | None = None
     refinement_subject: str = ""
+    directory_club: str = ""
 
 
 @dataclass
@@ -179,6 +180,9 @@ class PublicSourceBackend:
             try:
                 url = public_url(candidate["url"])
                 self.observed("search_hit", url)
+                if "listing" in candidate:
+                    self.observed("directory", candidate["listing"])
+                    self.observed("directory_card", url)
                 title = candidate["title"]
                 if (
                     request.search_focus == "registration"
@@ -197,6 +201,9 @@ class PublicSourceBackend:
             if ref:
                 refs[ref.id] = ref
                 admitted += 1
+                if "listing" in candidate:
+                    required.append(ref.id)
+                    self.sources[ref.id].directory_club = candidate.get("club", "")
         returned = tuple(refs.values())[:12]
         return SearchResults(
             sources=returned,
@@ -306,6 +313,7 @@ class PublicSourceBackend:
                         candidate = CourseCandidate(
                             id=identity(page.url + player.start),
                             title=player.title,
+                            club=source.directory_club,
                             level=player.level,
                             price=player.price,
                             signup_url=page.url,
@@ -320,10 +328,20 @@ class PublicSourceBackend:
                                 <= detail_slot.starts_at.date()
                                 < request.start + timedelta(days=28)
                                 and matches_level(candidate.model_dump(), request.level)
+                                and (
+                                    not source.directory_club
+                                    or (
+                                        detail_slot.starts_at.date() == request.start
+                                        and (
+                                            not re.search(r"[1-7]\.\d", request.level)
+                                            or bool(re.search(r"[1-7]\.\d", player.level))
+                                        )
+                                    )
+                                )
                             )
                             else ()
                         )
-                    elif page.required_links:
+                    elif page.required_links or source.directory_club:
                         courses = ()
                     elif deadline is not None and asyncio.get_running_loop().time() >= deadline:
                         courses = ()
@@ -391,7 +409,8 @@ class PublicSourceBackend:
             linked: dict[str, SourceRef] = {}
             navigation = []
             references = []
-            ranked_links = related_links(page)
+            # Related programs are not other dates of the selected directory card.
+            ranked_links = () if source.directory_club else related_links(page)
             for link in ranked_links[:6]:
                 is_registration = bool(event_path(link.url)) or bool(
                     REGISTRATION_LINK.search(link.title + " " + urlsplit(link.url).path)
@@ -413,7 +432,7 @@ class PublicSourceBackend:
                         references.append(ref.id)
                     # A general signup route needs an area-search attempt, not
                     # successful course verification or an authenticated fallback.
-                    if not registration and is_registration:
+                    if not registration and player is None and is_registration:
                         navigation.append(ref.id)
             partial = partial or len(ranked_links) > 6 or self.truncated
             required = []

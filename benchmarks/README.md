@@ -365,3 +365,18 @@ unknown anonymous queue and evidence checks. No target URL is supplied in the
 request; the fixture owns it. Outbound traffic is restricted to the private model.
 This measures tool planning and reconciliation, not live web retrieval or city-wide
 recall. `--live-web` is deliberately rejected for this replay case.
+
+## Regional directory coverage
+
+For a dated area search, the registration tool resolves the input city and reads
+CourtReserve's public state tennis directory. It looks at up to six listed towns
+within 40 km of the city center, on the same side of the state boundary. Club
+names come from the directory, not from benchmark fixtures. Only dated cards
+belonging to those facilities are candidates. A card is not evidence of a seat:
+the agent must read the occurrence detail to verify time, rating, price and spots.
+
+Directory coverage is partial. The reader follows a published next-page link
+when present (two pages per town at most); it does not guess page or event IDs.
+If a listing ends before the requested time, a missing course means “not found,”
+not “sold out.” An empty or unavailable regional directory falls back to web search.
+Keep the reference URL out of the live runner; use it only in the separate scorer.

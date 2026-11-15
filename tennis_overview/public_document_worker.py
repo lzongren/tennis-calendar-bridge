@@ -25,6 +25,21 @@ def main() -> int:
         set_limits()
         logging.disable(logging.CRITICAL)
         mode = sys.argv[1] if len(sys.argv) == 2 else "document"
+        if mode == "directory":
+            from .regional_directory import regional_courses
+
+            request = json.loads(sys.stdin.buffer.read(4097))
+            city, level = request["city"], request["level"]
+            if (
+                not isinstance(city, str)
+                or not 1 <= len(city) <= 120
+                or not isinstance(level, str)
+                or len(level) > 80
+                or any(ord(c) < 32 for c in city + level)
+            ):
+                return 1
+            print(json.dumps(regional_courses(city, level, date.fromisoformat(request["date"]))))
+            return 0
         if mode == "search":
             return search()
         if mode != "document":
