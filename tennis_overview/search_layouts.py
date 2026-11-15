@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup, Tag
 from ddgs.engines.yahoo import Yahoo
 from ddgs.exceptions import DDGSException
 from ddgs.results import TextResult
+from .player_event import event_path
 
 
 def _is_result_card(tag: Tag) -> bool:
@@ -63,3 +64,36 @@ def search_index(query: str) -> list[dict[str, str]]:
         # An unrecognized or blocked page is not evidence of zero matching courses.
         raise DDGSException("Public search results unavailable")
     return [{"title": row.title, "href": row.href} for row in rows[:8]]
+
+
+class VenueIndexYahoo(LayoutAwareYahoo):
+    """Observe public event anchors independently of result-card parsing and ranking."""
+
+    anchors: tuple[str, ...] = ()
+
+    def extract_results(self, html_text: str) -> list[TextResult]:
+        results = super().extract_results(html_text)
+        soup = BeautifulSoup(html_text, "html.parser")
+        anchors = soup.select("a[href]")
+        if len(anchors) > 1024:
+            raise ValueError("Venue index page exceeds anchor budget")
+        decoded = self.post_extract_results(
+            [TextResult(title="", href=str(a["href"]), body="") for a in anchors]
+        )
+        self.anchors = tuple(dict.fromkeys(r.href for r in decoded if event_path(r.href)))
+        return results
+
+
+def venue_index_page(query: str) -> dict[str, object]:
+    engine = VenueIndexYahoo(timeout=8)
+    rows = engine.search(query)
+    if not rows or len(rows) > 64:
+        raise DDGSException("Venue index response unavailable or over budget")
+    return {
+        "anchors": engine.anchors,
+        "rows": [
+            {"title": r.title[:320], "href": r.href, "snippet": r.body[:500]}
+            for r in rows
+            if event_path(r.href)
+        ],
+    }

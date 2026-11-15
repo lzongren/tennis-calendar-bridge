@@ -46,10 +46,11 @@ def main() -> int:
             return 0
         if mode == "venue_index":
             from .venue_schedules import venue_query
-            from .search_layouts import search_index
+            from .search_layouts import search_index, venue_index_page
 
-            query = venue_query(**json.loads(sys.stdin.buffer.read(4097)))
-            print(json.dumps(search_index(query)))
+            params = json.loads(sys.stdin.buffer.read(4097))
+            query = venue_query(**params)
+            print(json.dumps(venue_index_page(query) if params["title"] else search_index(query)))
             return 0
         if mode == "search":
             return search()

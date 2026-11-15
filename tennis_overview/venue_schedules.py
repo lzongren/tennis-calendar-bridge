@@ -19,10 +19,20 @@ CLOCK = re.compile(r"(\d{1,2}:\d{2})\s*(AM|PM)?\s*[-–—]\s*(\d{1,2}:\d{2})\s*
 PROGRAM = re.compile(r"adult|class|clinic|schedule|program|session", re.I)
 
 
-def venue_query(club: str, town: str, day: str, title: str) -> str:
+def index_scope(club: str, day: date, title: str) -> str:
+    return f"venue-index:{search_subject(club).casefold()}:{day}:{search_subject(title).casefold()}"
+
+
+def venue_query(club: str, town: str, day: str, title: str, variant: str = "weekday") -> str:
     venue = validate_search_subject(club)
     place = validate_search_subject(town)
     requested = date.fromisoformat(day)
+    if variant == "dated" and title:
+        # Do not quote normalized course words as an exact phrase: normalization
+        # may have removed punctuation from the publisher's title.
+        return f'site:courtreserve.com/players/events {validate_search_subject(title)} "{place}" tennis {requested:%b %d %Y}'
+    if variant != "weekday":
+        raise ValueError("Unsupported venue query")
     if title:
         # A weekly timetable may be indexed under an earlier occurrence. The
         # index supplies links only; date, time and seats must come from the detail.
@@ -144,30 +154,39 @@ async def venue_details(
                 trace("venue_series_link", portals[0])
             candidates = list(direct)
             if not direct:
-                try:
-                    series = await read(read_url(portals[0]))
-                    candidates.extend(
-                        link.url for link in series.link_details if event_path(link.url)
-                    )
-                except (SourceUnavailable, ValueError):
-                    pass
+                # A series portal is only a publisher hint. Do not retry an access
+                # challenge, render the portal or derive paths from its opaque IDs.
                 try:
                     indexed = await index(club, town, day, search_subject(title))
                 except SourceUnavailable:
                     indexed = []
 
-                def relevance(row: dict[str, str]) -> tuple[bool, bool]:
-                    label = row.get("title", "").casefold()
-                    return title.casefold() not in label, town.casefold() not in label
+                def relevance(row: dict[str, str]) -> tuple[bool, bool, bool]:
+                    text = row.get("title", "") + " " + row.get("snippet", "")
+                    label = " ".join(re.findall(r"\w+", text.casefold()))
+                    course = search_subject(title).casefold() in label
+                    venue = club.casefold() in label or town.casefold() in label
+                    return not (course and venue), not course, not venue
 
                 candidates.extend(
                     r["href"] for r in sorted(indexed, key=relevance) if event_path(r["href"])
                 )
-            for candidate in list(dict.fromkeys(candidates))[:4]:
+            # Aliases for the same event should not consume two detail reads.
+            distinct: dict[str, str] = {}
+            for url in candidates:
+                if path := event_path(url):
+                    distinct.setdefault(path, url)
+            selected = list(distinct.values())
+            for candidate in selected[:4]:
+                trace("venue_detail_selected", candidate)
+            for candidate in selected[4:]:
+                trace("venue_detail_rank_cut", candidate)
+            for candidate in selected[:4]:
                 trace("venue_detail_candidate", candidate)
                 try:
                     detail = await read(candidate)
                 except SourceUnavailable:
+                    trace("venue_detail_unavailable", candidate)
                     continue
                 if matches_row(detail, cutoff["venue"], day, title, start, end):
                     trace("venue_detail_match", detail.url)
@@ -182,5 +201,6 @@ async def venue_details(
                         }
                     )
                     break
+                trace("venue_detail_mismatch", candidate)
         return found
     return []

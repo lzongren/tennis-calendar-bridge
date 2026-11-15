@@ -4,6 +4,7 @@ import pytest
 
 from benchmarks.score_live_area import Reference, diagnose, score
 from tennis_overview.discovery_sources import identity
+from tennis_overview.venue_schedules import index_scope
 
 
 @pytest.fixture
@@ -73,6 +74,9 @@ def test_series_wide_count_is_not_occurrence_owned(reference: Reference) -> None
         (["read_attempt"], "read_unsuccessful"),
         (["read_ok"], "read_not_extracted"),
         (["read_ok", "extracted"], "extracted"),
+        (["venue_index_dated_anchor"], "index_anchor_not_parsed"),
+        (["venue_index_dated_parsed", "venue_detail_rank_cut"], "dropped_by_ranking"),
+        (["venue_detail_selected", "venue_detail_mismatch"], "detail_failed_occurrence_match"),
     ],
 )
 def test_stage_diagnosis_works_for_failed_runs(
@@ -89,3 +93,12 @@ def test_stage_diagnosis_works_for_failed_runs(
     assert diagnose(report, reference) == expected
     assert not any(score(report, reference).values())
     assert diagnose({}, reference) == "trace_unavailable"
+
+
+def test_absence_requires_two_observed_pages_for_the_reference_course(reference):
+    ref = reference.model_copy(update={"club": "Demo Club", "title": "Evening Doubles"})
+    key = identity(index_scope(ref.club, ref.starts_at.date(), ref.title))
+    good = ["venue_index_weekday_ok", "venue_index_dated_ok"]
+    assert diagnose({"link_stages": {key: good}}, ref) == "absent_from_both_observed_index_pages"
+    assert diagnose({"link_stages": {key: good[:1]}}, ref) == "venue_index_incomplete"
+    assert diagnose({"link_stages": {"other": good}}, ref) == "link_not_observed"

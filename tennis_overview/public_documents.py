@@ -8,12 +8,13 @@ import os
 import sys
 import tempfile
 from datetime import date
+from dataclasses import dataclass
 
 from pydantic import TypeAdapter
 
 from .discovery_agent import SourceUnavailable, TransientSourceError
 from .public_web import Page, public_url
-from .venue_schedules import Reader, Trace, venue_details
+from .venue_schedules import Reader, Trace, index_scope, venue_details
 
 MAX_OUTPUT = 1_000_000
 
@@ -77,12 +78,17 @@ async def search_public_courses(
                 ]
 
                 async def resolve(cutoff: dict[str, str]) -> list[dict[str, str]]:
+                    async def index(
+                        club: str, town: str, day: date, title: str
+                    ) -> list[dict[str, str]]:
+                        return await venue_index(club, town, day, title, trace=trace)
+
                     try:
                         async with asyncio.timeout(32):
                             return await venue_details(
                                 cutoff,
                                 on_date,
-                                index=venue_index,
+                                index=index,
                                 read=read_public_document,
                                 render=venue_renderer,
                                 trace=trace or (lambda *_: None),
@@ -131,12 +137,43 @@ async def refine_public_courses(subject: str, city: str, year: int) -> list[dict
     )
 
 
-async def venue_index(club: str, town: str, day: date, title: str) -> list[dict[str, str]]:
-    payload = json.dumps(
-        {"club": club, "town": town, "day": day.isoformat(), "title": title}
-    ).encode()
-    raw = await run_public_worker("venue_index", payload, timeout=12)
-    return TypeAdapter(list[dict[str, str]]).validate_json(raw)[:8]
+@dataclass(frozen=True)
+class IndexPage:
+    anchors: list[str]
+    rows: list[dict[str, str]]
+
+
+async def venue_index(
+    club: str, town: str, day: date, title: str, *, trace: Trace | None = None
+) -> list[dict[str, str]]:
+    scope = index_scope(club, day, title)
+
+    async def lookup(variant: str) -> list[dict[str, str]]:
+        stage = f"venue_index_{variant}"
+        payload = json.dumps(
+            {"club": club, "town": town, "day": day.isoformat(), "title": title, "variant": variant}
+        ).encode()
+        try:
+            raw = await run_public_worker("venue_index", payload, timeout=12)
+            if not title:
+                return TypeAdapter(list[dict[str, str]]).validate_json(raw)[:8]
+            page = TypeAdapter(IndexPage).validate_json(raw)
+        except (SourceUnavailable, ValueError):
+            if trace:
+                trace(stage + "_unavailable", scope)
+            return []
+        if trace:
+            trace(stage + "_ok", scope)
+            for url in page.anchors:
+                trace(stage + "_anchor", url)
+            for r in page.rows:
+                trace(stage + "_parsed", r["href"])
+        return page.rows
+
+    if not title:
+        return await lookup("weekday")
+    weekly, dated = await asyncio.gather(lookup("weekday"), lookup("dated"))
+    return weekly + dated
 
 
 async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> bytes:

@@ -389,3 +389,12 @@ is just a shell; this path never asks it to render a registration portal. For
 a series link, the tool also looks for a public single-occurrence page from
 the same publisher. A same-name class at another facility, an earlier week, or
 a matching schedule with no registration evidence does not establish seats.
+
+For a series link, do not request the series portal. Search the public event
+index by weekday and by calendar date. Inspect recognized result cards before
+the four-detail read cap; snippets are for ranking only. The trace distinguishes
+a public event anchor, a parsed result, a ranking exclusion, a read failure,
+and a detail that does not match the venue and slot. An unusable search response
+is not evidence of absence. Optional `club` and `title` in the **scorer's**
+reference associate two successfully observed index pages with the held-out
+course. Neither belongs in the live runner's inputs.

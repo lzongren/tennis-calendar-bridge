@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from ddgs.exceptions import DDGSException
 
-from tennis_overview.search_layouts import LayoutAwareYahoo, search_index
+from tennis_overview.search_layouts import LayoutAwareYahoo, search_index, venue_index_page
 
 
 @pytest.mark.benchmark
@@ -85,3 +85,16 @@ def test_missing_search_response_is_retryable_not_empty(monkeypatch):
 def test_search_layout_size_is_bounded():
     with pytest.raises(ValueError, match="size limit"):
         LayoutAwareYahoo(timeout=12).extract_results("x" * 4_000_001)
+
+
+def test_venue_page_reports_unparsed_anchor_and_keeps_ninth_card(monkeypatch):
+    root = "https://courtreserve.com/players/events/e-"
+    stray = root + "99"
+    html = f'<a href="{stray}">unowned</a>' + "".join(
+        f'<section class="algo"><div class="compTitle"><h3><a href="{root}{i}">Course {i}</a></h3></div></section>'
+        for i in range(1, 10)
+    )
+    monkeypatch.setattr(LayoutAwareYahoo, "request", lambda *a, **kw: html)
+    page = venue_index_page("Example public tennis")
+    assert stray in page["anchors"]
+    assert [r["href"] for r in page["rows"]] == [root + str(i) for i in range(1, 10)]

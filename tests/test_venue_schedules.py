@@ -75,9 +75,7 @@ def test_truncated_venue_to_rendered_schedule_to_verified_occurrence():
             [{"href": EVENT}],
         ]
     )
-    read = AsyncMock(
-        side_effect=[replace(SCHEDULE, text="Welcome"), Page(PORTAL, "Program", "", ()), DETAIL]
-    )
+    read = AsyncMock(side_effect=[replace(SCHEDULE, text="Welcome"), DETAIL])
     render = AsyncMock(return_value=SCHEDULE)
     stages = []
     rows = asyncio.run(
@@ -100,10 +98,43 @@ def test_truncated_venue_to_rendered_schedule_to_verified_occurrence():
             "slot_end": "20:00",
         }
     ]
-    assert [c.args[0] for c in read.await_args_list] == [SITE, PORTAL, EVENT]
+    assert [c.args[0] for c in read.await_args_list] == [SITE, EVENT]
     render.assert_awaited_once_with(SITE)
     assert "venue_detail_match" in stages
     assert index.await_args_list[-1].args == (CLUB, "Example City", DAY, NAME)
+
+
+def test_rank_all_results_before_read_cap_and_deduplicate_aliases():
+    wrong = EVENT + "0"
+    indexed = [
+        {"href": wrong, "title": NAME},
+        {"href": wrong.replace("://court", "://player.court"), "title": NAME},
+    ]
+    indexed.extend({"href": EVENT + str(i), "title": "Other"} for i in range(1, 8))
+    indexed.append(
+        {"href": EVENT, "title": "Evening doubles", "snippet": CLUB + " in Example City"}
+    )
+    read = AsyncMock(side_effect=[SCHEDULE, DETAIL])
+    stages = []
+    result = asyncio.run(
+        venue_details(
+            {"listing": "https://example.org/list", "venue": CLUB, "town": "Example City"},
+            DAY,
+            index=AsyncMock(side_effect=[[{"href": SITE}], indexed]),
+            read=read,
+            render=None,
+            trace=lambda s, u: stages.append((s, u)),
+        )
+    )
+    assert result[0]["url"] == EVENT
+    assert [call.args[0] for call in read.await_args_list] == [SITE, EVENT]
+    assert len([url for stage, url in stages if stage == "venue_detail_selected"]) == 4
+    assert ("venue_detail_rank_cut", EVENT + "7") in stages
+    assert all(
+        not url.startswith("https://player.")
+        for stage, url in stages
+        if stage == "venue_detail_selected"
+    )
 
 
 def test_first_party_and_public_query_bounds():
