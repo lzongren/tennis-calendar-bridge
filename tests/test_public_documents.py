@@ -40,7 +40,7 @@ def test_live_registration_query_uses_input_date_and_only_numeric_levels(monkeyp
         "Example City", "NTRP 2.5-3.5 injected", 2030, "registration", on_date=date(2030, 4, 3)
     )
     search.assert_called_once_with(
-        "Example City adult tennis clinics NTRP 2.5-3.5 April 03 2030 register spots available -tournament -championship"
+        "Example City adult tennis clinics NTRP 2.5-3.5 April 03 2030 register spots available"
     )
 
 

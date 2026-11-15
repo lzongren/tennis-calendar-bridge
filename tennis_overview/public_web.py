@@ -367,8 +367,7 @@ def search_courses(
         ratings = re.findall(r"(?<!\d)[1-7]\.\d(?!\d)", level)
         rating = " NTRP " + "-".join(ratings[:2]) if ratings else ""
         query = (
-            f"{location} adult tennis clinics{rating} {on_date:%B %d %Y} "
-            "register spots available -tournament -championship"
+            f"{location} adult tennis clinics{rating} {on_date:%B %d %Y} register spots available"
         )
     if subject:
         if focus != "registration":

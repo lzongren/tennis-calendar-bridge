@@ -136,6 +136,16 @@ def test_realistic_source_html_reaches_calendar_and_week_navigation(
         expect(wed).to_be_visible()
         expect(wed.locator("time")).to_have_text("7:00 PM - 8:00 PM")
         expect(wed).to_contain_text("Weekly timetable")
+        # A seasonal row must never get a remaining-seat label. Render the same
+        # production card with a single dated observation to cover zero as well.
+        expect(wed).not_to_contain_text("at last check")
+        labels = page.evaluate("""() => {
+            const s = {starts_at:'2026-10-28T19:00:00-07:00', ends_at:'2026-10-28T20:00:00-07:00'};
+            const c = {title:'Group clinic', signup_url:'https://example.org/', sessions:[s]};
+            return [0, 1, 3, null].map(n => courseNode({...c, spots_left:n}, s).textContent);
+        }""")
+        assert "Full at last check" in labels[0] and "1 spot left at last check" in labels[1]
+        assert "3 spots left at last check" in labels[2] and "at last check" not in labels[3]
         sat = page.locator('[data-start="2026-10-31T10:00:00-07:00"]')
         expect(sat).to_contain_text("Year inferred")
         expect(sat.locator("a")).to_have_attribute(
