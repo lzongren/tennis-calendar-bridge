@@ -6,6 +6,7 @@ import json
 import os
 import sys
 from dataclasses import asdict
+from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -30,6 +31,17 @@ from tennis_overview.public_pdf import page_from_pdf
 from tennis_overview.public_web import Page, search_courses
 
 URL = "https://club.example.org/fall.pdf"
+
+
+def test_live_registration_query_uses_input_date_and_only_numeric_levels(monkeypatch):
+    search = MagicMock(return_value=[])
+    monkeypatch.setattr("tennis_overview.search_layouts.search_index", search)
+    search_courses(
+        "Example City", "NTRP 2.5-3.5 injected", 2030, "registration", on_date=date(2030, 4, 3)
+    )
+    search.assert_called_once_with(
+        "Example City adult tennis clinics NTRP 2.5-3.5 April 03 2030 register spots available"
+    )
 
 
 def test_legacy_search_query_is_preserved_and_agent_focus_is_explicit(monkeypatch):

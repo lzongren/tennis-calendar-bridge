@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import tempfile
+from datetime import date
 
 from pydantic import TypeAdapter
 
@@ -44,7 +45,13 @@ async def read_public_document(url: str, *, timeout: float = 20) -> Page:
 
 
 async def search_public_courses(
-    city: str, level: str, year: int, focus: str = "overview", *, subject: str = ""
+    city: str,
+    level: str,
+    year: int,
+    focus: str = "overview",
+    *,
+    subject: str = "",
+    on_date: date | None = None,
 ) -> list[dict[str, str]]:
     """Anonymous public search, without inheriting model or portal credentials."""
     output = await run_public_worker(
@@ -56,6 +63,7 @@ async def search_public_courses(
                 "year": year,
                 "focus": focus,
                 **({"subject": subject} if subject else {}),
+                **({"on_date": on_date.isoformat()} if on_date else {}),
             }
         ).encode("utf-8"),
         timeout=20,

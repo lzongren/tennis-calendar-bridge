@@ -25,7 +25,12 @@ python -m benchmarks.score_live_area /tmp/blind.json /tmp/reference.json
 Keep both files private. The separate reference JSON contains `source_url`,
 `starts_at`, `ends_at` (with UTC offsets), `price_usd` and `spots_left`. Recheck
 the official page after the run; if price or seats changed, report drift rather
-than a factual failure. A class title, a recurring schedule, or an "open" label
+than a factual failure. The private report records distinct observed stages by
+URL digest: raw search candidate, page outlink, admitted, attempted, fetched and
+extracted. The offline scorer reports the furthest observed stage even on read
+budget exhaustion. "Not observed" is scoped to the bounded search and page
+outputs, not a claim that no public page anywhere links to the class.
+A class title, a recurring schedule, or an "open" label
 alone cannot pass. The scorer exits nonzero if any check fails.
 
 Offline CI runs the loop with a scripted Pydantic AI `FunctionModel`:

@@ -9,11 +9,13 @@ import re
 import socket
 import ssl
 from dataclasses import dataclass
+from datetime import date
 from itertools import islice
 from typing import Literal
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup, Tag
+from .player_event import PlayerEvent, player_event
 
 MAX_BYTES = 4_000_000
 
@@ -131,6 +133,7 @@ class Page:
     content_type: str = "text/html"
     partial: bool = False
     required_links: tuple[str, ...] = ()
+    player_event: PlayerEvent | None = None
 
 
 def fetch_page(url: str) -> Page:
@@ -299,6 +302,7 @@ def page_from_html(url: str, body: bytes) -> Page:
     references = facility_references(soup, url)
     title = soup.title.get_text(" ", strip=True) if soup.title else urlsplit(url).hostname or ""
     heading = soup.h1.get_text(" ", strip=True) if soup.h1 else ""
+    event = player_event(soup, url)
     # Navigation can contain hundreds of links before the actual course content.
     # Apply the link budget after removing chrome, just as we do for source text.
     for node in soup.select("script, style, nav, footer, header, noscript, svg, [role=navigation]"):
@@ -320,6 +324,7 @@ def page_from_html(url: str, body: bytes) -> Page:
         heading[:240],
         schedules,
         tuple(links.values())[:150],
+        player_event=event,
     )
 
 
@@ -336,7 +341,13 @@ def validate_search_subject(subject: str) -> str:
 
 
 def search_courses(
-    location: str, level: str, year: int, focus: str | None = None, *, subject: str = ""
+    location: str,
+    level: str,
+    year: int,
+    focus: str | None = None,
+    *,
+    subject: str = "",
+    on_date: date | None = None,
 ) -> list[dict[str, str]]:
     from ddgs import DDGS
     from ddgs.engines import ENGINES
@@ -350,6 +361,14 @@ def search_courses(
     if focus not in queries:
         raise ValueError("Invalid search focus")
     query = queries[focus]
+    if on_date is not None:
+        if focus != "registration" or subject or year != on_date.year:
+            raise ValueError("Dated searches require a matching year and registration focus")
+        ratings = re.findall(r"(?<!\d)[1-7]\.\d(?!\d)", level)
+        rating = " NTRP " + "-".join(ratings[:2]) if ratings else ""
+        query = (
+            f"{location} adult tennis clinics{rating} {on_date:%B %d %Y} register spots available"
+        )
     if subject:
         if focus != "registration":
             raise ValueError("Source refinement requires registration focus")

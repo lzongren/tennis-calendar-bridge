@@ -6,6 +6,7 @@ import json
 import logging
 import resource
 import sys
+from datetime import date
 from dataclasses import asdict
 
 
@@ -72,6 +73,10 @@ def search() -> int:
         results = (
             search_courses(city, level, year, focus, subject=subject)
             if subject
+            else search_courses(
+                city, level, year, focus, on_date=date.fromisoformat(request["on_date"])
+            )
+            if "on_date" in request
             else search_courses(city, level, year, focus)
         )
     except DDGSException:

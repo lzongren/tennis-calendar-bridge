@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
+from tennis_overview.player_event import event_path
+from tennis_overview.discovery_sources import identity
 
 
 class Reference(BaseModel):
@@ -21,11 +23,39 @@ class Reference(BaseModel):
     spots_left: int = Field(gt=0, strict=True)
 
 
+def public_aliases(url: str) -> set[str]:
+    path = event_path(url)
+    if path:
+        return {f"https://{host}{path}" for host in ("courtreserve.com", "player.courtreserve.com")}
+    return {url}
+
+
+def diagnose(report: dict[str, Any], reference: Reference) -> str:
+    if "link_stages" not in report:
+        return "trace_unavailable"
+    stages = {
+        stage
+        for url in public_aliases(reference.source_url)
+        for stage in report["link_stages"].get(identity(url), [])
+    }
+    for stage, outcome in (
+        ("extracted", "extracted"),
+        ("read_ok", "read_not_extracted"),
+        ("read_attempt", "read_unsuccessful"),
+        ("admitted", "admitted_not_read"),
+        ("page_link", "linked_not_admitted"),
+        ("search_hit", "search_hit_not_admitted"),
+    ):
+        if stage in stages:
+            return outcome
+    return "link_not_observed"
+
+
 def score(report: dict[str, Any], reference: Reference) -> dict[str, bool]:
     matches = [
         c
         for c in report["courses"]
-        if c["source_url"] == reference.source_url
+        if c["source_url"] in public_aliases(reference.source_url)
         and c.get("evidence_ids")
         and any(
             datetime.fromisoformat(s["starts_at"]) == reference.starts_at
@@ -50,11 +80,10 @@ def main() -> None:
     parser.add_argument("report", type=Path)
     parser.add_argument("reference", type=Path)
     args = parser.parse_args()
-    checks = score(
-        json.loads(args.report.read_text()),
-        Reference.model_validate_json(args.reference.read_text()),
-    )
-    print(json.dumps(checks))
+    report = json.loads(args.report.read_text())
+    reference = Reference.model_validate_json(args.reference.read_text())
+    checks = score(report, reference)
+    print(json.dumps({**checks, "link_stage": diagnose(report, reference)}))
     raise SystemExit(0 if all(checks.values()) else 1)
 
 
