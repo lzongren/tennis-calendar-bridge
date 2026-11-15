@@ -6,6 +6,27 @@ transcription in `tests/fixtures/discovery_benchmark/nov2_registration.json`.
 The seasonal offer, neighboring-city search results, injection and conflicting
 record are synthetic variations. This harness tests orchestration and factual
 reconciliation, **not** live-web search recall or extraction from arbitrary HTML.
+The November 2 occurrence is now historical: keep its replay and fixtures as
+regressions; do not require a past registration to remain publicly discoverable.
+
+For a current live benchmark, independently select a publicly registerable class
+and timestamp the official detail's price and remaining seats before the blind run.
+The observation command accepts no club, seed URL, reference file, or production
+location record. It uses the public document reader, local model, and normal area
+search budget. The date starts the application's normal search window; the scorer
+requires the exact occurrence on the chosen date. Run from the checkout:
+
+```sh
+python -m benchmarks.live_area --city "Seattle, WA" --level "NTRP 2.5-3.5" \
+  --date YYYY-MM-DD --timezone America/Los_Angeles --output /tmp/blind.json
+python -m benchmarks.score_live_area /tmp/blind.json /tmp/reference.json
+```
+
+Keep both files private. The separate reference JSON contains `source_url`,
+`starts_at`, `ends_at` (with UTC offsets), `price_usd` and `spots_left`. Recheck
+the official page after the run; if price or seats changed, report drift rather
+than a factual failure. A class title, a recurring schedule, or an "open" label
+alone cannot pass. The scorer exits nonzero if any check fails.
 
 Offline CI runs the loop with a scripted Pydantic AI `FunctionModel`:
 
@@ -44,8 +65,8 @@ anonymous membership denial and an injected catalog title. A denial must retain
 other verified candidates and partial coverage without inventing target facts.
 Successful navigation must recover the original course facts and evidence. The
 scorer rejects skipped navigation even when another course is already present.
-These are controlled transcripts, not proof of live-web discovery; the original
-unseeded clinic case remains a separate acceptance gate.
+These are controlled transcripts, not proof of live-web discovery; use a
+currently registerable occurrence for the separate live acceptance gate.
 
 Area planning uses a request-only state projection: the model receives the current
 read/refinement choices, bounded candidate summaries and a generic validation-retry
