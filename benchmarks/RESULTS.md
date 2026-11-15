@@ -2200,3 +2200,20 @@ The scoped parsing fix is suitable for the integration branch; production
 promotion remains blocked on the separate unseeded recall and extraction gates.
 Post-run inference health returned 200 with generated content in **0.70s**;
 an unauthenticated request returned 401, and the listener remained loopback-only.
+
+## Current public occurrence: blind area search (2026-11-15)
+
+One anonymous run on the integration branch used the configured private model and
+default public-document backend. Only the city, level, and start date (plus local
+timezone) were supplied. No saved city sources, member session, class name or
+reference URL was supplied. The independent reference was a guest-registerable
+adult group clinic in the Seattle metro on November 17. Its first-party detail
+page showed USD 60 and 12 of 24 seats remaining both before and after the run.
+
+**Fail:** the agent exhausted its read budget before coverage completed. It did
+not return a result, so occurrence recall, price and remaining-seat verification
+earned no credit. This run did not record the individual pages read; it does not
+establish whether the target was ever in the search frontier. The existing
+course-result schema also has no occurrence-owned remaining-seat count. A larger
+read budget alone would not establish either discovery or seat verification.
+No production switch or deployment was involved.
