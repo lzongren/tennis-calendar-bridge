@@ -380,3 +380,12 @@ when present (two pages per town at most); it does not guess page or event IDs.
 If a listing ends before the requested time, a missing course means “not found,”
 not “sold out.” An empty or unavailable regional directory falls back to web search.
 Keep the reference URL out of the live runner; use it only in the separate scorer.
+
+If the publisher marks the listing as capped and its last visible day is on or
+before the requested date, the tool searches up to two listed operators by name,
+town and date. A matching branded site can supply weekday/time/title rows. The
+existing optional private browser renders a first-party schedule when its HTML
+is just a shell; this path never asks it to render a registration portal. For
+a series link, the tool also looks for a public single-occurrence page from
+the same publisher. A same-name class at another facility, an earlier week, or
+a matching schedule with no registration evidence does not establish seats.

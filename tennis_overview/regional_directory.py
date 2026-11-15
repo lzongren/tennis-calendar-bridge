@@ -112,7 +112,12 @@ def next_listing(page: BeautifulSoup, base: str) -> str | None:
 
 
 def regional_courses(
-    city: str, level: str, day: date, *, read: Callable[[str], bytes] = read_listing
+    city: str,
+    level: str,
+    day: date,
+    *,
+    read: Callable[[str], bytes] = read_listing,
+    cutoffs: list[dict[str, str]] | None = None,
 ) -> list[dict[str, str]]:
     center = resolve_city(city)
     if not center or center["countrycode"] != "US":
@@ -153,7 +158,25 @@ def regional_courses(
             for rank, title, url, club in dated_cards(page, day, level, clubs):
                 hits.append((rank, within_rank[rank], meters, title, url, listing, club))
                 within_rank[rank] += 1
-            listing = next_listing(page, listing)
+            following = next_listing(page, listing)
+            heading = page.find("h1")
+            # The publisher's "N+ upcoming programs" means this is a capped list,
+            # not an assertion that the remaining hours of its last day are empty.
+            if cutoffs is not None and heading and re.search(r"\b\d+\+", heading.get_text()):
+                days = []
+                for stamp in page.select("article time[datetime]"):
+                    try:
+                        days.append(datetime.fromisoformat(str(stamp["datetime"])).date())
+                    except ValueError:
+                        continue
+                if (
+                    days
+                    and max(days) <= day
+                    and (not following or following in seen or len(seen) >= MAX_PAGES_PER_TOWN)
+                ):
+                    for club in sorted(clubs):
+                        cutoffs.append({"venue": club, "listing": listing, "town": towns[slug]})
+            listing = following
     unique: dict[str, dict[str, str]] = {}
     for _, _, _, title, url, listing, club in sorted(hits):
         unique.setdefault(url, {"url": url, "title": title, "listing": listing, "club": club[:240]})

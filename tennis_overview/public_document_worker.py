@@ -38,7 +38,18 @@ def main() -> int:
                 or any(ord(c) < 32 for c in city + level)
             ):
                 return 1
-            print(json.dumps(regional_courses(city, level, date.fromisoformat(request["date"]))))
+            cutoffs: list[dict[str, str]] = []
+            hits = regional_courses(
+                city, level, date.fromisoformat(request["date"]), cutoffs=cutoffs
+            )
+            print(json.dumps(hits + cutoffs[:4]))
+            return 0
+        if mode == "venue_index":
+            from .venue_schedules import venue_query
+            from .search_layouts import search_index
+
+            query = venue_query(**json.loads(sys.stdin.buffer.read(4097)))
+            print(json.dumps(search_index(query)))
             return 0
         if mode == "search":
             return search()

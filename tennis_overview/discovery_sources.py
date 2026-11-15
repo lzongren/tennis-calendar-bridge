@@ -32,6 +32,7 @@ from .discovery_agent import (
 from .public_documents import read_public_document, refine_public_courses, search_public_courses
 from .public_web import Page, PageLink, public_url, search_subject
 from .player_event import event_path
+from .venue_schedules import Reader as VenueReader, matches_row
 
 Reader = Callable[[str], Awaitable[Page | BrowserDocument]]
 Searcher = Callable[[str, str, int, str], Awaitable[list[dict[str, str]]]]
@@ -95,6 +96,7 @@ class PublicSource:
     failure_reason: SourceFailureReason | None = None
     refinement_subject: str = ""
     directory_club: str = ""
+    venue_slot: tuple[str, str, str] | None = None
 
 
 @dataclass
@@ -111,6 +113,7 @@ class PublicSourceBackend:
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
     refiner: Refiner = refine_public_courses
     trace: Callable[[str, str], None] | None = None
+    venue_renderer: VenueReader | None = None
 
     def observed(self, stage: str, url: str) -> None:
         if self.trace is not None:
@@ -134,9 +137,15 @@ class PublicSourceBackend:
         return self.sources[key].ref
 
     def search_for(self, request: DiscoveryRequest) -> Searcher:
+        fallback = self.searcher
+
         async def dated_search(
             city: str, level: str, year: int, focus: str
         ) -> list[dict[str, str]]:
+            if fallback and not (
+                self.venue_renderer and request.search_mode == "area" and focus == "registration"
+            ):
+                return await fallback(city, level, year, focus)
             return await search_public_courses(
                 city,
                 level,
@@ -145,9 +154,11 @@ class PublicSourceBackend:
                 on_date=request.start
                 if request.search_mode == "area" and focus == "registration"
                 else None,
+                venue_renderer=self.venue_renderer,
+                trace=self.observed,
             )
 
-        return self.searcher or dated_search
+        return dated_search
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults:
         initial_urls = self.initial_urls if city.casefold() == request.city.casefold() else ()
@@ -204,6 +215,12 @@ class PublicSourceBackend:
                 if "listing" in candidate:
                     required.append(ref.id)
                     self.sources[ref.id].directory_club = candidate.get("club", "")
+                    if "slot_start" in candidate:
+                        self.sources[ref.id].venue_slot = (
+                            title,
+                            candidate["slot_start"],
+                            candidate["slot_end"],
+                        )
         returned = tuple(refs.values())[:12]
         return SearchResults(
             sources=returned,
@@ -328,6 +345,15 @@ class PublicSourceBackend:
                                 <= detail_slot.starts_at.date()
                                 < request.start + timedelta(days=28)
                                 and matches_level(candidate.model_dump(), request.level)
+                                and (
+                                    source.venue_slot is None
+                                    or matches_row(
+                                        page,
+                                        source.directory_club,
+                                        request.start,
+                                        *source.venue_slot,
+                                    )
+                                )
                                 and (
                                     not source.directory_club
                                     or (

@@ -81,6 +81,30 @@ def test_directory_expansion_uses_city_distance_and_observed_slugs() -> None:
 
 
 @pytest.mark.parametrize(
+    "heading, last, expected",
+    [
+        ("48+ upcoming programs", "2030-06-11", True),
+        ("48+ upcoming programs", "2030-06-12", False),
+        ("1 upcoming program", "2030-06-11", False),
+    ],
+)
+def test_only_publisher_capped_listing_ending_by_requested_day_triggers_lookup(
+    heading, last, expected
+):
+    cutoff = []
+
+    def read(url):
+        if "/tennis-courts/" in url:
+            return facility("santa-clara", "Santa Clara").encode()
+        return (f"<h1>{heading}</h1>" + card(10, day=last)).encode()
+
+    regional_courses("San Jose, CA", "3.0", DAY, read=read, cutoffs=cutoff)
+    assert bool(cutoff) is expected
+    if expected:
+        assert cutoff[0]["venue"] == VENUE.casefold()
+
+
+@pytest.mark.parametrize(
     "href", ["https://example.org/?page=2", "?action=book", "/players/events/e-66", ""]
 )
 def test_only_explicit_same_listing_pagination(href: str) -> None:

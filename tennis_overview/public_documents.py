@@ -13,6 +13,7 @@ from pydantic import TypeAdapter
 
 from .discovery_agent import SourceUnavailable, TransientSourceError
 from .public_web import Page, public_url
+from .venue_schedules import Reader, Trace, venue_details
 
 MAX_OUTPUT = 1_000_000
 
@@ -52,6 +53,8 @@ async def search_public_courses(
     *,
     subject: str = "",
     on_date: date | None = None,
+    venue_renderer: Reader | None = None,
+    trace: Trace | None = None,
 ) -> list[dict[str, str]]:
     """Anonymous public search, without inheriting model or portal credentials."""
     if on_date is not None and focus == "registration" and not subject:
@@ -61,8 +64,8 @@ async def search_public_courses(
             ).encode()
             raw = await run_public_worker("directory", payload, timeout=30)
             rows = TypeAdapter(list[dict[str, str]]).validate_json(raw)
-            if 0 < len(rows) <= 8:
-                return [
+            if 0 < len(rows) <= 12:
+                cards = [
                     {
                         "url": public_url(r["url"]),
                         "title": r["title"][:240],
@@ -70,7 +73,30 @@ async def search_public_courses(
                         "club": r["club"][:240],
                     }
                     for r in rows
+                    if "venue" not in r
                 ]
+
+                async def resolve(cutoff: dict[str, str]) -> list[dict[str, str]]:
+                    try:
+                        async with asyncio.timeout(32):
+                            return await venue_details(
+                                cutoff,
+                                on_date,
+                                index=venue_index,
+                                read=read_public_document,
+                                render=venue_renderer,
+                                trace=trace or (lambda *_: None),
+                            )
+                    except (SourceUnavailable, TimeoutError, ValueError, KeyError):
+                        return []
+
+                cutoffs = [r for r in rows if "venue" in r][:2]
+                recovered = await asyncio.gather(*(resolve(r) for r in cutoffs))
+                merged: dict[str, dict[str, str]] = {}
+                for r in [*(v for group in recovered for v in group), *cards]:
+                    merged.setdefault(r["url"], r)
+                if merged:
+                    return list(merged.values())[:8]
         except (SourceUnavailable, ValueError, KeyError):
             # A missing/unsupported region does not disable ordinary public search.
             pass
@@ -105,8 +131,16 @@ async def refine_public_courses(subject: str, city: str, year: int) -> list[dict
     )
 
 
+async def venue_index(club: str, town: str, day: date, title: str) -> list[dict[str, str]]:
+    payload = json.dumps(
+        {"club": club, "town": town, "day": day.isoformat(), "title": title}
+    ).encode()
+    raw = await run_public_worker("venue_index", payload, timeout=12)
+    return TypeAdapter(list[dict[str, str]]).validate_json(raw)[:8]
+
+
 async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> bytes:
-    if mode not in {"document", "search", "directory"} or len(payload) > 4096:
+    if mode not in {"document", "search", "directory", "venue_index"} or len(payload) > 4096:
         raise ValueError("Invalid public worker request")
     if not 0 < timeout <= 60:
         raise ValueError("Document timeout must be between zero and 60 seconds")

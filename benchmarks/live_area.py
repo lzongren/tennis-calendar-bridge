@@ -47,6 +47,16 @@ async def observe(request: DiscoveryRequest) -> dict[str, Any]:
             source_limit=limits.sources,
             trace=observe_stage,
         )
+        if os.environ.get("TENNIS_DISCOVERY_BROWSER_URL") and os.environ.get(
+            "TENNIS_DISCOVERY_BROWSER_KEY"
+        ):
+            from tennis_overview.browser_client import BrowserClient
+
+            browser = BrowserClient(
+                os.environ["TENNIS_DISCOVERY_BROWSER_URL"],
+                SecretStr(os.environ["TENNIS_DISCOVERY_BROWSER_KEY"]),
+            )
+            backend.venue_renderer = browser.render_venue
         started = time.monotonic()
         try:
             run = await run_discovery_agent(request, backend, model, usage=usage, limits=limits)

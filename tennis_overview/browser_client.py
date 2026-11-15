@@ -134,6 +134,22 @@ class BrowserClient:
             required_links=tuple(link.url for link in reply.links) if reply.partial else (),
         )
 
+    async def render_venue(self, url: str) -> Page:
+        """Render a public operator site only; never request a portal profile."""
+        url = read_url(url)
+        if (urlsplit(url).hostname or "").endswith("courtreserve.com"):
+            raise SourceUnavailable("Venue rendering does not accept registration portals")
+        try:
+            reply = await self.call(BrowserRequest(operation="read", url=url))
+            if reply.kind != "page" or read_url(reply.url) != url:
+                raise SourceUnavailable("Unexpected venue document")
+            links = tuple(PageLink(read_url(link.url), link.title) for link in reply.links)
+            return Page(
+                url, reply.title, reply.text, tuple(link.url for link in links), link_details=links
+            )
+        except (AgentDiscoveryError, ValueError):
+            raise SourceUnavailable("Public venue schedule unavailable") from None
+
     async def search(self, city: str, level: str, year: int, focus: str) -> list[dict[str, str]]:
         request = BrowserRequest.model_validate(
             {"operation": "search", "city": city, "level": level, "year": year, "focus": focus}
