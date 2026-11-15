@@ -50,7 +50,7 @@ def main() -> int:
 
             params = json.loads(sys.stdin.buffer.read(4097))
             query = venue_query(**params)
-            if params.get("variant") in {"brave","brave_broad"}:
+            if params.get("variant") in {"brave", "brave_broad"}:
                 print(json.dumps(brave_venue_page(query)))
                 return 0
             print(json.dumps(venue_index_page(query) if params["title"] else search_index(query)))
