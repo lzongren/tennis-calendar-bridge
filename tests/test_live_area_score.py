@@ -102,3 +102,9 @@ def test_absence_requires_two_observed_pages_for_the_reference_course(reference)
     assert diagnose({"link_stages": {key: good}}, ref) == "absent_from_both_observed_index_pages"
     assert diagnose({"link_stages": {key: good[:1]}}, ref) == "venue_index_incomplete"
     assert diagnose({"link_stages": {"other": good}}, ref) == "link_not_observed"
+    attempted = good + ["venue_index_brave_attempt"]
+    assert diagnose({"link_stages": {key: attempted}}, ref) == "venue_index_incomplete"
+    assert (
+        diagnose({"link_stages": {key: attempted + ["venue_index_brave_ok"]}}, ref)
+        == "absent_from_both_public_indexes"
+    )

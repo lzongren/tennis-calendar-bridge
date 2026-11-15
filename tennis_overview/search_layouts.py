@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlencode, urlsplit
 from bs4 import BeautifulSoup, Tag
 from ddgs.engines.yahoo import Yahoo
 from ddgs.exceptions import DDGSException
 from ddgs.results import TextResult
 from .player_event import event_path
+from .public_web import fetch_resource
 
 
 def _is_result_card(tag: Tag) -> bool:
@@ -107,4 +109,38 @@ def venue_index_page(query: str) -> dict[str, object]:
             for r in rows or []
             if event_path(r.href)
         ],
+    }
+
+
+def brave_venue_page(query: str) -> dict[str, object]:
+    url = "https://search.brave.com/search?" + urlencode({"q": query})
+    final, _, body = fetch_resource(url, ("text/html",))
+    if urlsplit(final).netloc != "search.brave.com" or urlsplit(final).path != "/search":
+        raise ValueError("Unexpected search destination")
+    soup = BeautifulSoup(body, "html.parser")
+    cards = soup.select('div[data-type="web"]')
+    if not cards and soup.find("div", string="Too few matches were found"):
+        return {"recognized": True, "anchors": [], "rows": [], "organic_count": 0}
+    if not 0 < len(cards) <= 64:
+        raise ValueError("Unrecognized secondary search response")
+    anchors, rows = [], []
+    recognized = 0
+    for card in cards:
+        titles = card.select("a[href] > .search-snippet-title")
+        if len(titles) != 1:
+            continue
+        title = titles[0]
+        anchor = title.parent
+        if not isinstance(anchor, Tag) or title.find_parent(attrs={"data-type": "web"}) is not card:
+            continue
+        recognized += 1
+        href = str(anchor["href"])
+        if event_path(href):
+            anchors.append(href)
+            rows.append({"href": href, "title": title.get_text(" ", strip=True)[:320]})
+    return {
+        "recognized": bool(recognized),
+        "anchors": anchors,
+        "rows": rows,
+        "organic_count": recognized,
     }

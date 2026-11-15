@@ -398,3 +398,10 @@ and a detail that does not match the venue and slot. An unusable search response
 is not evidence of absence. Optional `club` and `title` in the **scorer's**
 reference associate two successfully observed index pages with the held-out
 course. Neither belongs in the live runner's inputs.
+
+If the first index does not verify a timetable row, a credential-free worker
+queries Brave Search, an independent index, using the published venue, class
+and local time. A recognized response with no public event links permits one
+broader query (weekday and start time). A denied or unrecognized response does
+not. At most three new event pages from this second index are read; ads, booking
+portals, repeated event IDs and snippets are not registration evidence.

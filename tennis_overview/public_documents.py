@@ -83,8 +83,15 @@ async def search_public_courses(
                     ) -> list[dict[str, str]]:
                         return await venue_index(club, town, day, title, trace=trace)
 
+                    async def secondary(
+                        club: str, town: str, day: date, title: str, start: str, end: str
+                    ) -> list[dict[str, str]]:
+                        return await venue_index(
+                            club, town, day, title, slot=(start, end), trace=trace
+                        )
+
                     try:
-                        async with asyncio.timeout(32):
+                        async with asyncio.timeout(45):
                             return await venue_details(
                                 cutoff,
                                 on_date,
@@ -92,6 +99,7 @@ async def search_public_courses(
                                 read=read_public_document,
                                 render=venue_renderer,
                                 trace=trace or (lambda *_: None),
+                                secondary=secondary,
                             )
                     except (SourceUnavailable, TimeoutError, ValueError, KeyError):
                         return []
@@ -142,39 +150,63 @@ class IndexPage:
     anchors: list[str]
     rows: list[dict[str, str]]
     recognized: bool
+    organic_count: int | None = None
 
 
 async def venue_index(
-    club: str, town: str, day: date, title: str, *, trace: Trace | None = None
+    club: str,
+    town: str,
+    day: date,
+    title: str,
+    *,
+    trace: Trace | None = None,
+    slot: tuple[str, str] | None = None,
 ) -> list[dict[str, str]]:
     scope = index_scope(club, day, title)
 
-    async def lookup(variant: str) -> list[dict[str, str]]:
+    async def lookup(variant: str) -> tuple[list[dict[str, str]], bool]:
         stage = f"venue_index_{variant}"
+        if trace and variant.startswith("brave"):
+            trace(stage + "_attempt", scope)
         payload = json.dumps(
-            {"club": club, "town": town, "day": day.isoformat(), "title": title, "variant": variant}
+            {
+                "club": club,
+                "town": town,
+                "day": day.isoformat(),
+                "title": title,
+                "variant": variant,
+                **({"start": slot[0], "end": slot[1]} if slot else {}),
+            }
         ).encode()
         try:
             raw = await run_public_worker("venue_index", payload, timeout=12)
             if not title:
-                return TypeAdapter(list[dict[str, str]]).validate_json(raw)[:8]
+                return TypeAdapter(list[dict[str, str]]).validate_json(raw)[:8], True
             page = TypeAdapter(IndexPage).validate_json(raw)
         except (SourceUnavailable, ValueError):
             if trace:
                 trace(stage + "_unavailable", scope)
-            return []
+            return [], False
         if trace:
             trace(stage + ("_ok" if page.recognized else "_unavailable"), scope)
+            if page.organic_count is not None:
+                trace(f"{stage}_organic_{page.organic_count}", scope)
             for url in page.anchors:
                 trace(stage + "_anchor", url)
             for r in page.rows:
                 trace(stage + "_parsed", r["href"])
-        return page.rows
+        return page.rows, page.recognized
 
+    if slot:
+        rows, ok = await lookup("brave")
+        if ok and not rows:
+            rows, _ = await lookup("brave_broad")
+        return rows
     if not title:
-        return await lookup("weekday")
-    weekly = await lookup("weekday")
-    return weekly + await lookup("dated")
+        return (await lookup("weekday"))[0]
+    weekly, _ = await lookup("weekday")
+    dated, _ = await lookup("dated")
+    return weekly + dated
 
 
 async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> bytes:

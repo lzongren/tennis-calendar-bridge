@@ -14,6 +14,7 @@ from .public_web import Page, search_subject, validate_search_subject
 
 Reader = Callable[[str], Awaitable[Page]]
 Index = Callable[[str, str, date, str], Awaitable[list[dict[str, str]]]]
+SlotIndex = Callable[[str, str, date, str, str, str], Awaitable[list[dict[str, str]]]]
 Trace = Callable[[str, str], None]
 CLOCK = re.compile(r"(\d{1,2}:\d{2})\s*(AM|PM)?\s*[-–—]\s*(\d{1,2}:\d{2})\s*(AM|PM)", re.I)
 PROGRAM = re.compile(r"adult|class|clinic|schedule|program|session", re.I)
@@ -23,10 +24,30 @@ def index_scope(club: str, day: date, title: str) -> str:
     return f"venue-index:{search_subject(club).casefold()}:{day}:{search_subject(title).casefold()}"
 
 
-def venue_query(club: str, town: str, day: str, title: str, variant: str = "weekday") -> str:
+def venue_query(
+    club: str,
+    town: str,
+    day: str,
+    title: str,
+    variant: str = "weekday",
+    start: str = "",
+    end: str = "",
+) -> str:
     venue = validate_search_subject(club)
     place = validate_search_subject(town)
     requested = date.fromisoformat(day)
+    if variant in {"brave", "brave_broad"}:
+        if (
+            not all(re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", t) for t in (start, end))
+            or start >= end
+        ):
+            raise ValueError("Invalid public schedule time")
+        times = [
+            datetime.strptime(t, "%H:%M").strftime("%I:%M %p").lstrip("0") for t in (start, end)
+        ]
+        if variant == "brave_broad":
+            return f"{venue} {validate_search_subject(title)} {requested:%A} {times[0]} tennis"
+        return f'site:courtreserve.com/players/events {validate_search_subject(title)} "{venue}" {requested:%A %b %d} {times[0]} {times[1]}'
     if variant == "dated" and title:
         # Do not quote normalized course words as an exact phrase: normalization
         # may have removed punctuation from the publisher's title.
@@ -104,6 +125,7 @@ async def venue_details(
     read: Reader,
     render: Reader | None,
     trace: Trace,
+    secondary: SlotIndex | None = None,
 ) -> list[dict[str, str]]:
     club, town = search_subject(cutoff["venue"]), search_subject(cutoff["town"])
     if not club or not town:
@@ -153,6 +175,14 @@ async def venue_details(
             if portals:
                 trace("venue_series_link", portals[0])
             candidates = list(direct)
+
+            def relevance(row: dict[str, str]) -> tuple[bool, bool, bool]:
+                text = row.get("title", "") + " " + row.get("snippet", "")
+                label = " ".join(re.findall(r"\w+", text.casefold()))
+                course = search_subject(title).casefold() in label
+                venue = club.casefold() in label or town.casefold() in label
+                return not (course and venue), not course, not venue
+
             if not direct:
                 # A series portal is only a publisher hint. Do not retry an access
                 # challenge, render the portal or derive paths from its opaque IDs.
@@ -161,46 +191,55 @@ async def venue_details(
                 except SourceUnavailable:
                     indexed = []
 
-                def relevance(row: dict[str, str]) -> tuple[bool, bool, bool]:
-                    text = row.get("title", "") + " " + row.get("snippet", "")
-                    label = " ".join(re.findall(r"\w+", text.casefold()))
-                    course = search_subject(title).casefold() in label
-                    venue = club.casefold() in label or town.casefold() in label
-                    return not (course and venue), not course, not venue
-
                 candidates.extend(
                     r["href"] for r in sorted(indexed, key=relevance) if event_path(r["href"])
                 )
             # Aliases for the same event should not consume two detail reads.
-            distinct: dict[str, str] = {}
-            for url in candidates:
-                if path := event_path(url):
-                    distinct.setdefault(path, url)
-            selected = list(distinct.values())
-            for candidate in selected[:4]:
-                trace("venue_detail_selected", candidate)
-            for candidate in selected[4:]:
-                trace("venue_detail_rank_cut", candidate)
-            for candidate in selected[:4]:
-                trace("venue_detail_candidate", candidate)
-                try:
-                    detail = await read(candidate)
-                except SourceUnavailable:
-                    trace("venue_detail_unavailable", candidate)
-                    continue
-                if matches_row(detail, cutoff["venue"], day, title, start, end):
-                    trace("venue_detail_match", detail.url)
-                    found.append(
-                        {
-                            "url": detail.url,
-                            "title": title,
-                            "club": cutoff["venue"],
-                            "listing": schedule.url,
-                            "slot_start": start,
-                            "slot_end": end,
-                        }
+            tried: set[str] = set()
+
+            async def verify(urls: list[str], limit: int) -> Page | None:
+                distinct: dict[str, str] = {}
+                for url in urls:
+                    path = event_path(url)
+                    if path and path not in tried:
+                        distinct.setdefault(path, url)
+                selected = list(distinct.items())
+                for rank, (_, candidate) in enumerate(selected):
+                    trace(
+                        "venue_detail_selected" if rank < limit else "venue_detail_rank_cut",
+                        candidate,
                     )
-                    break
-                trace("venue_detail_mismatch", candidate)
+                for path, candidate in selected[:limit]:
+                    tried.add(path)
+                    trace("venue_detail_candidate", candidate)
+                    try:
+                        detail = await read(candidate)
+                    except SourceUnavailable:
+                        trace("venue_detail_unavailable", candidate)
+                        continue
+                    if matches_row(detail, cutoff["venue"], day, title, start, end):
+                        trace("venue_detail_match", detail.url)
+                        return detail
+                    trace("venue_detail_mismatch", candidate)
+                return None
+
+            match = await verify(candidates, 4)
+            if match is None and secondary is not None:
+                try:
+                    other = await secondary(club, town, day, search_subject(title), start, end)
+                except SourceUnavailable:
+                    other = []
+                match = await verify([r["href"] for r in sorted(other, key=relevance)], 3)
+            if match is not None:
+                found.append(
+                    {
+                        "url": match.url,
+                        "title": title,
+                        "club": cutoff["venue"],
+                        "listing": schedule.url,
+                        "slot_start": start,
+                        "slot_end": end,
+                    }
+                )
         return found
     return []

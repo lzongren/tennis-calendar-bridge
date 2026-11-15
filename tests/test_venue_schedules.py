@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import replace
 from datetime import date
 from unittest.mock import AsyncMock
@@ -11,6 +12,7 @@ from tennis_overview.browser_client import BrowserClient
 from tennis_overview.discovery_agent import SourceUnavailable
 from tennis_overview.player_event import PlayerEvent
 from tennis_overview.public_web import Page, PageLink
+from tennis_overview.public_documents import venue_index
 from tennis_overview.venue_schedules import (
     matches_row,
     venue_details,
@@ -77,6 +79,7 @@ def test_truncated_venue_to_rendered_schedule_to_verified_occurrence():
     )
     read = AsyncMock(side_effect=[replace(SCHEDULE, text="Welcome"), DETAIL])
     render = AsyncMock(return_value=SCHEDULE)
+    secondary = AsyncMock()
     stages = []
     rows = asyncio.run(
         venue_details(
@@ -86,6 +89,7 @@ def test_truncated_venue_to_rendered_schedule_to_verified_occurrence():
             read=read,
             render=render,
             trace=lambda s, u: stages.append(s),
+            secondary=secondary,
         )
     )
     assert rows == [
@@ -100,6 +104,7 @@ def test_truncated_venue_to_rendered_schedule_to_verified_occurrence():
     ]
     assert [c.args[0] for c in read.await_args_list] == [SITE, EVENT]
     render.assert_awaited_once_with(SITE)
+    secondary.assert_not_awaited()
     assert "venue_detail_match" in stages
     assert index.await_args_list[-1].args == (CLUB, "Example City", DAY, NAME)
 
@@ -145,3 +150,46 @@ def test_first_party_and_public_query_bounds():
         venue_query(CLUB, "Place", DAY.isoformat(), "site:example.com")
     with pytest.raises(SourceUnavailable):
         asyncio.run(BrowserClient.render_venue(None, PORTAL))
+
+
+def test_second_index_uses_observed_slot_after_primary_mismatch():
+    wrong = EVENT + "9"
+    primary = AsyncMock(side_effect=[[{"href": SITE}], [{"href": wrong}]])
+    secondary = AsyncMock(
+        return_value=[
+            {"href": wrong.replace("://court", "://player.court")},
+            {"href": PORTAL},
+            {"href": EVENT},
+        ]
+    )
+    read = AsyncMock(side_effect=[SCHEDULE, replace(DETAIL, player_event=None), DETAIL])
+    result = asyncio.run(
+        venue_details(
+            {"listing": "https://example.org/list", "venue": CLUB, "town": "Example City"},
+            DAY,
+            index=primary,
+            read=read,
+            render=None,
+            trace=lambda *_: None,
+            secondary=secondary,
+        )
+    )
+    secondary.assert_awaited_once_with(CLUB, "Example City", DAY, NAME, "18:30", "20:00")
+    assert [call.args[0] for call in read.await_args_list] == [SITE, wrong, EVENT]
+    assert result[0]["url"] == EVENT
+    query = venue_query(CLUB, "Example City", DAY.isoformat(), NAME, "brave", "18:30", "20:00")
+    assert all(term in query for term in (CLUB, NAME, "Tuesday", "6:30 PM", "8:00 PM"))
+    with pytest.raises(ValueError):
+        venue_query(
+            CLUB, "Example City", DAY.isoformat(), NAME, "brave", "18:30 site:example", "20:00"
+        )
+
+
+@pytest.mark.parametrize("blocked", [True, False])
+def test_broader_query_only_after_recognized_response(monkeypatch, blocked):
+    empty = b'{"anchors":[],"rows":[],"recognized":true,"organic_count":0}'
+    worker = AsyncMock(side_effect=[SourceUnavailable("blocked")] if blocked else [empty, empty])
+    monkeypatch.setattr("tennis_overview.public_documents.run_public_worker", worker)
+    assert not asyncio.run(venue_index(CLUB, "Example City", DAY, NAME, slot=("18:30", "20:00")))
+    expected = ["brave"] if blocked else ["brave", "brave_broad"]
+    assert [json.loads(call.args[1])["variant"] for call in worker.await_args_list] == expected

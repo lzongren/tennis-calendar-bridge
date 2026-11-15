@@ -52,6 +52,8 @@ def diagnose(report: dict[str, Any], reference: Reference) -> str:
         ("venue_detail_rank_cut", "dropped_by_ranking"),
         ("venue_index_weekday_parsed", "index_result_not_selected"),
         ("venue_index_dated_parsed", "index_result_not_selected"),
+        ("venue_index_brave_parsed", "index_result_not_selected"),
+        ("venue_index_brave_broad_parsed", "index_result_not_selected"),
         ("venue_index_weekday_anchor", "index_anchor_not_parsed"),
         ("venue_index_dated_anchor", "index_anchor_not_parsed"),
         ("read_attempt", "read_unsuccessful"),
@@ -64,6 +66,15 @@ def diagnose(report: dict[str, Any], reference: Reference) -> str:
     if reference.club and reference.title:
         key = index_scope(reference.club, reference.starts_at.date(), reference.title)
         queries = report["link_stages"].get(identity(key), [])
+        if "venue_index_brave_attempt" in queries:
+            if (
+                "venue_index_brave_broad_attempt" in queries
+                and "venue_index_brave_broad_ok" not in queries
+            ):
+                return "venue_index_incomplete"
+            if all(f"venue_index_{v}_ok" in queries for v in ("weekday", "dated", "brave")):
+                return "absent_from_both_public_indexes"
+            return "venue_index_incomplete"
         if all(f"venue_index_{variant}_ok" in queries for variant in ("weekday", "dated")):
             return "absent_from_both_observed_index_pages"
         if queries:

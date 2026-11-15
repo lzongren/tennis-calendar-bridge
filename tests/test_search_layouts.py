@@ -107,3 +107,35 @@ def test_explicit_provider_empty_is_distinct_from_an_unrecognized_page(monkeypat
     monkeypatch.setattr(LayoutAwareYahoo, "request", lambda *a, **kw: "<h1>Verify access</h1>")
     with pytest.raises(DDGSException):
         venue_index_page("A public search")
+
+
+def test_secondary_index_uses_only_organic_result_title_links(monkeypatch):
+    from tennis_overview.search_layouts import brave_venue_page
+
+    event = "https://courtreserve.com/players/events/e-77"
+    html = f"""<div data-type="web">
+    <a href="{event}"><div class="search-snippet-title">Adult clinic</div></a>
+    <a href="{event}1">Related course</a></div>
+    <div data-type="ad"><a href="{event}2"><div class="search-snippet-title">Ad</div></a></div>"""
+    monkeypatch.setattr(
+        "tennis_overview.search_layouts.fetch_resource",
+        lambda url, _: (url, "text/html", html.encode()),
+    )
+    page = brave_venue_page("Group tennis")
+    assert page == {
+        "recognized": True,
+        "rows": [{"title": "Adult clinic", "href": event}],
+        "anchors": [event],
+        "organic_count": 1,
+    }
+    monkeypatch.setattr(
+        "tennis_overview.search_layouts.fetch_resource",
+        lambda url, _: (url, "text/html", b"<h1>Verify access</h1>"),
+    )
+    with pytest.raises(ValueError):
+        brave_venue_page("Group tennis")
+    monkeypatch.setattr(
+        "tennis_overview.search_layouts.fetch_resource",
+        lambda url, _: (url, "text/html", b"<div>Too few matches were found</div>"),
+    )
+    assert brave_venue_page("Group tennis")["organic_count"] == 0
