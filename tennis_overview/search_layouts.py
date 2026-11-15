@@ -70,10 +70,20 @@ class VenueIndexYahoo(LayoutAwareYahoo):
     """Observe public event anchors independently of result-card parsing and ranking."""
 
     anchors: tuple[str, ...] = ()
+    explicit_empty: bool = False
 
     def extract_results(self, html_text: str) -> list[TextResult]:
         results = super().extract_results(html_text)
         soup = BeautifulSoup(html_text, "html.parser")
+        self.explicit_empty = (
+            not results
+            and soup.find("h2", string="Search Results") is not None
+            and any(
+                str(p.contents[0]).strip() == "We did not find results for:"
+                for p in soup.select("p")
+                if p.contents
+            )
+        )
         anchors = soup.select("a[href]")
         if len(anchors) > 1024:
             raise ValueError("Venue index page exceeds anchor budget")
@@ -87,13 +97,14 @@ class VenueIndexYahoo(LayoutAwareYahoo):
 def venue_index_page(query: str) -> dict[str, object]:
     engine = VenueIndexYahoo(timeout=8)
     rows = engine.search(query)
-    if not rows or len(rows) > 64:
+    if (not rows and not engine.explicit_empty and not engine.anchors) or len(rows or []) > 64:
         raise DDGSException("Venue index response unavailable or over budget")
     return {
         "anchors": engine.anchors,
+        "recognized": bool(rows) or engine.explicit_empty,
         "rows": [
             {"title": r.title[:320], "href": r.href, "snippet": r.body[:500]}
-            for r in rows
+            for r in rows or []
             if event_path(r.href)
         ],
     }

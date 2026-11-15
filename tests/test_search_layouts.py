@@ -98,3 +98,12 @@ def test_venue_page_reports_unparsed_anchor_and_keeps_ninth_card(monkeypatch):
     page = venue_index_page("Example public tennis")
     assert stray in page["anchors"]
     assert [r["href"] for r in page["rows"]] == [root + str(i) for i in range(1, 10)]
+
+
+def test_explicit_provider_empty_is_distinct_from_an_unrecognized_page(monkeypatch):
+    empty = "<h2>Search Results</h2><p>We did not find results for: <b>Example City</b></p>"
+    monkeypatch.setattr(LayoutAwareYahoo, "request", lambda *a, **kw: empty)
+    assert venue_index_page("A public search") == {"anchors": (), "recognized": True, "rows": []}
+    monkeypatch.setattr(LayoutAwareYahoo, "request", lambda *a, **kw: "<h1>Verify access</h1>")
+    with pytest.raises(DDGSException):
+        venue_index_page("A public search")

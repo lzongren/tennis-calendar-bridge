@@ -141,6 +141,7 @@ async def refine_public_courses(subject: str, city: str, year: int) -> list[dict
 class IndexPage:
     anchors: list[str]
     rows: list[dict[str, str]]
+    recognized: bool
 
 
 async def venue_index(
@@ -163,7 +164,7 @@ async def venue_index(
                 trace(stage + "_unavailable", scope)
             return []
         if trace:
-            trace(stage + "_ok", scope)
+            trace(stage + ("_ok" if page.recognized else "_unavailable"), scope)
             for url in page.anchors:
                 trace(stage + "_anchor", url)
             for r in page.rows:
@@ -172,8 +173,8 @@ async def venue_index(
 
     if not title:
         return await lookup("weekday")
-    weekly, dated = await asyncio.gather(lookup("weekday"), lookup("dated"))
-    return weekly + dated
+    weekly = await lookup("weekday")
+    return weekly + await lookup("dated")
 
 
 async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> bytes:
