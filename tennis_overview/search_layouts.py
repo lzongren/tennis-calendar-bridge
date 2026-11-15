@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlencode, urlsplit
 from bs4 import BeautifulSoup, Tag
 from ddgs.engines.yahoo import Yahoo
 from ddgs.exceptions import DDGSException
 from ddgs.results import TextResult
+from .player_event import event_path
+from .public_web import fetch_resource
 
 
 def _is_result_card(tag: Tag) -> bool:
@@ -63,3 +66,81 @@ def search_index(query: str) -> list[dict[str, str]]:
         # An unrecognized or blocked page is not evidence of zero matching courses.
         raise DDGSException("Public search results unavailable")
     return [{"title": row.title, "href": row.href} for row in rows[:8]]
+
+
+class VenueIndexYahoo(LayoutAwareYahoo):
+    """Observe public event anchors independently of result-card parsing and ranking."""
+
+    anchors: tuple[str, ...] = ()
+    explicit_empty: bool = False
+
+    def extract_results(self, html_text: str) -> list[TextResult]:
+        results = super().extract_results(html_text)
+        soup = BeautifulSoup(html_text, "html.parser")
+        self.explicit_empty = (
+            not results
+            and soup.find("h2", string="Search Results") is not None
+            and any(
+                str(p.contents[0]).strip() == "We did not find results for:"
+                for p in soup.select("p")
+                if p.contents
+            )
+        )
+        anchors = soup.select("a[href]")
+        if len(anchors) > 1024:
+            raise ValueError("Venue index page exceeds anchor budget")
+        decoded = self.post_extract_results(
+            [TextResult(title="", href=str(a["href"]), body="") for a in anchors]
+        )
+        self.anchors = tuple(dict.fromkeys(r.href for r in decoded if event_path(r.href)))
+        return results
+
+
+def venue_index_page(query: str) -> dict[str, object]:
+    engine = VenueIndexYahoo(timeout=8)
+    rows = engine.search(query)
+    if (not rows and not engine.explicit_empty and not engine.anchors) or len(rows or []) > 64:
+        raise DDGSException("Venue index response unavailable or over budget")
+    return {
+        "anchors": engine.anchors,
+        "recognized": bool(rows) or engine.explicit_empty,
+        "rows": [
+            {"title": r.title[:320], "href": r.href, "snippet": r.body[:500]}
+            for r in rows or []
+            if event_path(r.href)
+        ],
+    }
+
+
+def brave_venue_page(query: str) -> dict[str, object]:
+    url = "https://search.brave.com/search?" + urlencode({"q": query})
+    final, _, body = fetch_resource(url, ("text/html",))
+    if urlsplit(final).netloc != "search.brave.com" or urlsplit(final).path != "/search":
+        raise ValueError("Unexpected search destination")
+    soup = BeautifulSoup(body, "html.parser")
+    cards = soup.select('div[data-type="web"]')
+    if not cards and soup.find("div", string="Too few matches were found"):
+        return {"recognized": True, "anchors": [], "rows": [], "organic_count": 0}
+    if not 0 < len(cards) <= 64:
+        raise ValueError("Unrecognized secondary search response")
+    anchors, rows = [], []
+    recognized = 0
+    for card in cards:
+        titles = card.select("a[href] > .search-snippet-title")
+        if len(titles) != 1:
+            continue
+        title = titles[0]
+        anchor = title.parent
+        if not isinstance(anchor, Tag) or title.find_parent(attrs={"data-type": "web"}) is not card:
+            continue
+        recognized += 1
+        href = str(anchor["href"])
+        if event_path(href):
+            anchors.append(href)
+            rows.append({"href": href, "title": title.get_text(" ", strip=True)[:320]})
+    return {
+        "recognized": bool(recognized),
+        "anchors": anchors,
+        "rows": rows,
+        "organic_count": recognized,
+    }

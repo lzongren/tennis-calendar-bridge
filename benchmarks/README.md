@@ -365,3 +365,43 @@ unknown anonymous queue and evidence checks. No target URL is supplied in the
 request; the fixture owns it. Outbound traffic is restricted to the private model.
 This measures tool planning and reconciliation, not live web retrieval or city-wide
 recall. `--live-web` is deliberately rejected for this replay case.
+
+## Regional directory coverage
+
+For a dated area search, the registration tool resolves the input city and reads
+CourtReserve's public state tennis directory. It looks at up to six listed towns
+within 40 km of the city center, on the same side of the state boundary. Club
+names come from the directory, not from benchmark fixtures. Only dated cards
+belonging to those facilities are candidates. A card is not evidence of a seat:
+the agent must read the occurrence detail to verify time, rating, price and spots.
+
+Directory coverage is partial. The reader follows a published next-page link
+when present (two pages per town at most); it does not guess page or event IDs.
+If a listing ends before the requested time, a missing course means “not found,”
+not “sold out.” An empty or unavailable regional directory falls back to web search.
+Keep the reference URL out of the live runner; use it only in the separate scorer.
+
+If the publisher marks the listing as capped and its last visible day is on or
+before the requested date, the tool searches up to two listed operators by name,
+town and date. A matching branded site can supply weekday/time/title rows. The
+existing optional private browser renders a first-party schedule when its HTML
+is just a shell; this path never asks it to render a registration portal. For
+a series link, the tool also looks for a public single-occurrence page from
+the same publisher. A same-name class at another facility, an earlier week, or
+a matching schedule with no registration evidence does not establish seats.
+
+For a series link, do not request the series portal. Search the public event
+index by weekday and by calendar date. Inspect recognized result cards before
+the four-detail read cap; snippets are for ranking only. The trace distinguishes
+a public event anchor, a parsed result, a ranking exclusion, a read failure,
+and a detail that does not match the venue and slot. An unusable search response
+is not evidence of absence. Optional `club` and `title` in the **scorer's**
+reference associate two successfully observed index pages with the held-out
+course. Neither belongs in the live runner's inputs.
+
+If the first index does not verify a timetable row, a credential-free worker
+queries Brave Search, an independent index, using the published venue, class
+and local time. A recognized response with no public event links permits one
+broader query (weekday and start time). A denied or unrecognized response does
+not. At most three new event pages from this second index are read; ads, booking
+portals, repeated event IDs and snippets are not registration evidence.

@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from tennis_overview.player_event import event_path
 from tennis_overview.discovery_sources import identity
+from tennis_overview.venue_schedules import index_scope
 
 
 class Reference(BaseModel):
@@ -21,6 +22,8 @@ class Reference(BaseModel):
     ends_at: datetime
     price_usd: Decimal = Field(ge=0)
     spots_left: int = Field(gt=0, strict=True)
+    club: str = ""
+    title: str = ""
 
 
 def public_aliases(url: str) -> set[str]:
@@ -41,6 +44,18 @@ def diagnose(report: dict[str, Any], reference: Reference) -> str:
     for stage, outcome in (
         ("extracted", "extracted"),
         ("read_ok", "read_not_extracted"),
+        ("venue_detail_match", "matched_before_admission"),
+        ("venue_detail_mismatch", "detail_failed_occurrence_match"),
+        ("venue_detail_unavailable", "venue_detail_unavailable"),
+        ("venue_detail_candidate", "venue_read_attempted"),
+        ("venue_detail_selected", "selected_not_read"),
+        ("venue_detail_rank_cut", "dropped_by_ranking"),
+        ("venue_index_weekday_parsed", "index_result_not_selected"),
+        ("venue_index_dated_parsed", "index_result_not_selected"),
+        ("venue_index_brave_parsed", "index_result_not_selected"),
+        ("venue_index_brave_broad_parsed", "index_result_not_selected"),
+        ("venue_index_weekday_anchor", "index_anchor_not_parsed"),
+        ("venue_index_dated_anchor", "index_anchor_not_parsed"),
         ("read_attempt", "read_unsuccessful"),
         ("admitted", "admitted_not_read"),
         ("page_link", "linked_not_admitted"),
@@ -48,6 +63,22 @@ def diagnose(report: dict[str, Any], reference: Reference) -> str:
     ):
         if stage in stages:
             return outcome
+    if reference.club and reference.title:
+        key = index_scope(reference.club, reference.starts_at.date(), reference.title)
+        queries = report["link_stages"].get(identity(key), [])
+        if "venue_index_brave_attempt" in queries:
+            if (
+                "venue_index_brave_broad_attempt" in queries
+                and "venue_index_brave_broad_ok" not in queries
+            ):
+                return "venue_index_incomplete"
+            if all(f"venue_index_{v}_ok" in queries for v in ("weekday", "dated", "brave")):
+                return "absent_from_both_public_indexes"
+            return "venue_index_incomplete"
+        if all(f"venue_index_{variant}_ok" in queries for variant in ("weekday", "dated")):
+            return "absent_from_both_observed_index_pages"
+        if queries:
+            return "venue_index_incomplete"
     return "link_not_observed"
 
 

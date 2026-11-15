@@ -8,11 +8,13 @@ import os
 import sys
 import tempfile
 from datetime import date
+from dataclasses import dataclass
 
 from pydantic import TypeAdapter
 
 from .discovery_agent import SourceUnavailable, TransientSourceError
 from .public_web import Page, public_url
+from .venue_schedules import Reader, Trace, index_scope, venue_details
 
 MAX_OUTPUT = 1_000_000
 
@@ -52,8 +54,66 @@ async def search_public_courses(
     *,
     subject: str = "",
     on_date: date | None = None,
+    venue_renderer: Reader | None = None,
+    trace: Trace | None = None,
 ) -> list[dict[str, str]]:
     """Anonymous public search, without inheriting model or portal credentials."""
+    if on_date is not None and focus == "registration" and not subject:
+        try:
+            payload = json.dumps(
+                {"city": city, "level": level, "date": on_date.isoformat()}
+            ).encode()
+            raw = await run_public_worker("directory", payload, timeout=30)
+            rows = TypeAdapter(list[dict[str, str]]).validate_json(raw)
+            if 0 < len(rows) <= 12:
+                cards = [
+                    {
+                        "url": public_url(r["url"]),
+                        "title": r["title"][:240],
+                        "listing": public_url(r["listing"]),
+                        "club": r["club"][:240],
+                    }
+                    for r in rows
+                    if "venue" not in r
+                ]
+
+                async def resolve(cutoff: dict[str, str]) -> list[dict[str, str]]:
+                    async def index(
+                        club: str, town: str, day: date, title: str
+                    ) -> list[dict[str, str]]:
+                        return await venue_index(club, town, day, title, trace=trace)
+
+                    async def secondary(
+                        club: str, town: str, day: date, title: str, start: str, end: str
+                    ) -> list[dict[str, str]]:
+                        return await venue_index(
+                            club, town, day, title, slot=(start, end), trace=trace
+                        )
+
+                    try:
+                        async with asyncio.timeout(45):
+                            return await venue_details(
+                                cutoff,
+                                on_date,
+                                index=index,
+                                read=read_public_document,
+                                render=venue_renderer,
+                                trace=trace or (lambda *_: None),
+                                secondary=secondary,
+                            )
+                    except (SourceUnavailable, TimeoutError, ValueError, KeyError):
+                        return []
+
+                cutoffs = [r for r in rows if "venue" in r][:2]
+                recovered = await asyncio.gather(*(resolve(r) for r in cutoffs))
+                merged: dict[str, dict[str, str]] = {}
+                for r in [*(v for group in recovered for v in group), *cards]:
+                    merged.setdefault(r["url"], r)
+                if merged:
+                    return list(merged.values())[:8]
+        except (SourceUnavailable, ValueError, KeyError):
+            # A missing/unsupported region does not disable ordinary public search.
+            pass
     output = await run_public_worker(
         "search",
         json.dumps(
@@ -85,8 +145,72 @@ async def refine_public_courses(subject: str, city: str, year: int) -> list[dict
     )
 
 
+@dataclass(frozen=True)
+class IndexPage:
+    anchors: list[str]
+    rows: list[dict[str, str]]
+    recognized: bool
+    organic_count: int | None = None
+
+
+async def venue_index(
+    club: str,
+    town: str,
+    day: date,
+    title: str,
+    *,
+    trace: Trace | None = None,
+    slot: tuple[str, str] | None = None,
+) -> list[dict[str, str]]:
+    scope = index_scope(club, day, title)
+
+    async def lookup(variant: str) -> tuple[list[dict[str, str]], bool]:
+        stage = f"venue_index_{variant}"
+        if trace and variant.startswith("brave"):
+            trace(stage + "_attempt", scope)
+        payload = json.dumps(
+            {
+                "club": club,
+                "town": town,
+                "day": day.isoformat(),
+                "title": title,
+                "variant": variant,
+                **({"start": slot[0], "end": slot[1]} if slot else {}),
+            }
+        ).encode()
+        try:
+            raw = await run_public_worker("venue_index", payload, timeout=12)
+            if not title:
+                return TypeAdapter(list[dict[str, str]]).validate_json(raw)[:8], True
+            page = TypeAdapter(IndexPage).validate_json(raw)
+        except (SourceUnavailable, ValueError):
+            if trace:
+                trace(stage + "_unavailable", scope)
+            return [], False
+        if trace:
+            trace(stage + ("_ok" if page.recognized else "_unavailable"), scope)
+            if page.organic_count is not None:
+                trace(f"{stage}_organic_{page.organic_count}", scope)
+            for url in page.anchors:
+                trace(stage + "_anchor", url)
+            for r in page.rows:
+                trace(stage + "_parsed", r["href"])
+        return page.rows, page.recognized
+
+    if slot:
+        rows, ok = await lookup("brave")
+        if ok and not rows:
+            rows, _ = await lookup("brave_broad")
+        return rows
+    if not title:
+        return (await lookup("weekday"))[0]
+    weekly, _ = await lookup("weekday")
+    dated, _ = await lookup("dated")
+    return weekly + dated
+
+
 async def run_public_worker(mode: str, payload: bytes, *, timeout: float) -> bytes:
-    if mode not in {"document", "search"} or len(payload) > 4096:
+    if mode not in {"document", "search", "directory", "venue_index"} or len(payload) > 4096:
         raise ValueError("Invalid public worker request")
     if not 0 < timeout <= 60:
         raise ValueError("Document timeout must be between zero and 60 seconds")

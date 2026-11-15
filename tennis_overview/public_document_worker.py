@@ -25,6 +25,36 @@ def main() -> int:
         set_limits()
         logging.disable(logging.CRITICAL)
         mode = sys.argv[1] if len(sys.argv) == 2 else "document"
+        if mode == "directory":
+            from .regional_directory import regional_courses
+
+            request = json.loads(sys.stdin.buffer.read(4097))
+            city, level = request["city"], request["level"]
+            if (
+                not isinstance(city, str)
+                or not 1 <= len(city) <= 120
+                or not isinstance(level, str)
+                or len(level) > 80
+                or any(ord(c) < 32 for c in city + level)
+            ):
+                return 1
+            cutoffs: list[dict[str, str]] = []
+            hits = regional_courses(
+                city, level, date.fromisoformat(request["date"]), cutoffs=cutoffs
+            )
+            print(json.dumps(hits + cutoffs[:4]))
+            return 0
+        if mode == "venue_index":
+            from .venue_schedules import venue_query
+            from .search_layouts import brave_venue_page, search_index, venue_index_page
+
+            params = json.loads(sys.stdin.buffer.read(4097))
+            query = venue_query(**params)
+            if params.get("variant") in {"brave", "brave_broad"}:
+                print(json.dumps(brave_venue_page(query)))
+                return 0
+            print(json.dumps(venue_index_page(query) if params["title"] else search_index(query)))
+            return 0
         if mode == "search":
             return search()
         if mode != "document":
