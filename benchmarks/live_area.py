@@ -22,7 +22,7 @@ from tennis_overview.discovery_agent import (
     DiscoveryRequest,
     run_discovery_agent,
 )
-from tennis_overview.discovery_sources import PublicSourceBackend
+from tennis_overview.discovery_sources import PublicSourceBackend, identity
 from tennis_overview.private_model import PrivateModelConfig, private_model
 
 
@@ -35,8 +35,17 @@ async def observe(request: DiscoveryRequest) -> dict[str, Any]:
     usage = RunUsage()
     limits = LIVE_DISCOVERY_LIMITS
     async with private_model(config) as model:
+        trace: dict[str, list[str]] = {}
+
+        def observe_stage(stage: str, url: str) -> None:
+            stages = trace.setdefault(identity(url), [])
+            if stage not in stages:
+                stages.append(stage)
+
         backend = PublicSourceBackend(
-            CourseExtractor(model, usage, limits.model_requests), source_limit=limits.sources
+            CourseExtractor(model, usage, limits.model_requests),
+            source_limit=limits.sources,
+            trace=observe_stage,
         )
         started = time.monotonic()
         try:
@@ -52,8 +61,10 @@ async def observe(request: DiscoveryRequest) -> dict[str, Any]:
                 "source_statuses": dict(Counter(s.status for s in backend.sources.values())),
                 "sources": [{"url": s.url, "status": s.status} for s in backend.sources.values()],
                 "courses": [],
+                "link_stages": trace,
             }
         result = backend.result(run, request)
+        result["link_stages"] = trace
         result["elapsed_seconds"] = round(time.monotonic() - started, 2)
         result["audit_counts"] = dict(Counter(f"{e.tool}:{e.outcome}" for e in run.audit))
         return result

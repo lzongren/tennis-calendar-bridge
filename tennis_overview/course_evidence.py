@@ -36,6 +36,7 @@ class SessionEvidence(EvidenceModel):
     price_usd: Money | None = None
     availability: Availability = "unknown"
     waitlist_count: Count | None = None
+    spots_left: Count | None = None
 
     @model_validator(mode="after")
     def validate_occurrence(self) -> Self:
@@ -44,9 +45,16 @@ class SessionEvidence(EvidenceModel):
         if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
             raise ValueError("Occurrence end must follow start")
         if self.kind == "seasonal" and (
-            self.availability != "unknown" or self.waitlist_count is not None
+            self.availability != "unknown"
+            or self.waitlist_count is not None
+            or self.spots_left is not None
         ):
             raise ValueError("Seasonal schedules do not establish registration availability")
+        if self.spots_left is not None and (
+            self.starts_at is None
+            or self.availability != ("available" if self.spots_left else "full")
+        ):
+            raise ValueError("Remaining seats must belong to a dated registration and match status")
         return self
 
 
@@ -60,6 +68,7 @@ class VerifiedSession(EvidenceModel):
     price_usd: Money | None
     availability: Availability
     waitlist_count: Count | None
+    spots_left: Count | None = None
     # Public discovery has no personal registration context, even when count is known.
     user_waitlist_position: None = None
     evidence_ids: tuple[str, ...]
@@ -121,6 +130,12 @@ def reconcile_session(records: Sequence[SessionEvidence]) -> VerifiedSession:
     if counts_conflict or status not in {"full", "waitlist"}:
         count = None
 
+    spots, spots_conflict = _consensus([record.spots_left for record in authoritative])
+    if spots_conflict and "count_conflict" not in reasons:
+        reasons.append("count_conflict")
+    if spots_conflict or status not in {"available", "full"}:
+        spots = None
+
     return VerifiedSession(
         session_key=ordered[0].session_key,
         title=authoritative[0].title,
@@ -129,6 +144,7 @@ def reconcile_session(records: Sequence[SessionEvidence]) -> VerifiedSession:
         price_usd=price,
         availability=status,
         waitlist_count=count,
+        spots_left=spots,
         evidence_ids=tuple(record.source_id for record in ordered),
         needs_confirmation=bool(reasons) or status == "unknown",
         reasons=tuple(reasons),

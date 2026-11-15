@@ -16,7 +16,8 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from .browser_documents import BrowserDocument
 from .course_evidence import SessionEvidence
-from .course_extraction import CourseCandidate, CourseExtractor
+from .course_extraction import CourseCandidate, CourseExtractor, Occurrence
+from .discovery import matches_level
 from .courtreserve_discovery import RegistrationOccurrence, courtreserve_observation
 from .discovery_geography import nearby_cities
 from .discovery_agent import (
@@ -30,6 +31,7 @@ from .discovery_agent import (
 )
 from .public_documents import read_public_document, refine_public_courses, search_public_courses
 from .public_web import Page, PageLink, public_url, search_subject
+from .player_event import event_path
 
 Reader = Callable[[str], Awaitable[Page | BrowserDocument]]
 Searcher = Callable[[str, str, int, str], Awaitable[list[dict[str, str]]]]
@@ -40,6 +42,7 @@ Refiner = Callable[[str, str, int], Awaitable[list[dict[str, str]]]]
 AREA_RESULTS_PER_QUERY = 4
 REGISTRATION_LINK = re.compile(r"register|registration|portal|bookclass|bookcourse", re.I)
 SCHEDULE_LINK = re.compile(r"schedule|timetable|calendar", re.I)
+COMPETITION = re.compile(r"\b(?:tournaments?|championships?|league nationals?)\b", re.I)
 
 
 def identity(value: str) -> str:
@@ -55,13 +58,18 @@ def related_links(page: Page) -> tuple[PageLink, ...]:
         description = link.title + " " + path
         if link.url == page.url or re.search(r"pickleball|youth|junior|camp", description, re.I):
             continue
-        if link.relation != "same_as" and not re.search(
-            r"adult|tennis|clinic|schedule|timetable|calendar|register|registration|portal|bookclass|bookcourse|csc",
-            description,
-            re.I,
+        is_event = bool(event_path(link.url))
+        if (
+            link.relation != "same_as"
+            and not is_event
+            and not re.search(
+                r"adult|tennis|clinic|schedule|timetable|calendar|register|registration|portal|bookclass|bookcourse|csc",
+                description,
+                re.I,
+            )
         ):
             continue
-        if REGISTRATION_LINK.search(description):
+        if REGISTRATION_LINK.search(description) or is_event:
             rank = 0
         elif SCHEDULE_LINK.search(description) or (
             path.lower().endswith(".pdf")
@@ -93,7 +101,7 @@ class PublicSourceBackend:
     extractor: CourseExtractor
     initial_urls: tuple[str, ...] = ()
     reader: Reader = read_public_document
-    searcher: Searcher = search_public_courses
+    searcher: Searcher | None = None
     source_limit: int = 24
     sources: dict[str, PublicSource] = field(default_factory=dict)
     details: dict[str, CourseCandidate] = field(default_factory=dict)
@@ -101,6 +109,11 @@ class PublicSourceBackend:
     truncated: bool = False
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
     refiner: Refiner = refine_public_courses
+    trace: Callable[[str, str], None] | None = None
+
+    def observed(self, stage: str, url: str) -> None:
+        if self.trace is not None:
+            self.trace(stage, url)
 
     def register(self, url: str, title: str, depth: int) -> SourceRef | None:
         url = public_url(url)
@@ -116,12 +129,29 @@ class PublicSourceBackend:
             # Search rediscovery can make a previously linked page a new root.
             # Keep its identity/evidence; use the shortest observed path on future reads.
             self.sources[key].depth = min(self.sources[key].depth, depth)
+        self.observed("admitted", url)
         return self.sources[key].ref
+
+    def search_for(self, request: DiscoveryRequest) -> Searcher:
+        async def dated_search(
+            city: str, level: str, year: int, focus: str
+        ) -> list[dict[str, str]]:
+            return await search_public_courses(
+                city,
+                level,
+                year,
+                focus,
+                on_date=request.start
+                if request.search_mode == "area" and focus == "registration"
+                else None,
+            )
+
+        return self.searcher or dated_search
 
     async def search(self, city: str, request: DiscoveryRequest) -> SearchResults:
         initial_urls = self.initial_urls if city.casefold() == request.city.casefold() else ()
         try:
-            candidates = await self.searcher(
+            candidates = await self.search_for(request)(
                 city, request.level, request.start.year, request.search_focus
             )
         except SourceUnavailable:
@@ -143,10 +173,19 @@ class PublicSourceBackend:
             AREA_RESULTS_PER_QUERY if request.search_mode == "area" else max(0, 12 - len(refs))
         )
         admitted = 0
+        if request.search_focus == "registration":
+            candidates = sorted(candidates, key=lambda c: not event_path(c.get("url", "")))
         for candidate in candidates:
             try:
                 url = public_url(candidate["url"])
+                self.observed("search_hit", url)
                 title = candidate["title"]
+                if (
+                    request.search_focus == "registration"
+                    and COMPETITION.search(title + " " + urlsplit(url).path.replace("-", " "))
+                    and not re.search(r"\b(?:clinics?|lessons?|class(?:es)?)\b", title, re.I)
+                ):
+                    continue
                 if identity(url) in refs:
                     continue
                 if admitted >= query_limit:
@@ -182,11 +221,12 @@ class PublicSourceBackend:
         for candidate in candidates:
             try:
                 url = public_url(candidate["url"])
+                self.observed("search_hit", url)
                 if url == source.url or identity(url) in refs:
                     continue
                 if len(refs) >= AREA_RESULTS_PER_QUERY:
                     self.truncated = True
-                    break
+                    continue
                 ref = self.register(url, candidate["title"], 0)
             except (KeyError, ValueError):
                 continue
@@ -201,9 +241,15 @@ class PublicSourceBackend:
             raise SourceUnavailable("Undiscovered source")
         source = self.sources[source_id]
         source.refinement_subject = ""
+        self.observed("read_attempt", source.url)
         try:
             document = await self.reader(source.url)
+            self.observed("read_ok", document.url)
+            if isinstance(document, Page):
+                for url in document.links:
+                    self.observed("page_link", url)
             registration = None
+            player = None
             evidence_unavailable = False
             if isinstance(document, BrowserDocument):
                 try:
@@ -251,7 +297,33 @@ class PublicSourceBackend:
                     raise SourceUnavailable("Source needs dynamic or authenticated access")
                 extraction_timeout = asyncio.timeout_at(deadline)
                 try:
-                    if page.required_links:
+                    if page.player_event is not None:
+                        player = page.player_event
+                        detail_slot = Occurrence(
+                            starts_at=datetime.fromisoformat(player.start),
+                            ends_at=datetime.fromisoformat(player.end),
+                        )
+                        candidate = CourseCandidate(
+                            id=identity(page.url + player.start),
+                            title=player.title,
+                            level=player.level,
+                            price=player.price,
+                            signup_url=page.url,
+                            source_url=page.url,
+                            sessions=(detail_slot,),
+                            evidence="Public event detail: Starts, Ends, Registration fee, Spots left",
+                        )
+                        courses = (
+                            (candidate,)
+                            if (
+                                request.start
+                                <= detail_slot.starts_at.date()
+                                < request.start + timedelta(days=28)
+                                and matches_level(candidate.model_dump(), request.level)
+                            )
+                            else ()
+                        )
+                    elif page.required_links:
                         courses = ()
                     elif deadline is not None and asyncio.get_running_loop().time() >= deadline:
                         courses = ()
@@ -284,6 +356,7 @@ class PublicSourceBackend:
             )
             for course in courses[:8]:
                 occurrences = course.sessions or (None,)
+                self.observed("extracted", course.source_url)
                 for occurrence in occurrences:
                     key = identity(
                         course.id
@@ -298,15 +371,18 @@ class PublicSourceBackend:
                     record = SessionEvidence(
                         source_id=source_id,
                         session_key=key,
-                        kind="registration" if registration else "seasonal",
+                        kind="registration" if registration or player else "seasonal",
                         title=course.title,
                         starts_at=occurrence.starts_at if occurrence else None,
                         ends_at=occurrence.ends_at if occurrence else None,
                         price_usd=usd_price(course.price),
-                        availability=registration_facts[course.id][0]
+                        availability=("available" if player.spots else "full")
+                        if player
+                        else registration_facts[course.id][0]
                         if registration
                         else "unknown",
                         waitlist_count=registration_facts[course.id][1] if registration else None,
+                        spots_left=player.spots if player else None,
                     )
                     if key in records and records[key] != record:
                         raise SourceUnavailable("Ambiguous source occurrence")
@@ -317,7 +393,7 @@ class PublicSourceBackend:
             references = []
             ranked_links = related_links(page)
             for link in ranked_links[:6]:
-                is_registration = bool(
+                is_registration = bool(event_path(link.url)) or bool(
                     REGISTRATION_LINK.search(link.title + " " + urlsplit(link.url).path)
                 )
                 # Public directories can add a hop before the operator's signup
@@ -410,6 +486,8 @@ class PublicSourceBackend:
             key = identity(
                 detail.id + str(session.price_usd) + session.availability + str(session.reasons)
             )
+            if session.spots_left is not None:
+                key = identity(key + session.session_key)
             if key not in courses:
                 courses[key] = {
                     **detail.model_dump(mode="json"),
@@ -424,6 +502,7 @@ class PublicSourceBackend:
                     if session.availability == "unknown"
                     else session.availability,
                     "waitlist_count": session.waitlist_count,
+                    "spots_left": session.spots_left,
                     "user_waitlist_position": None,
                     "evidence_ids": list(session.evidence_ids),
                     "sessions": [],

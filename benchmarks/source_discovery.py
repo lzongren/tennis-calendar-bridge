@@ -377,7 +377,7 @@ async def evaluate(
                     backend.searcher = refinement_search
                     backend.refiner = refinement
                     backend.initial_urls = ()
-            reader, searcher, refiner = backend.reader, backend.searcher, backend.refiner
+            reader, searcher, refiner = backend.reader, backend.search_for(request), backend.refiner
 
             async def measured_read(url: str) -> Page | BrowserDocument:
                 with metrics.measure("source_read"):
